@@ -87,7 +87,9 @@ THIRD_PARTY_APPS = [
 
 LOCAL_APPS = [
     "disease_surveillance_dashboard.users",
-    # Your stuff: custom apps go here
+    "disease_surveillance_dashboard.access_control",
+    "reference_data",
+    
 ]
 # https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS

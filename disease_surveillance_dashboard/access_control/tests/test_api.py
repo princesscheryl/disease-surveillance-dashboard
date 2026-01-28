@@ -15,6 +15,12 @@ class RoleAPITestCase(APITestCase):
 
     def setUp(self):
         """Set up test data."""
+        self.user = User.objects.create_user(
+            email="tester@example.com",
+            password="testpass123",
+        )
+        self.client.force_authenticate(user=self.user)
+
         self.role = Role.objects.create(
             role_name="ADMIN",
             description="Administrator role",
@@ -50,10 +56,13 @@ class UserRoleAPITestCase(APITestCase):
 
     def setUp(self):
         """Set up test data."""
-        self.user = User.objects.create(
+        self.user = User.objects.create_user(
             email="testuser@example.com",
+            password="testpass123",
             full_name="Test User",
         )
+        self.client.force_authenticate(user=self.user)
+
         self.role = Role.objects.create(
             role_name="HEALTH_OFFICER",
             description="Health Officer role",

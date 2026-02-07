@@ -16,6 +16,9 @@ from disease_surveillance_dashboard.analytics.views import (
     BaselineMetricViewSet,
     TrendMetricViewSet,
 )
+from disease_surveillance_dashboard.investigations.views import (
+    InvestigationTaskViewSet,
+)
 from disease_surveillance_dashboard.reporting.views import (
     DuplicateFlagViewSet,
     ReportStatusViewSet,
@@ -37,6 +40,7 @@ router.register("alerts/statuses", AlertStatusViewSet, basename="alert-status")
 router.register("alerts/alerts", AlertViewSet, basename="alert")
 router.register("alerts/notes", AlertNoteViewSet, basename="alert-note")
 router.register("alerts/escalations", AlertEscalationViewSet, basename="alert-escalation")
+router.register("investigations/tasks", InvestigationTaskViewSet, basename="investigation-task")
 router.register("diseases", DiseaseViewSet, basename="disease")
 router.register("locations", LocationViewSet, basename="location")
 

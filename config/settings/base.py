@@ -89,6 +89,7 @@ LOCAL_APPS = [
     "disease_surveillance_dashboard.users",
     "disease_surveillance_dashboard.access_control",
     "disease_surveillance_dashboard.reporting",
+    "disease_surveillance_dashboard.analytics",
     "reference_data",
     
 ]

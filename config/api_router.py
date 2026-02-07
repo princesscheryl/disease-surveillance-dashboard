@@ -6,6 +6,10 @@ from disease_surveillance_dashboard.access_control.api.views import (
     RoleViewSet,
     UserRoleViewSet,
 )
+from disease_surveillance_dashboard.analytics.views import (
+    BaselineMetricViewSet,
+    TrendMetricViewSet,
+)
 from disease_surveillance_dashboard.reporting.views import (
     DuplicateFlagViewSet,
     ReportStatusViewSet,
@@ -21,6 +25,8 @@ router.register("access-control/user-roles", UserRoleViewSet)
 router.register("reporting/statuses", ReportStatusViewSet, basename="report-status")
 router.register("reporting/reports", ReportViewSet, basename="report")
 router.register("reporting/duplicate-flags", DuplicateFlagViewSet, basename="duplicate-flag")
+router.register("analytics/baselines", BaselineMetricViewSet, basename="baseline-metric")
+router.register("analytics/trends", TrendMetricViewSet, basename="trend-metric")
 router.register("diseases", DiseaseViewSet, basename="disease")
 router.register("locations", LocationViewSet, basename="location")
 

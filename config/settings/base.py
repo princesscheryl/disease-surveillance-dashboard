@@ -88,6 +88,7 @@ THIRD_PARTY_APPS = [
 LOCAL_APPS = [
     "disease_surveillance_dashboard.users",
     "disease_surveillance_dashboard.access_control",
+    "disease_surveillance_dashboard.reporting",
     "reference_data",
     
 ]

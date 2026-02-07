@@ -275,3 +275,6 @@ disease_surveillance_dashboard/media/
 .ipython/
 .env
 .envs/*
+
+# Local knowledge base (not for version control)
+PROJECT_CONTEXT.md

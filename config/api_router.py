@@ -6,6 +6,11 @@ from disease_surveillance_dashboard.access_control.api.views import (
     RoleViewSet,
     UserRoleViewSet,
 )
+from disease_surveillance_dashboard.reporting.views import (
+    DuplicateFlagViewSet,
+    ReportStatusViewSet,
+    ReportViewSet,
+)
 from disease_surveillance_dashboard.users.api.views import UserViewSet
 
 router = DefaultRouter() if settings.DEBUG else SimpleRouter()
@@ -13,6 +18,9 @@ router = DefaultRouter() if settings.DEBUG else SimpleRouter()
 router.register("users", UserViewSet)
 router.register("access-control/roles", RoleViewSet)
 router.register("access-control/user-roles", UserRoleViewSet)
+router.register("reporting/statuses", ReportStatusViewSet, basename="report-status")
+router.register("reporting/reports", ReportViewSet, basename="report")
+router.register("reporting/duplicate-flags", DuplicateFlagViewSet, basename="duplicate-flag")
 router.register("diseases", DiseaseViewSet, basename="disease")
 router.register("locations", LocationViewSet, basename="location")
 

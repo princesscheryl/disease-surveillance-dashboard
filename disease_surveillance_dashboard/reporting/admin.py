@@ -25,11 +25,22 @@ class ReportAdmin(admin.ModelAdmin):
         "location",
         "reported_by",
         "status",
+        "case_count",
+        "sex",
+        "age_group",
+        "severity_level",
         "observed_at",
         "submitted_at",
         "report_source",
     ]
-    list_filter = ["status", "disease", "report_source"]
+    list_filter = [
+        "status",
+        "disease",
+        "report_source",
+        "sex",
+        "age_group",
+        "severity_level",
+    ]
     search_fields = ["case_notes"]
     ordering = ["-submitted_at"]
     readonly_fields = ["submitted_at"]

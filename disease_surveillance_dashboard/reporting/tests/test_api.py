@@ -68,10 +68,18 @@ class ReportAPITestCase(APITestCase):
             "case_notes": "Patient presented with fever and chills",
             "status": self.status.id,
             "report_source": "WEB",
+            "case_count": 3,
+            "sex": "FEMALE",
+            "age_group": "AGE_18_59",
+            "severity_level": "MODERATE",
         }
         response = self.client.post(self.api_url, data, format="json")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(Report.objects.count(), 1)
+        self.assertEqual(response.data["case_count"], 3)
+        self.assertEqual(response.data["sex"], "FEMALE")
+        self.assertEqual(response.data["age_group"], "AGE_18_59")
+        self.assertEqual(response.data["severity_level"], "MODERATE")
 
     def test_report_list(self):
         """Test retrieving list of reports."""
@@ -81,6 +89,10 @@ class ReportAPITestCase(APITestCase):
             reported_by=self.user,
             observed_at=datetime.now(timezone.utc),
             status=self.status,
+            case_count=2,
+            sex="MALE",
+            age_group="AGE_5_17",
+            severity_level="MILD",
         )
         response = self.client.get(self.api_url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -99,6 +111,11 @@ class ReportAPITestCase(APITestCase):
         response = self.client.post(self.api_url, data, format="json")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertIsNone(response.data.get("report_source"))
+        # Verify defaults are applied
+        self.assertEqual(response.data.get("case_count"), 1)
+        self.assertEqual(response.data.get("sex"), "UNKNOWN")
+        self.assertEqual(response.data.get("age_group"), "UNKNOWN")
+        self.assertEqual(response.data.get("severity_level"), "UNKNOWN")
 
 
 class DuplicateFlagAPITestCase(APITestCase):
@@ -121,6 +138,7 @@ class DuplicateFlagAPITestCase(APITestCase):
             reported_by=self.user,
             observed_at=datetime.now(timezone.utc),
             status=self.status,
+            case_count=1,
         )
         self.api_url = "/api/v1/reporting/duplicate-flags/"
 

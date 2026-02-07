@@ -8,7 +8,7 @@ synchronously but can be adapted for asynchronous processing via Celery in the f
 
 from datetime import timedelta
 
-from django.db.models import Count
+from django.db.models import Sum
 from django.db.models.functions import TruncDate
 from django.utils import timezone
 
@@ -20,9 +20,9 @@ def compute_moving_average(disease_id, location_id, window_days=30):
     Compute moving average baseline for a disease-location pair.
 
     Calculates the average daily case count over the past N days by:
-    1. Fetching all verified reports for the disease and location
-    2. Grouping by date (observed_at)
-    3. Computing average daily count
+    1. Fetching all reports for the disease and location in the time window
+    2. Grouping by date (observed_at) and summing case_count per day
+    3. Computing average daily case count
 
     Args:
         disease_id: Primary key of Disease model
@@ -30,18 +30,17 @@ def compute_moving_average(disease_id, location_id, window_days=30):
         window_days: Number of days to look back (default: 30)
 
     Returns:
-        float: Average daily case count, or 0.0 if no reports found
+        float: Average daily case count (sum of case_count values), or 0.0 if no reports found
 
     Note:
-        This function only considers reports with verified status.
-        Future enhancements could filter by report status more flexibly.
+        Uses SUM(case_count) instead of COUNT(id) to account for reports
+        that may represent multiple cases. This provides accurate epidemiological
+        baseline calculations when reports aggregate multiple cases.
     """
     end_date = timezone.now()
     start_date = end_date - timedelta(days=window_days)
 
-    # Fetch verified reports in the time window
-    # Note: We assume reports with status containing "VERIFIED" are valid
-    # In production, you may want to filter by specific status IDs
+    # Fetch reports in the time window
     reports = Report.objects.filter(
         disease_id=disease_id,
         location_id=location_id,
@@ -52,20 +51,21 @@ def compute_moving_average(disease_id, location_id, window_days=30):
     if not reports.exists():
         return 0.0
 
-    # Group reports by date and count per day
-    daily_counts = (
+    # Group reports by date and sum case_count per day
+    # This accounts for reports that may represent multiple cases
+    daily_totals = (
         reports.annotate(date=TruncDate("observed_at"))
         .values("date")
-        .annotate(count=Count("id"))
-        .values_list("count", flat=True)
+        .annotate(total_cases=Sum("case_count"))
+        .values_list("total_cases", flat=True)
     )
 
-    if not daily_counts:
+    if not daily_totals:
         return 0.0
 
-    # Calculate average daily count
-    total_cases = sum(daily_counts)
-    num_days = len(daily_counts)
+    # Calculate average daily case count
+    total_cases = sum(daily_totals)
+    num_days = len(daily_totals)
     average = total_cases / num_days if num_days > 0 else 0.0
 
     return float(average)

@@ -32,6 +32,32 @@ class ReportStatus(models.Model):
 class Report(models.Model):
     """Model representing a disease report submitted by a health worker."""
 
+    class Sex(models.TextChoices):
+        """Sex choices for epidemiological reporting."""
+
+        MALE = "MALE", _("Male")
+        FEMALE = "FEMALE", _("Female")
+        OTHER = "OTHER", _("Other")
+        UNKNOWN = "UNKNOWN", _("Unknown")
+
+    class AgeGroup(models.TextChoices):
+        """Age group choices for epidemiological reporting."""
+
+        UNDER_5 = "UNDER_5", _("Under 5")
+        AGE_5_17 = "AGE_5_17", _("5-17")
+        AGE_18_59 = "AGE_18_59", _("18-59")
+        AGE_60_PLUS = "AGE_60_PLUS", _("60+")
+        UNKNOWN = "UNKNOWN", _("Unknown")
+
+    class SeverityLevel(models.TextChoices):
+        """Severity level choices for case classification."""
+
+        MILD = "MILD", _("Mild")
+        MODERATE = "MODERATE", _("Moderate")
+        SEVERE = "SEVERE", _("Severe")
+        CRITICAL = "CRITICAL", _("Critical")
+        UNKNOWN = "UNKNOWN", _("Unknown")
+
     disease = models.ForeignKey(
         "reference_data.Disease",
         on_delete=models.PROTECT,
@@ -50,7 +76,7 @@ class Report(models.Model):
         related_name="submitted_reports",
         verbose_name=_("Reported By"),
     )
-    observed_at = models.DateTimeField(_("Observed At"))
+    observed_at = models.DateTimeField(_("Observed At"), db_index=True)
     submitted_at = models.DateTimeField(_("Submitted At"), auto_now_add=True)
     case_notes = models.TextField(_("Case Notes"), blank=True)
     status = models.ForeignKey(
@@ -65,6 +91,31 @@ class Report(models.Model):
         null=True,
         blank=True,
     )
+    case_count = models.PositiveIntegerField(
+        _("Case Count"),
+        default=1,
+        help_text=_("Number of suspected cases in this report"),
+    )
+    sex = models.CharField(
+        _("Sex"),
+        max_length=20,
+        choices=Sex.choices,
+        default=Sex.UNKNOWN,
+        db_index=True,
+    )
+    age_group = models.CharField(
+        _("Age Group"),
+        max_length=20,
+        choices=AgeGroup.choices,
+        default=AgeGroup.UNKNOWN,
+        db_index=True,
+    )
+    severity_level = models.CharField(
+        _("Severity Level"),
+        max_length=20,
+        choices=SeverityLevel.choices,
+        default=SeverityLevel.UNKNOWN,
+    )
 
     class Meta:
         db_table = "reports"
@@ -75,6 +126,8 @@ class Report(models.Model):
             models.Index(fields=["disease", "location", "observed_at"]),
             models.Index(fields=["status"]),
             models.Index(fields=["reported_by"]),
+            models.Index(fields=["sex"]),
+            models.Index(fields=["age_group"]),
         ]
 
     def __str__(self) -> str:

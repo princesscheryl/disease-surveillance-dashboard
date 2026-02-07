@@ -1,3 +1,6 @@
+from rest_framework import status
+from rest_framework.decorators import action
+from rest_framework.response import Response
 from rest_framework import viewsets
 
 from .models import Alert
@@ -8,6 +11,7 @@ from .serializers import AlertEscalationSerializer
 from .serializers import AlertNoteSerializer
 from .serializers import AlertSerializer
 from .serializers import AlertStatusSerializer
+from .services import evaluate_trend_and_generate_alert
 
 
 class AlertStatusViewSet(viewsets.ModelViewSet):
@@ -31,6 +35,66 @@ class AlertViewSet(viewsets.ModelViewSet):
         "location__area_name",
         "threshold_rule",
     ]
+
+    @action(detail=False, methods=["post"])
+    def evaluate(self, request):
+        """
+        Evaluate a trend metric and generate an alert if threshold is exceeded.
+
+        This endpoint triggers the CUSUM-based alert evaluation for a specific
+        trend metric. It calls the evaluation service which computes CUSUM
+        and creates an alert if the threshold is exceeded.
+
+        Expected payload:
+        {
+            "trend_metric_id": <integer>
+        }
+
+        Returns:
+        - 201 Created: Alert was generated
+        - 200 OK: No alert generated (below threshold)
+        - 400 Bad Request: Invalid trend_metric_id or missing parameter
+        - 404 Not Found: TrendMetric not found
+        """
+        trend_metric_id = request.data.get("trend_metric_id")
+
+        if not trend_metric_id:
+            return Response(
+                {"error": "trend_metric_id is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            trend_metric_id = int(trend_metric_id)
+        except (ValueError, TypeError):
+            return Response(
+                {"error": "trend_metric_id must be an integer"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        alert_created, new_alert, cusum_value = evaluate_trend_and_generate_alert(
+            trend_metric_id
+        )
+
+        if not alert_created:
+            return Response(
+                {
+                    "message": "No alert generated",
+                    "cusum_value": cusum_value,
+                    "threshold": 5.0,
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        serializer = AlertSerializer(new_alert, context={"request": request})
+        return Response(
+            {
+                "message": "Alert generated",
+                "alert": serializer.data,
+                "cusum_value": cusum_value,
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class AlertNoteViewSet(viewsets.ModelViewSet):

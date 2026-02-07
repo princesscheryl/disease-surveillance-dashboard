@@ -1,5 +1,6 @@
 """Tests for alerts API endpoints."""
 
+from datetime import date
 from datetime import datetime
 from datetime import timezone
 
@@ -8,6 +9,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from disease_surveillance_dashboard.access_control.models import Role
+from disease_surveillance_dashboard.analytics.models import TrendMetric
 from reference_data.models import Disease
 from reference_data.models import Location
 
@@ -181,4 +183,111 @@ class AlertEscalationAPITestCase(APITestCase):
         response = self.client.post(self.api_url, data, format="json")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(AlertEscalation.objects.count(), 1)
+
+
+class AlertEvaluationAPITestCase(APITestCase):
+    """Test cases for alert evaluation endpoint."""
+
+    def setUp(self):
+        """Set up test data."""
+        self.user = User.objects.create_user(
+            email="evaluator@example.com",
+            password="testpass123",
+        )
+        self.client.force_authenticate(user=self.user)
+
+        self.disease = Disease.objects.create(disease_name="Malaria")
+        self.location = Location.objects.create(district_name="Accra Metro")
+        self.alert_status = AlertStatus.objects.create(
+            status_name="New",
+            description="New alert",
+        )
+        self.api_url = "/api/v1/alerts/alerts/evaluate/"
+
+    def test_evaluate_no_alert_below_threshold(self):
+        """Test that no alert is generated when CUSUM is below threshold."""
+        # Create trend metric with low observed value (below threshold)
+        # CUSUM = max(0, 0 + (5 - 4.0 - 0.5)) = 0.5, which is below threshold of 5.0
+        trend_metric = TrendMetric.objects.create(
+            disease=self.disease,
+            location=self.location,
+            period_start=date(2025, 1, 1),
+            period_end=date(2025, 1, 7),
+            total_cases=5,  # Low case count
+            moving_avg=4.0,  # Baseline close to observed
+        )
+
+        data = {"trend_metric_id": trend_metric.id}
+        response = self.client.post(self.api_url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("No alert generated", response.data["message"])
+        self.assertEqual(Alert.objects.count(), 0)
+
+    def test_evaluate_alert_when_cusum_exceeds_threshold(self):
+        """Test that alert is generated when CUSUM exceeds threshold."""
+        # Create trend metric with high observed value (will exceed threshold)
+        # CUSUM = max(0, 0 + (20 - 4.0 - 0.5)) = 15.5, which exceeds threshold of 5.0
+        trend_metric = TrendMetric.objects.create(
+            disease=self.disease,
+            location=self.location,
+            period_start=date(2025, 1, 1),
+            period_end=date(2025, 1, 7),
+            total_cases=20,  # High case count
+            moving_avg=4.0,  # Low baseline
+        )
+
+        data = {"trend_metric_id": trend_metric.id}
+        response = self.client.post(self.api_url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertIn("Alert generated", response.data["message"])
+        self.assertEqual(Alert.objects.count(), 1)
+
+        alert = Alert.objects.first()
+        self.assertEqual(alert.disease, self.disease)
+        self.assertEqual(alert.location, self.location)
+        self.assertEqual(alert.severity_level, "High")  # CUSUM 15.5 >= 15.0
+
+    def test_evaluate_alert_severity_levels(self):
+        """Test that alert severity is set correctly based on CUSUM magnitude."""
+        # Test Low severity (CUSUM between 5 and 10)
+        # CUSUM = max(0, 0 + (10 - 4.0 - 0.5)) = 5.5
+        trend_metric_low = TrendMetric.objects.create(
+            disease=self.disease,
+            location=self.location,
+            period_start=date(2025, 1, 1),
+            period_end=date(2025, 1, 7),
+            total_cases=10,  # Will give CUSUM = 5.5
+            moving_avg=4.0,
+        )
+
+        data = {"trend_metric_id": trend_metric_low.id}
+        response = self.client.post(self.api_url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        alert = Alert.objects.first()
+        # CUSUM = 10 - 4.0 - 0.5 = 5.5, so it's Low severity (5 <= CUSUM < 10)
+        self.assertEqual(alert.severity_level, "Low")
+
+    def test_evaluate_alert_linked_to_disease_and_location(self):
+        """Test that generated alert is correctly linked to disease and location."""
+        trend_metric = TrendMetric.objects.create(
+            disease=self.disease,
+            location=self.location,
+            period_start=date(2025, 1, 1),
+            period_end=date(2025, 1, 7),
+            total_cases=25,  # High enough to trigger alert
+            moving_avg=5.0,
+        )
+
+        data = {"trend_metric_id": trend_metric.id}
+        response = self.client.post(self.api_url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        alert = Alert.objects.first()
+        self.assertEqual(alert.disease, self.disease)
+        self.assertEqual(alert.location, self.location)
+        self.assertIsNotNone(alert.threshold_rule)
+        self.assertIn("CUSUM", alert.threshold_rule)
 

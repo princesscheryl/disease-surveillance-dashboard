@@ -27,6 +27,16 @@ class User(AbstractUser):
     username = None  # type: ignore[assignment]
     created_at = DateTimeField(auto_now_add=True)
 
+    @property
+    def name(self) -> str:
+        """Return full_name as name for backward compatibility."""
+        return self.full_name or ""
+
+    @name.setter
+    def name(self, value: str) -> None:
+        """Set full_name when name is assigned."""
+        self.full_name = value
+
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []
 

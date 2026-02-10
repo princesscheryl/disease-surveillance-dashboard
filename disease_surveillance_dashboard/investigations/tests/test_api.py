@@ -1,7 +1,7 @@
 """Tests for investigations API endpoints."""
 
+from datetime import UTC
 from datetime import datetime
-from datetime import timezone
 
 from django.contrib.auth import get_user_model
 from rest_framework import status
@@ -43,8 +43,8 @@ class InvestigationTaskAPITestCase(APITestCase):
         self.alert = Alert.objects.create(
             disease=self.disease,
             location=self.location,
-            period_start=datetime.now(timezone.utc),
-            period_end=datetime.now(timezone.utc),
+            period_start=datetime.now(UTC),
+            period_end=datetime.now(UTC),
             baseline_value=10.5000,
             observed_value=25.7500,
             threshold_rule="observed > 1.5x baseline",
@@ -95,17 +95,17 @@ class InvestigationTaskAPITestCase(APITestCase):
         )
         response = self.client.get(self.api_url, {"task_status": "OPEN"})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        
+
         # Handle pagination if response is paginated
         if isinstance(response.data, dict) and "results" in response.data:
             data = response.data["results"]
         else:
             data = response.data
-        
+
         # Verify we only get OPEN tasks
         self.assertEqual(len(data), 1)
         self.assertEqual(data[0]["task_status"], "OPEN")
-        
+
         # Verify all returned tasks have the filtered status
         for task in data:
             self.assertEqual(task["task_status"], "OPEN")

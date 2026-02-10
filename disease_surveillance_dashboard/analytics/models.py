@@ -41,7 +41,7 @@ class BaselineMetric(models.Model):
         ordering = ["-computed_for_end", "disease_id", "location_id"]
         indexes = [
             models.Index(
-                fields=["disease", "location", "computed_for_start", "computed_for_end"]
+                fields=["disease", "location", "computed_for_start", "computed_for_end"],
             ),
             models.Index(fields=["period_type", "baseline_method"]),
         ]

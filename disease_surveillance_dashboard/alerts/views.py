@@ -1,7 +1,7 @@
 from rest_framework import status
+from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework import viewsets
 
 from .models import Alert
 from .models import AlertEscalation
@@ -73,7 +73,7 @@ class AlertViewSet(viewsets.ModelViewSet):
             )
 
         alert_created, new_alert, cusum_value = evaluate_trend_and_generate_alert(
-            trend_metric_id
+            trend_metric_id,
         )
 
         if not alert_created:
@@ -110,7 +110,7 @@ class AlertEscalationViewSet(viewsets.ModelViewSet):
     """ViewSet for AlertEscalation model."""
 
     queryset = AlertEscalation.objects.select_related(
-        "alert", "escalated_from_role", "escalated_to_role"
+        "alert", "escalated_from_role", "escalated_to_role",
     )
     serializer_class = AlertEscalationSerializer
     filterset_fields = [

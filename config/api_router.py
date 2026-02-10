@@ -1,34 +1,24 @@
 from django.conf import settings
-from rest_framework.routers import DefaultRouter, SimpleRouter
+from rest_framework.routers import DefaultRouter
+from rest_framework.routers import SimpleRouter
 
-from reference_data.views import DiseaseViewSet, LocationViewSet
-from disease_surveillance_dashboard.access_control.api.views import (
-    RoleViewSet,
-    UserRoleViewSet,
-)
-from disease_surveillance_dashboard.alerts.views import (
-    AlertEscalationViewSet,
-    AlertNoteViewSet,
-    AlertStatusViewSet,
-    AlertViewSet,
-)
-from disease_surveillance_dashboard.analytics.views import (
-    BaselineMetricViewSet,
-    TrendMetricViewSet,
-)
-from disease_surveillance_dashboard.exports.views import (
-    AuditLogViewSet,
-    ExportViewSet,
-)
-from disease_surveillance_dashboard.investigations.views import (
-    InvestigationTaskViewSet,
-)
-from disease_surveillance_dashboard.reporting.views import (
-    DuplicateFlagViewSet,
-    ReportStatusViewSet,
-    ReportViewSet,
-)
+from disease_surveillance_dashboard.access_control.api.views import RoleViewSet
+from disease_surveillance_dashboard.access_control.api.views import UserRoleViewSet
+from disease_surveillance_dashboard.alerts.views import AlertEscalationViewSet
+from disease_surveillance_dashboard.alerts.views import AlertNoteViewSet
+from disease_surveillance_dashboard.alerts.views import AlertStatusViewSet
+from disease_surveillance_dashboard.alerts.views import AlertViewSet
+from disease_surveillance_dashboard.analytics.views import BaselineMetricViewSet
+from disease_surveillance_dashboard.analytics.views import TrendMetricViewSet
+from disease_surveillance_dashboard.exports.views import AuditLogViewSet
+from disease_surveillance_dashboard.exports.views import ExportViewSet
+from disease_surveillance_dashboard.investigations.views import InvestigationTaskViewSet
+from disease_surveillance_dashboard.reporting.views import DuplicateFlagViewSet
+from disease_surveillance_dashboard.reporting.views import ReportStatusViewSet
+from disease_surveillance_dashboard.reporting.views import ReportViewSet
 from disease_surveillance_dashboard.users.api.views import UserViewSet
+from reference_data.views import DiseaseViewSet
+from reference_data.views import LocationViewSet
 
 router = DefaultRouter() if settings.DEBUG else SimpleRouter()
 

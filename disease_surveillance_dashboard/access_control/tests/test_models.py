@@ -85,8 +85,8 @@ class UserRoleModelTestCase(TestCase):
     def test_user_can_have_multiple_roles(self):
         """Test that a user can be assigned multiple different roles."""
         role2 = Role.objects.create(role_name="ANALYST")
-        user_role1 = UserRole.objects.create(user=self.user, role=self.role)
-        user_role2 = UserRole.objects.create(user=self.user, role=role2)
+        UserRole.objects.create(user=self.user, role=self.role)
+        UserRole.objects.create(user=self.user, role=role2)
 
         user_roles = UserRole.objects.filter(user=self.user)
         self.assertEqual(user_roles.count(), 2)

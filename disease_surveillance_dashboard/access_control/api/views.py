@@ -50,7 +50,7 @@ class UserRoleViewSet(ModelViewSet):
             )
 
         user_roles = UserRole.objects.filter(user_id=user_id).select_related(
-            "user", "role"
+            "user", "role",
         )
         serializer = self.get_serializer(user_roles, many=True)
         return Response(serializer.data)

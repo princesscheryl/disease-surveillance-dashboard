@@ -22,19 +22,19 @@ class ExportViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Apply filters from query parameters."""
         queryset = super().get_queryset()
-        
+
         export_type = self.request.query_params.get("export_type")
         if export_type:
             queryset = queryset.filter(export_type=export_type)
-        
+
         status = self.request.query_params.get("status")
         if status:
             queryset = queryset.filter(status=status)
-        
+
         generated_by = self.request.query_params.get("generated_by")
         if generated_by:
             queryset = queryset.filter(generated_by_id=generated_by)
-        
+
         return queryset
 
 
@@ -54,18 +54,18 @@ class AuditLogViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Apply filters from query parameters."""
         queryset = super().get_queryset()
-        
+
         entity_type = self.request.query_params.get("entity_type")
         if entity_type:
             queryset = queryset.filter(entity_type=entity_type)
-        
+
         action_type = self.request.query_params.get("action_type")
         if action_type:
             queryset = queryset.filter(action_type=action_type)
-        
+
         actor_user = self.request.query_params.get("actor_user")
         if actor_user:
             queryset = queryset.filter(actor_user_id=actor_user)
-        
+
         return queryset
 

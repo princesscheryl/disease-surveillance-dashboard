@@ -21,7 +21,7 @@ class ReportViewSet(viewsets.ModelViewSet):
     """ViewSet for Report model."""
 
     queryset = Report.objects.select_related(
-        "disease", "location", "reported_by", "status"
+        "disease", "location", "reported_by", "status",
     )
     serializer_class = ReportSerializer
     filterset_fields = ["disease", "location", "status", "reported_by", "report_source"]

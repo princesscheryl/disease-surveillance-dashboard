@@ -1,4 +1,3 @@
-# ruff: noqa: ERA001, E501
 """Base settings to build other settings files upon."""
 
 import ssl
@@ -27,13 +26,6 @@ DEBUG = env.bool("DJANGO_DEBUG", False)
 TIME_ZONE = "Africa/Accra"
 # https://docs.djangoproject.com/en/dev/ref/settings/#language-code
 LANGUAGE_CODE = "en-us"
-# https://docs.djangoproject.com/en/dev/ref/settings/#languages
-# from django.utils.translation import gettext_lazy as _
-# LANGUAGES = [
-#     ('en', _('English')),
-#     ('fr-fr', _('French')),
-#     ('pt-br', _('Portuguese')),
-# ]
 # https://docs.djangoproject.com/en/dev/ref/settings/#site-id
 SITE_ID = 1
 # https://docs.djangoproject.com/en/dev/ref/settings/#use-i18n
@@ -93,8 +85,9 @@ LOCAL_APPS = [
     "disease_surveillance_dashboard.alerts",
     "disease_surveillance_dashboard.investigations",
     "disease_surveillance_dashboard.exports",
+    "disease_surveillance_dashboard.dashboard",
     "reference_data",
-    
+
 ]
 # https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS

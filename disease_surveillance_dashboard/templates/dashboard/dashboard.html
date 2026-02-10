@@ -1,0 +1,584 @@
+{% extends "base.html" %}
+{% load static i18n %}
+
+{% block title %}Monitoring Dashboard{% endblock %}
+
+{% block css %}
+{{ block.super }}
+<!-- Chart.js -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.min.css">
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+  .kpi-card {
+    border-left: 4px solid #007bff;
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }
+  .kpi-value {
+    font-size: 2rem;
+    font-weight: bold;
+  }
+  #map {
+    height: 500px;
+    width: 100%;
+  }
+  .chart-container {
+    position: relative;
+    height: 300px;
+    margin-bottom: 2rem;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4" x-data="dashboardData()" x-init="init()">
+  <h1 class="mb-4">Disease Surveillance Monitoring Dashboard</h1>
+
+  <!-- Filters -->
+  <div class="card mb-4">
+    <div class="card-header">
+      <h5>Filters</h5>
+    </div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-3">
+          <label for="startDate" class="form-label">Start Date</label>
+          <input type="date" id="startDate" class="form-control" x-model="filters.startDate" @change="loadData()">
+        </div>
+        <div class="col-md-3">
+          <label for="endDate" class="form-label">End Date</label>
+          <input type="date" id="endDate" class="form-control" x-model="filters.endDate" @change="loadData()">
+        </div>
+        <div class="col-md-3">
+          <label for="diseaseFilter" class="form-label">Disease (Optional)</label>
+          <select id="diseaseFilter" class="form-select" x-model="filters.diseaseId" @change="loadData()">
+            <option value="">All Diseases</option>
+            <template x-for="disease in diseases" :key="disease.id">
+              <option :value="disease.id" x-text="disease.disease_name"></option>
+            </template>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label for="locationFilter" class="form-label">Location (Optional)</label>
+          <select id="locationFilter" class="form-select" x-model="filters.locationId" @change="loadData()">
+            <option value="">All Locations</option>
+            <template x-for="location in locations" :key="location.id">
+              <option :value="location.id" x-text="location.district_name"></option>
+            </template>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- KPI Cards -->
+  <div class="row mb-4">
+    <div class="col-md-3">
+      <div class="card kpi-card">
+        <div class="card-body">
+          <h6 class="text-muted">Cases (7 days)</h6>
+          <div class="kpi-value" x-text="summary.cases_7d || 0"></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card kpi-card">
+        <div class="card-body">
+          <h6 class="text-muted">Cases (30 days)</h6>
+          <div class="kpi-value" x-text="summary.cases_30d || 0"></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card kpi-card">
+        <div class="card-body">
+          <h6 class="text-muted">Reports (7 days)</h6>
+          <div class="kpi-value" x-text="summary.reports_7d || 0"></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card kpi-card">
+        <div class="card-body">
+          <h6 class="text-muted">Active Alerts</h6>
+          <div class="kpi-value" x-text="summary.active_alerts || 0"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts Row -->
+  <div class="row mb-4">
+    <div class="col-md-8">
+      <div class="card">
+        <div class="card-header">
+          <h5>Daily Cases Trend</h5>
+        </div>
+        <div class="card-body">
+          <div class="chart-container">
+            <canvas id="casesChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header">
+          <h5>Top Diseases</h5>
+        </div>
+        <div class="card-body">
+          <div class="chart-container">
+            <canvas id="diseasesChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Map -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header">
+          <h5>Geographic Distribution</h5>
+        </div>
+        <div class="card-body">
+          <div id="map"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Operational Response Tables -->
+  <div class="row mb-4">
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h5>Recent Alerts</h5>
+          <button class="btn btn-sm btn-primary" @click="evaluateWarning()" x-show="canEvaluate">
+            Evaluate Early Warning
+          </button>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-sm">
+              <thead>
+                <tr>
+                  <th>Disease</th>
+                  <th>Location</th>
+                  <th>Severity</th>
+                  <th>Status</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="alert in recentAlerts" :key="alert.id">
+                  <tr>
+                    <td x-text="alert.disease_name"></td>
+                    <td x-text="alert.location_name"></td>
+                    <td><span class="badge" :class="getSeverityClass(alert.severity_level)" x-text="alert.severity_level"></span></td>
+                    <td x-text="alert.status_name"></td>
+                    <td x-text="formatDate(alert.created_at)"></td>
+                  </tr>
+                </template>
+                <tr x-show="recentAlerts.length === 0">
+                  <td colspan="5" class="text-center text-muted">No alerts</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header">
+          <h5>Recent Investigation Tasks</h5>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-sm">
+              <thead>
+                <tr>
+                  <th>Alert ID</th>
+                  <th>Assigned To</th>
+                  <th>Status</th>
+                  <th>Due Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="task in recentInvestigations" :key="task.id">
+                  <tr>
+                    <td x-text="task.alert_id"></td>
+                    <td x-text="task.assigned_to_name || 'Unassigned'"></td>
+                    <td><span class="badge bg-secondary" x-text="task.task_status"></span></td>
+                    <td x-text="task.due_at ? formatDate(task.due_at) : '-'"></td>
+                  </tr>
+                </template>
+                <tr x-show="recentInvestigations.length === 0">
+                  <td colspan="4" class="text-center text-muted">No tasks</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block javascript %}
+{{ block.super }}
+<!-- Alpine.js -->
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js"></script>
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+{% endblock %}
+
+{% block inline_javascript %}
+<script>
+function dashboardData() {
+  return {
+    summary: {},
+    timeseries: [],
+    topDiseases: [],
+    mapPoints: [],
+    recentAlerts: [],
+    recentInvestigations: [],
+    diseases: [],
+    locations: [],
+    filters: {
+      startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      endDate: new Date().toISOString().split('T')[0],
+      diseaseId: '',
+      locationId: ''
+    },
+    canEvaluate: false,
+    casesChart: null,
+    diseasesChart: null,
+    map: null,
+
+    async init() {
+      // Load reference data
+      await this.loadDiseases();
+      await this.loadLocations();
+      await this.checkEvaluatePermission();
+      await this.loadData();
+      this.initMap();
+    },
+
+    async loadDiseases() {
+      try {
+        const response = await fetch('/api/v1/diseases/', {
+          credentials: 'include',
+          headers: {
+            'X-CSRFToken': this.getCsrfToken()
+          }
+        });
+        const data = await response.json();
+        this.diseases = Array.isArray(data) ? data : (data.results || []);
+      } catch (error) {
+        console.error('Error loading diseases:', error);
+      }
+    },
+
+    async loadLocations() {
+      try {
+        const response = await fetch('/api/v1/locations/', {
+          credentials: 'include',
+          headers: {
+            'X-CSRFToken': this.getCsrfToken()
+          }
+        });
+        const data = await response.json();
+        this.locations = Array.isArray(data) ? data : (data.results || []);
+      } catch (error) {
+        console.error('Error loading locations:', error);
+      }
+    },
+
+    async checkEvaluatePermission() {
+      // Check if user has evaluation permission by trying to access evaluate endpoint
+      // In production, this could be a separate permission check endpoint
+      this.canEvaluate = true; // Simplified - in production check user roles
+    },
+
+    buildQueryParams() {
+      const params = new URLSearchParams();
+      if (this.filters.startDate) params.append('start_date', this.filters.startDate);
+      if (this.filters.endDate) params.append('end_date', this.filters.endDate);
+      if (this.filters.diseaseId) params.append('disease_id', this.filters.diseaseId);
+      if (this.filters.locationId) params.append('location_id', this.filters.locationId);
+      return params.toString();
+    },
+
+    async loadData() {
+      const params = this.buildQueryParams();
+      
+      // Load all dashboard data in parallel
+      await Promise.all([
+        this.loadSummary(params),
+        this.loadTimeseries(params),
+        this.loadTopDiseases(params),
+        this.loadMapPoints(params),
+        this.loadRecentAlerts(params),
+        this.loadRecentInvestigations()
+      ]);
+
+      // Update charts and map after data loads
+      this.updateCharts();
+      this.updateMap();
+    },
+
+    getCsrfToken() {
+      const cookies = document.cookie.split(';');
+      for (let cookie of cookies) {
+        const [name, value] = cookie.trim().split('=');
+        if (name === 'csrftoken') {
+          return value;
+        }
+      }
+      return '';
+    },
+
+    async loadSummary(params) {
+      try {
+        const response = await fetch(`/api/v1/dashboard/summary/?${params}`, {
+          credentials: 'include',
+          headers: {
+            'X-CSRFToken': this.getCsrfToken()
+          }
+        });
+        if (response.ok) {
+          this.summary = await response.json();
+        }
+      } catch (error) {
+        console.error('Error loading summary:', error);
+      }
+    },
+
+    async loadTimeseries(params) {
+      try {
+        const response = await fetch(`/api/v1/dashboard/cases-timeseries/?${params}`, {
+          credentials: 'include',
+          headers: {
+            'X-CSRFToken': this.getCsrfToken()
+          }
+        });
+        if (response.ok) {
+          this.timeseries = await response.json();
+        }
+      } catch (error) {
+        console.error('Error loading timeseries:', error);
+      }
+    },
+
+    async loadTopDiseases(params) {
+      try {
+        const response = await fetch(`/api/v1/dashboard/top-diseases/?${params}`, {
+          credentials: 'include',
+          headers: {
+            'X-CSRFToken': this.getCsrfToken()
+          }
+        });
+        if (response.ok) {
+          this.topDiseases = await response.json();
+        }
+      } catch (error) {
+        console.error('Error loading top diseases:', error);
+      }
+    },
+
+    async loadMapPoints(params) {
+      try {
+        const response = await fetch(`/api/v1/dashboard/map-points/?${params}`, {
+          credentials: 'include',
+          headers: {
+            'X-CSRFToken': this.getCsrfToken()
+          }
+        });
+        if (response.ok) {
+          this.mapPoints = await response.json();
+        }
+      } catch (error) {
+        console.error('Error loading map points:', error);
+      }
+    },
+
+    async loadRecentAlerts(params) {
+      try {
+        const response = await fetch(`/api/v1/dashboard/recent-alerts/?${params}`, {
+          credentials: 'include',
+          headers: {
+            'X-CSRFToken': this.getCsrfToken()
+          }
+        });
+        if (response.ok) {
+          this.recentAlerts = await response.json();
+        }
+      } catch (error) {
+        console.error('Error loading recent alerts:', error);
+      }
+    },
+
+    async loadRecentInvestigations() {
+      try {
+        const response = await fetch('/api/v1/dashboard/recent-investigations/', {
+          credentials: 'include',
+          headers: {
+            'X-CSRFToken': this.getCsrfToken()
+          }
+        });
+        if (response.ok) {
+          this.recentInvestigations = await response.json();
+        }
+      } catch (error) {
+        console.error('Error loading recent investigations:', error);
+      }
+    },
+
+    updateCharts() {
+      // Update cases line chart
+      if (this.casesChart) {
+        this.casesChart.destroy();
+      }
+      const casesCtx = document.getElementById('casesChart');
+      if (casesCtx) {
+        this.casesChart = new Chart(casesCtx, {
+          type: 'line',
+          data: {
+            labels: this.timeseries.map(d => d.date),
+            datasets: [{
+              label: 'Cases',
+              data: this.timeseries.map(d => d.cases),
+              borderColor: 'rgb(75, 192, 192)',
+              tension: 0.1
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false
+          }
+        });
+      }
+
+      // Update diseases bar chart
+      if (this.diseasesChart) {
+        this.diseasesChart.destroy();
+      }
+      const diseasesCtx = document.getElementById('diseasesChart');
+      if (diseasesCtx) {
+        this.diseasesChart = new Chart(diseasesCtx, {
+          type: 'bar',
+          data: {
+            labels: this.topDiseases.map(d => d.disease_name),
+            datasets: [{
+              label: 'Cases',
+              data: this.topDiseases.map(d => d.cases),
+              backgroundColor: 'rgba(54, 162, 235, 0.5)'
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y'
+          }
+        });
+      }
+    },
+
+    initMap() {
+      // Initialize Leaflet map centered on Greater Accra
+      this.map = L.map('map').setView([5.6037, -0.1870], 10);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+      }).addTo(this.map);
+      this.updateMap();
+    },
+
+    updateMap() {
+      if (!this.map) return;
+      
+      // Clear existing markers
+      this.map.eachLayer((layer) => {
+        if (layer instanceof L.Marker) {
+          this.map.removeLayer(layer);
+        }
+      });
+
+      // Add markers for each location
+      this.mapPoints.forEach(point => {
+        const popupContent = `
+          <strong>${point.district_name}</strong>${point.area_name ? '<br>' + point.area_name : ''}<br>
+          Cases: ${point.cases}<br>
+          ${point.has_alert ? `<span class="badge bg-danger">Alert: ${point.alert_severity} (${point.alert_status})</span>` : ''}
+        `;
+        const marker = L.marker([point.latitude, point.longitude])
+          .addTo(this.map)
+          .bindPopup(popupContent);
+        
+        // Color marker based on alert status
+        if (point.has_alert) {
+          marker.setIcon(L.icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41]
+          }));
+        }
+      });
+    },
+
+    async evaluateWarning() {
+      // This would need a trend_metric_id - simplified for now
+      // In production, this would show a modal to select a trend metric
+      const trendMetricId = prompt('Enter trend metric ID to evaluate:');
+      if (!trendMetricId) return;
+
+      try {
+        const response = await fetch('/api/v1/dashboard/evaluate/', {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': this.getCsrfToken()
+          },
+          body: JSON.stringify({ trend_metric_id: parseInt(trendMetricId) })
+        });
+
+        const data = await response.json();
+        if (response.ok) {
+          alert(data.message + (data.alert_id ? ` (Alert ID: ${data.alert_id})` : ''));
+          // Reload alerts to show new one
+          await this.loadRecentAlerts(this.buildQueryParams());
+        } else {
+          alert('Error: ' + (data.error || 'Unknown error'));
+        }
+      } catch (error) {
+        console.error('Error evaluating warning:', error);
+        alert('Error evaluating early warning');
+      }
+    },
+
+    getSeverityClass(severity) {
+      const classes = {
+        'Low': 'bg-warning',
+        'Medium': 'bg-info',
+        'High': 'bg-danger'
+      };
+      return classes[severity] || 'bg-secondary';
+    },
+
+    formatDate(dateString) {
+      if (!dateString) return '-';
+      const date = new Date(dateString);
+      return date.toLocaleDateString();
+    }
+  }
+}
+</script>
+{% endblock %}
+

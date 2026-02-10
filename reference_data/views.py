@@ -1,6 +1,10 @@
 from rest_framework import viewsets
-from .models import Disease, Location
-from .serializers import DiseaseSerializer, LocationSerializer
+
+from .models import Disease
+from .models import Location
+from .serializers import DiseaseSerializer
+from .serializers import LocationSerializer
+
 
 class DiseaseViewSet(viewsets.ModelViewSet):
     queryset = Disease.objects.all()

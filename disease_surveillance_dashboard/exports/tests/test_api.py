@@ -44,13 +44,13 @@ class ExportAPITestCase(APITestCase):
         )
         response = self.client.get(self.api_url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        
+
         # Handle pagination if response is paginated
         if isinstance(response.data, dict) and "results" in response.data:
             data = response.data["results"]
         else:
             data = response.data
-        
+
         self.assertEqual(len(data), 1)
 
     def test_export_filter_by_type(self):
@@ -67,13 +67,13 @@ class ExportAPITestCase(APITestCase):
         )
         response = self.client.get(self.api_url, {"export_type": "CSV"})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        
+
         # Handle pagination if response is paginated
         if isinstance(response.data, dict) and "results" in response.data:
             data = response.data["results"]
         else:
             data = response.data
-        
+
         self.assertEqual(len(data), 1)
         self.assertEqual(data[0]["export_type"], "CSV")
 
@@ -114,13 +114,13 @@ class AuditLogAPITestCase(APITestCase):
         )
         response = self.client.get(self.api_url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        
+
         # Handle pagination if response is paginated
         if isinstance(response.data, dict) and "results" in response.data:
             data = response.data["results"]
         else:
             data = response.data
-        
+
         self.assertEqual(len(data), 1)
 
     def test_audit_log_filter_by_entity_type(self):
@@ -139,13 +139,13 @@ class AuditLogAPITestCase(APITestCase):
         )
         response = self.client.get(self.api_url, {"entity_type": "Report"})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        
+
         # Handle pagination if response is paginated
         if isinstance(response.data, dict) and "results" in response.data:
             data = response.data["results"]
         else:
             data = response.data
-        
+
         self.assertEqual(len(data), 1)
         self.assertEqual(data[0]["entity_type"], "Report")
 

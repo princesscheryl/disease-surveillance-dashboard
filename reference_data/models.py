@@ -1,14 +1,15 @@
 from django.db import models
 
+
 class Disease(models.Model):
     disease_name = models.CharField(max_length=255, unique=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = 'diseases'
+        db_table = "diseases"
         indexes = [
-            models.Index(fields=['disease_name']),
+            models.Index(fields=["disease_name"]),
         ]
 
     def __str__(self):
@@ -23,9 +24,9 @@ class Location(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = 'locations'
+        db_table = "locations"
         indexes = [
-            models.Index(fields=['district_name', 'area_name']),
+            models.Index(fields=["district_name", "area_name"]),
         ]
 
     def __str__(self):

@@ -1,7 +1,7 @@
 """Tests for reporting API endpoints."""
 
+from datetime import UTC
 from datetime import datetime
-from datetime import timezone
 
 from django.contrib.auth import get_user_model
 from rest_framework import status
@@ -87,7 +87,7 @@ class ReportAPITestCase(APITestCase):
             disease=self.disease,
             location=self.location,
             reported_by=self.user,
-            observed_at=datetime.now(timezone.utc),
+            observed_at=datetime.now(UTC),
             status=self.status,
             case_count=2,
             sex="MALE",
@@ -136,7 +136,7 @@ class DuplicateFlagAPITestCase(APITestCase):
             disease=self.disease,
             location=self.location,
             reported_by=self.user,
-            observed_at=datetime.now(timezone.utc),
+            observed_at=datetime.now(UTC),
             status=self.status,
             case_count=1,
         )

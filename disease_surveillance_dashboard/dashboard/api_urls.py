@@ -1,0 +1,24 @@
+"""URL configuration for dashboard API endpoints."""
+
+from django.urls import path
+
+from .api import dashboard_cases_timeseries
+from .api import dashboard_evaluate
+from .api import dashboard_map_points
+from .api import dashboard_recent_alerts
+from .api import dashboard_recent_investigations
+from .api import dashboard_summary
+from .api import dashboard_top_diseases
+
+app_name = "dashboard_api"
+
+urlpatterns = [
+    path("summary/", dashboard_summary, name="summary"),
+    path("cases-timeseries/", dashboard_cases_timeseries, name="cases-timeseries"),
+    path("top-diseases/", dashboard_top_diseases, name="top-diseases"),
+    path("map-points/", dashboard_map_points, name="map-points"),
+    path("recent-alerts/", dashboard_recent_alerts, name="recent-alerts"),
+    path("recent-investigations/", dashboard_recent_investigations, name="recent-investigations"),
+    path("evaluate/", dashboard_evaluate, name="evaluate"),
+]
+

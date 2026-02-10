@@ -1,8 +1,8 @@
 """Tests for alerts API endpoints."""
 
+from datetime import UTC
 from datetime import date
 from datetime import datetime
-from datetime import timezone
 
 from django.contrib.auth import get_user_model
 from rest_framework import status
@@ -85,8 +85,8 @@ class AlertAPITestCase(APITestCase):
         Alert.objects.create(
             disease=self.disease,
             location=self.location,
-            period_start=datetime.now(timezone.utc),
-            period_end=datetime.now(timezone.utc),
+            period_start=datetime.now(UTC),
+            period_end=datetime.now(UTC),
             baseline_value=10.5000,
             observed_value=20.0000,
             threshold_rule="CUSUM > h",
@@ -115,8 +115,8 @@ class AlertNoteAPITestCase(APITestCase):
         self.alert = Alert.objects.create(
             disease=self.disease,
             location=self.location,
-            period_start=datetime.now(timezone.utc),
-            period_end=datetime.now(timezone.utc),
+            period_start=datetime.now(UTC),
+            period_end=datetime.now(UTC),
             baseline_value=5.0000,
             observed_value=15.0000,
             threshold_rule="observed > 2x baseline",
@@ -154,8 +154,8 @@ class AlertEscalationAPITestCase(APITestCase):
         self.alert = Alert.objects.create(
             disease=self.disease,
             location=self.location,
-            period_start=datetime.now(timezone.utc),
-            period_end=datetime.now(timezone.utc),
+            period_start=datetime.now(UTC),
+            period_end=datetime.now(UTC),
             baseline_value=3.0000,
             observed_value=12.0000,
             threshold_rule="observed > 3x baseline",

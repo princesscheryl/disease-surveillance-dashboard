@@ -22,9 +22,9 @@ urlpatterns = [
     # User management
     path("users/", include("disease_surveillance_dashboard.users.urls", namespace="users")),
     path("accounts/", include("allauth.urls")),
-    # Your stuff: custom urls includes go here
-    # ...
-    # Media files
+    # Dashboard
+    path("dashboard/", include("disease_surveillance_dashboard.dashboard.urls", namespace="dashboard")),
+
     *static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT),
 ]
 if settings.DEBUG:
@@ -35,6 +35,8 @@ if settings.DEBUG:
 urlpatterns += [
     # API base url
     path("api/v1/", include("config.api_router")),
+    # Dashboard API endpoints
+    path("api/v1/dashboard/", include("disease_surveillance_dashboard.dashboard.api_urls")),
     # DRF auth token
     path("api/auth-token/", obtain_auth_token, name="obtain_auth_token"),
     path("api/schema/", SpectacularAPIView.as_view(), name="api-schema"),
@@ -46,8 +48,7 @@ urlpatterns += [
 ]
 
 if settings.DEBUG:
-    # This allows the error pages to be debugged during development, just visit
-    # these url in browser to see how these error pages look like.
+
     urlpatterns += [
         path(
             "400/",

@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% load static i18n %}
+
+{% block title %}Report Case{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <h1 class="mb-4">Report Case</h1>
+
+  <form method="post" novalidate>
+    {% csrf_token %}
+
+    <div class="row">
+      <div class="col-md-6 mb-3">
+        <label for="{{ form.disease.id_for_label }}" class="form-label">{{ form.disease.label }}</label>
+        {{ form.disease }}
+        {% if form.disease.errors %}
+          <div class="text-danger small">{{ form.disease.errors }}</div>
+        {% endif %}
+      </div>
+
+      <div class="col-md-6 mb-3">
+        <label for="{{ form.location.id_for_label }}" class="form-label">{{ form.location.label }}</label>
+        {{ form.location }}
+        {% if form.location.errors %}
+          <div class="text-danger small">{{ form.location.errors }}</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-md-6 mb-3">
+        <label for="{{ form.observed_date.id_for_label }}" class="form-label">{{ form.observed_date.label }}</label>
+        {{ form.observed_date }}
+        {% if form.observed_date.errors %}
+          <div class="text-danger small">{{ form.observed_date.errors }}</div>
+        {% endif %}
+      </div>
+
+      <div class="col-md-6 mb-3">
+        <label for="{{ form.observed_time.id_for_label }}" class="form-label">{{ form.observed_time.label }}</label>
+        {{ form.observed_time }}
+        {% if form.observed_time.errors %}
+          <div class="text-danger small">{{ form.observed_time.errors }}</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-md-6 mb-3">
+        <label for="{{ form.case_count.id_for_label }}" class="form-label">{{ form.case_count.label }}</label>
+        {{ form.case_count }}
+        {% if form.case_count.errors %}
+          <div class="text-danger small">{{ form.case_count.errors }}</div>
+        {% endif %}
+      </div>
+
+      <div class="col-md-6 mb-3">
+        <label for="{{ form.report_source.id_for_label }}" class="form-label">{{ form.report_source.label }}</label>
+        {{ form.report_source }}
+        {% if form.report_source.errors %}
+          <div class="text-danger small">{{ form.report_source.errors }}</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-md-4 mb-3">
+        <label for="{{ form.sex.id_for_label }}" class="form-label">{{ form.sex.label }}</label>
+        {{ form.sex }}
+        {% if form.sex.errors %}
+          <div class="text-danger small">{{ form.sex.errors }}</div>
+        {% endif %}
+      </div>
+
+      <div class="col-md-4 mb-3">
+        <label for="{{ form.age_group.id_for_label }}" class="form-label">{{ form.age_group.label }}</label>
+        {{ form.age_group }}
+        {% if form.age_group.errors %}
+          <div class="text-danger small">{{ form.age_group.errors }}</div>
+        {% endif %}
+      </div>
+
+      <div class="col-md-4 mb-3">
+        <label for="{{ form.severity_level.id_for_label }}" class="form-label">{{ form.severity_level.label }}</label>
+        {{ form.severity_level }}
+        {% if form.severity_level.errors %}
+          <div class="text-danger small">{{ form.severity_level.errors }}</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="mb-3">
+      <label for="{{ form.facility_unit_name.id_for_label }}" class="form-label">{{ form.facility_unit_name.label }}</label>
+      {{ form.facility_unit_name }}
+      {% if form.facility_unit_name.errors %}
+        <div class="text-danger small">{{ form.facility_unit_name.errors }}</div>
+      {% endif %}
+    </div>
+
+    <div class="mb-3">
+      <label for="{{ form.case_notes.id_for_label }}" class="form-label">{{ form.case_notes.label }}</label>
+      {{ form.case_notes }}
+      {% if form.case_notes.errors %}
+        <div class="text-danger small">{{ form.case_notes.errors }}</div>
+      {% endif %}
+    </div>
+
+    <div class="mb-3">
+      <button type="submit" class="btn btn-primary">Submit Report</button>
+      <a href="{% url 'dashboard:dashboard' %}" class="btn btn-secondary">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

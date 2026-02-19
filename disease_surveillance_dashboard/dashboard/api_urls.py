@@ -2,8 +2,10 @@
 
 from django.urls import path
 
+from .api import dashboard_anomalies
 from .api import dashboard_cases_timeseries
 from .api import dashboard_evaluate
+from .api import dashboard_forecast
 from .api import dashboard_map_points
 from .api import dashboard_recent_alerts
 from .api import dashboard_recent_investigations
@@ -15,6 +17,8 @@ app_name = "dashboard_api"
 urlpatterns = [
     path("summary/", dashboard_summary, name="summary"),
     path("cases-timeseries/", dashboard_cases_timeseries, name="cases-timeseries"),
+    path("anomalies/", dashboard_anomalies, name="anomalies"),
+    path("forecast/", dashboard_forecast, name="forecast"),
     path("top-diseases/", dashboard_top_diseases, name="top-diseases"),
     path("map-points/", dashboard_map_points, name="map-points"),
     path("recent-alerts/", dashboard_recent_alerts, name="recent-alerts"),

@@ -82,6 +82,9 @@
                 <a class="nav-link" href="{% url 'dashboard:dashboard' %}">Dashboard</a>
               </li>
               <li class="nav-item">
+                <a class="nav-link" href="{% url 'reporting:report_new' %}">Report Case</a>
+              </li>
+              <li class="nav-item">
                 <a class="nav-link"
                    href="{% url 'users:detail' request.user.pk %}">{% translate "My Profile" %}</a>
               </li>

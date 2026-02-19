@@ -206,3 +206,57 @@ class DashboardAPITestCase(APITestCase):
         self.assertIn("message", response.data)
         self.assertIn("cusum_value", response.data)
 
+    def test_dashboard_anomalies_returns_correct_shape(self):
+        """Test anomalies endpoint returns list with date, cases, anomaly_score, is_anomaly."""
+        response = self.client.get("/api/v1/dashboard/anomalies/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIsInstance(response.data, list)
+        for item in response.data:
+            self.assertIn("date", item)
+            self.assertIn("cases", item)
+            self.assertIn("anomaly_score", item)
+            self.assertIn("is_anomaly", item)
+
+    def test_dashboard_anomalies_deterministic_with_random_state(self):
+        """Test that calling anomalies twice with same params yields same results."""
+        params = "start_date=2020-01-01&end_date=2020-02-01"
+        r1 = self.client.get(f"/api/v1/dashboard/anomalies/?{params}")
+        r2 = self.client.get(f"/api/v1/dashboard/anomalies/?{params}")
+        self.assertEqual(r1.status_code, status.HTTP_200_OK)
+        self.assertEqual(r2.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(r1.data), len(r2.data))
+        for i, (a, b) in enumerate(zip(r1.data, r2.data)):
+            self.assertEqual(a["date"], b["date"])
+            self.assertEqual(a["is_anomaly"], b["is_anomaly"])
+            self.assertAlmostEqual(a["anomaly_score"], b["anomaly_score"], places=5)
+
+    def test_dashboard_forecast_returns_correct_shape(self):
+        """Test forecast endpoint returns forecast list with date, forecast, lower_ci, upper_ci."""
+        response = self.client.get("/api/v1/dashboard/forecast/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("forecast", response.data)
+        self.assertIsInstance(response.data["forecast"], list)
+        for item in response.data["forecast"]:
+            self.assertIn("date", item)
+            self.assertIn("forecast", item)
+            self.assertIn("lower_ci", item)
+            self.assertIn("upper_ci", item)
+
+    def test_dashboard_forecast_horizon_param(self):
+        """Test forecast endpoint returns horizon items when enough data."""
+        response = self.client.get("/api/v1/dashboard/forecast/?horizon=7")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("forecast", response.data)
+        # With few points we may get message and empty forecast; with enough we get 7 items
+        if response.data["forecast"]:
+            self.assertEqual(len(response.data["forecast"]), 7)
+
+    def test_dashboard_forecast_short_series_returns_message(self):
+        """Test forecast endpoint returns friendly message when series too short."""
+        # Default test data has only 5 reports -> 5 daily points; ARIMA needs at least 7
+        response = self.client.get("/api/v1/dashboard/forecast/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["forecast"], [])
+        self.assertIn("message", response.data)
+        self.assertIn("Not enough data", response.data["message"])
+

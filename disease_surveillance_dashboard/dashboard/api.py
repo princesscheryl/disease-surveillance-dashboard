@@ -15,6 +15,10 @@ from rest_framework.response import Response
 from disease_surveillance_dashboard.alerts.services import (
     evaluate_trend_and_generate_alert,
 )
+from disease_surveillance_dashboard.analytics.services import (
+    compute_arima_forecast,
+    compute_isolation_forest_anomalies,
+)
 
 from .services import get_cases_timeseries
 from .services import get_map_points
@@ -117,6 +121,94 @@ def dashboard_cases_timeseries(request):
         location_id=location_id,
     )
 
+    return Response(data)
+
+
+@api_view(["GET"])
+def dashboard_anomalies(request):
+    """Get Isolation Forest anomaly detection results for the cases time-series."""
+    access_check = check_dashboard_access(request.user)
+    if access_check:
+        return access_check
+
+    start_date = parse_date_param(request, "start_date")
+    end_date = parse_date_param(request, "end_date")
+    disease_id = request.query_params.get("disease_id")
+    location_id = request.query_params.get("location_id")
+    contamination = request.query_params.get("contamination", "0.05")
+
+    if disease_id:
+        try:
+            disease_id = int(disease_id)
+        except ValueError:
+            disease_id = None
+
+    if location_id:
+        try:
+            location_id = int(location_id)
+        except ValueError:
+            location_id = None
+
+    try:
+        contamination = float(contamination)
+        if not (0 < contamination <= 0.5):
+            contamination = 0.05
+    except (ValueError, TypeError):
+        contamination = 0.05
+
+    series = get_cases_timeseries(
+        start_date=start_date,
+        end_date=end_date,
+        disease_id=disease_id,
+        location_id=location_id,
+    )
+    data = compute_isolation_forest_anomalies(
+        series,
+        contamination=contamination,
+        random_state=42,
+    )
+    return Response(data)
+
+
+@api_view(["GET"])
+def dashboard_forecast(request):
+    """Get ARIMA forecast for the cases time-series."""
+    access_check = check_dashboard_access(request.user)
+    if access_check:
+        return access_check
+
+    start_date = parse_date_param(request, "start_date")
+    end_date = parse_date_param(request, "end_date")
+    disease_id = request.query_params.get("disease_id")
+    location_id = request.query_params.get("location_id")
+    horizon = request.query_params.get("horizon", "14")
+
+    if disease_id:
+        try:
+            disease_id = int(disease_id)
+        except ValueError:
+            disease_id = None
+
+    if location_id:
+        try:
+            location_id = int(location_id)
+        except ValueError:
+            location_id = None
+
+    try:
+        horizon = int(horizon)
+        if horizon < 1:
+            horizon = 14
+    except (ValueError, TypeError):
+        horizon = 14
+
+    series = get_cases_timeseries(
+        start_date=start_date,
+        end_date=end_date,
+        disease_id=disease_id,
+        location_id=location_id,
+    )
+    data = compute_arima_forecast(series, horizon=horizon, seasonal=False)
     return Response(data)
 
 

@@ -245,6 +245,8 @@ function dashboardData() {
   return {
     summary: {},
     timeseries: [],
+    anomalies: [],
+    forecast: { forecast: [] },
     topDiseases: [],
     mapPoints: [],
     recentAlerts: [],
@@ -323,6 +325,8 @@ function dashboardData() {
       await Promise.all([
         this.loadSummary(params),
         this.loadTimeseries(params),
+        this.loadAnomalies(params),
+        this.loadForecast(params),
         this.loadTopDiseases(params),
         this.loadMapPoints(params),
         this.loadRecentAlerts(params),
@@ -374,6 +378,38 @@ function dashboardData() {
         }
       } catch (error) {
         console.error('Error loading timeseries:', error);
+      }
+    },
+
+    async loadAnomalies(params) {
+      try {
+        const response = await fetch(`/api/v1/dashboard/anomalies/?${params}`, {
+          credentials: 'include',
+          headers: {
+            'X-CSRFToken': this.getCsrfToken()
+          }
+        });
+        if (response.ok) {
+          this.anomalies = await response.json();
+        }
+      } catch (error) {
+        console.error('Error loading anomalies:', error);
+      }
+    },
+
+    async loadForecast(params) {
+      try {
+        const response = await fetch(`/api/v1/dashboard/forecast/?${params}`, {
+          credentials: 'include',
+          headers: {
+            'X-CSRFToken': this.getCsrfToken()
+          }
+        });
+        if (response.ok) {
+          this.forecast = await response.json();
+        }
+      } catch (error) {
+        console.error('Error loading forecast:', error);
       }
     },
 
@@ -442,22 +478,60 @@ function dashboardData() {
     },
 
     updateCharts() {
-      // Update cases line chart
+      // Build combined labels: observed dates then forecast dates
+      const forecastList = this.forecast && this.forecast.forecast ? this.forecast.forecast : [];
+      const labels = this.timeseries.map(d => d.date).concat(forecastList.map(d => d.date));
+      const nObs = this.timeseries.length;
+
+      // Cases (observed): values then nulls for forecast slots
+      const casesData = this.timeseries.map(d => d.cases).concat(forecastList.map(() => null));
+      // Anomaly points: same length as labels, only show point where is_anomaly (anomalies align 1:1 with timeseries)
+      const anomalyData = (this.anomalies && this.anomalies.length === this.timeseries.length)
+        ? this.anomalies.map(a => a.is_anomaly ? a.cases : null).concat(forecastList.map(() => null))
+        : labels.map(() => null);
+      const anomalyRadii = anomalyData.map(v => v != null ? 6 : 0);
+      // Forecast line: nulls for observed then forecast values
+      const forecastData = this.timeseries.map(() => null).concat(forecastList.map(d => d.forecast));
+
       if (this.casesChart) {
         this.casesChart.destroy();
       }
       const casesCtx = document.getElementById('casesChart');
       if (casesCtx) {
+        const datasets = [
+          {
+            label: 'Cases',
+            data: casesData,
+            borderColor: 'rgb(75, 192, 192)',
+            tension: 0.1,
+            fill: false
+          }
+        ];
+        if (forecastList.length) {
+          datasets.push({
+            label: 'Forecast',
+            data: forecastData,
+            borderColor: 'rgba(255, 159, 64, 0.8)',
+            borderDash: [5, 5],
+            tension: 0.1,
+            fill: false
+          });
+        }
+        if (this.anomalies && this.anomalies.length) {
+          datasets.push({
+            label: 'Anomaly',
+            data: anomalyData,
+            pointRadius: anomalyRadii,
+            pointBackgroundColor: 'rgba(255, 99, 132, 1)',
+            showLine: false,
+            order: 0
+          });
+        }
         this.casesChart = new Chart(casesCtx, {
           type: 'line',
           data: {
-            labels: this.timeseries.map(d => d.date),
-            datasets: [{
-              label: 'Cases',
-              data: this.timeseries.map(d => d.cases),
-              borderColor: 'rgb(75, 192, 192)',
-              tension: 0.1
-            }]
+            labels: labels,
+            datasets: datasets
           },
           options: {
             responsive: true,

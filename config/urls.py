@@ -24,6 +24,8 @@ urlpatterns = [
     path("accounts/", include("allauth.urls")),
     # Dashboard
     path("dashboard/", include("disease_surveillance_dashboard.dashboard.urls", namespace="dashboard")),
+    # Reporting
+    path("reports/", include("disease_surveillance_dashboard.reporting.urls", namespace="reporting")),
 
     *static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT),
 ]

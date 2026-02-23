@@ -5,8 +5,6 @@
 
 {% block css %}
 {{ block.super }}
-<!-- Chart.js -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.min.css">
 <!-- Leaflet CSS -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <style>
@@ -231,10 +229,10 @@
 
 {% block javascript %}
 {{ block.super }}
+<!-- Chart.js must load before Alpine so it's available when init() runs -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <!-- Alpine.js -->
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js"></script>
-<!-- Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <!-- Leaflet JS -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 {% endblock %}
@@ -260,17 +258,27 @@ function dashboardData() {
       locationId: ''
     },
     canEvaluate: false,
-    casesChart: null,
-    diseasesChart: null,
+    casesChartInstance: null,
+    diseasesChartInstance: null,
     map: null,
+    _mapInitialized: false,
 
     async init() {
-      // Load reference data
-      await this.loadDiseases();
-      await this.loadLocations();
-      await this.checkEvaluatePermission();
-      await this.loadData();
-      this.initMap();
+      console.log('[Dashboard] init() started');
+      console.log('[Dashboard] canvases:', [...document.querySelectorAll('canvas')].map(c => c.id));
+      try {
+        if (typeof Chart === 'undefined') {
+          console.error('[Dashboard] Chart.js not loaded - charts will not render');
+        }
+        await this.loadDiseases();
+        await this.loadLocations();
+        await this.checkEvaluatePermission();
+        await this.loadData();
+        this.initMap();
+        console.log('[Dashboard] init() completed');
+      } catch (err) {
+        console.error('[Dashboard] init() failed:', err);
+      }
     },
 
     async loadDiseases() {
@@ -333,7 +341,8 @@ function dashboardData() {
         this.loadRecentInvestigations()
       ]);
 
-      // Update charts and map after data loads
+      // Defer chart/map update to next tick so DOM is ready
+      await new Promise(resolve => setTimeout(resolve, 0));
       this.updateCharts();
       this.updateMap();
     },
@@ -350,163 +359,204 @@ function dashboardData() {
     },
 
     async loadSummary(params) {
+      const url = `/api/v1/dashboard/summary/?${params}`;
+      console.log('[Dashboard] fetch:', url);
       try {
-        const response = await fetch(`/api/v1/dashboard/summary/?${params}`, {
+        const response = await fetch(url, {
           credentials: 'include',
-          headers: {
-            'X-CSRFToken': this.getCsrfToken()
-          }
+          headers: { 'X-CSRFToken': this.getCsrfToken() }
         });
+        console.log('[Dashboard] summary status:', response.status);
         if (response.ok) {
           this.summary = await response.json();
+        } else {
+          console.warn('[Dashboard] summary failed:', response.status, await response.text().catch(() => ''));
         }
       } catch (error) {
-        console.error('Error loading summary:', error);
+        console.error('[Dashboard] Error loading summary:', error);
       }
     },
 
     async loadTimeseries(params) {
+      const url = `/api/v1/dashboard/cases-timeseries/?${params}`;
+      console.log('[Dashboard] fetch:', url);
       try {
-        const response = await fetch(`/api/v1/dashboard/cases-timeseries/?${params}`, {
+        const response = await fetch(url, {
           credentials: 'include',
-          headers: {
-            'X-CSRFToken': this.getCsrfToken()
-          }
+          headers: { 'X-CSRFToken': this.getCsrfToken() }
         });
+        console.log('[Dashboard] timeseries status:', response.status);
         if (response.ok) {
-          this.timeseries = await response.json();
+          const data = await response.json();
+          this.timeseries = Array.isArray(data) ? data : [];
+          console.log('[Dashboard] timeseries length:', this.timeseries.length);
+        } else {
+          console.warn('[Dashboard] timeseries failed:', response.status);
         }
       } catch (error) {
-        console.error('Error loading timeseries:', error);
+        console.error('[Dashboard] Error loading timeseries:', error);
       }
     },
 
     async loadAnomalies(params) {
+      const url = `/api/v1/dashboard/anomalies/?${params}`;
+      console.log('[Dashboard] fetch:', url);
       try {
-        const response = await fetch(`/api/v1/dashboard/anomalies/?${params}`, {
+        const response = await fetch(url, {
           credentials: 'include',
-          headers: {
-            'X-CSRFToken': this.getCsrfToken()
-          }
+          headers: { 'X-CSRFToken': this.getCsrfToken() }
         });
+        console.log('[Dashboard] anomalies status:', response.status);
         if (response.ok) {
-          this.anomalies = await response.json();
+          const data = await response.json();
+          this.anomalies = Array.isArray(data) ? data : [];
         }
       } catch (error) {
-        console.error('Error loading anomalies:', error);
+        console.error('[Dashboard] Error loading anomalies:', error);
       }
     },
 
     async loadForecast(params) {
+      const url = `/api/v1/dashboard/forecast/?${params}`;
+      console.log('[Dashboard] fetch:', url);
       try {
-        const response = await fetch(`/api/v1/dashboard/forecast/?${params}`, {
+        const response = await fetch(url, {
           credentials: 'include',
-          headers: {
-            'X-CSRFToken': this.getCsrfToken()
-          }
+          headers: { 'X-CSRFToken': this.getCsrfToken() }
         });
+        console.log('[Dashboard] forecast status:', response.status);
         if (response.ok) {
           this.forecast = await response.json();
         }
       } catch (error) {
-        console.error('Error loading forecast:', error);
+        console.error('[Dashboard] Error loading forecast:', error);
       }
     },
 
     async loadTopDiseases(params) {
+      const url = `/api/v1/dashboard/top-diseases/?${params}`;
+      console.log('[Dashboard] fetch:', url);
       try {
-        const response = await fetch(`/api/v1/dashboard/top-diseases/?${params}`, {
+        const response = await fetch(url, {
           credentials: 'include',
-          headers: {
-            'X-CSRFToken': this.getCsrfToken()
-          }
+          headers: { 'X-CSRFToken': this.getCsrfToken() }
         });
+        console.log('[Dashboard] top-diseases status:', response.status);
         if (response.ok) {
-          this.topDiseases = await response.json();
+          const data = await response.json();
+          this.topDiseases = Array.isArray(data) ? data : [];
+          console.log('[Dashboard] topDiseases length:', this.topDiseases.length);
+        } else {
+          console.warn('[Dashboard] top-diseases failed:', response.status);
         }
       } catch (error) {
-        console.error('Error loading top diseases:', error);
+        console.error('[Dashboard] Error loading top diseases:', error);
       }
     },
 
     async loadMapPoints(params) {
+      const url = `/api/v1/dashboard/map-points/?${params}`;
+      console.log('[Dashboard] fetch:', url);
       try {
-        const response = await fetch(`/api/v1/dashboard/map-points/?${params}`, {
+        const response = await fetch(url, {
           credentials: 'include',
-          headers: {
-            'X-CSRFToken': this.getCsrfToken()
-          }
+          headers: { 'X-CSRFToken': this.getCsrfToken() }
         });
+        console.log('[Dashboard] map-points status:', response.status);
         if (response.ok) {
-          this.mapPoints = await response.json();
+          const data = await response.json();
+          this.mapPoints = Array.isArray(data) ? data : [];
         }
       } catch (error) {
-        console.error('Error loading map points:', error);
+        console.error('[Dashboard] Error loading map points:', error);
       }
     },
 
     async loadRecentAlerts(params) {
+      const url = `/api/v1/dashboard/recent-alerts/?${params}`;
+      console.log('[Dashboard] fetch:', url);
       try {
-        const response = await fetch(`/api/v1/dashboard/recent-alerts/?${params}`, {
+        const response = await fetch(url, {
           credentials: 'include',
-          headers: {
-            'X-CSRFToken': this.getCsrfToken()
-          }
+          headers: { 'X-CSRFToken': this.getCsrfToken() }
         });
+        console.log('[Dashboard] recent-alerts status:', response.status);
         if (response.ok) {
-          this.recentAlerts = await response.json();
+          const data = await response.json();
+          this.recentAlerts = Array.isArray(data) ? data : [];
         }
       } catch (error) {
-        console.error('Error loading recent alerts:', error);
+        console.error('[Dashboard] Error loading recent alerts:', error);
       }
     },
 
     async loadRecentInvestigations() {
+      const url = '/api/v1/dashboard/recent-investigations/';
+      console.log('[Dashboard] fetch:', url);
       try {
-        const response = await fetch('/api/v1/dashboard/recent-investigations/', {
+        const response = await fetch(url, {
           credentials: 'include',
-          headers: {
-            'X-CSRFToken': this.getCsrfToken()
-          }
+          headers: { 'X-CSRFToken': this.getCsrfToken() }
         });
+        console.log('[Dashboard] recent-investigations status:', response.status);
         if (response.ok) {
-          this.recentInvestigations = await response.json();
+          const data = await response.json();
+          this.recentInvestigations = Array.isArray(data) ? data : [];
         }
       } catch (error) {
-        console.error('Error loading recent investigations:', error);
+        console.error('[Dashboard] Error loading recent investigations:', error);
       }
     },
 
     updateCharts() {
-      // Build combined labels: observed dates then forecast dates
-      const forecastList = this.forecast && this.forecast.forecast ? this.forecast.forecast : [];
-      const labels = this.timeseries.map(d => d.date).concat(forecastList.map(d => d.date));
-      const nObs = this.timeseries.length;
-
-      // Cases (observed): values then nulls for forecast slots
-      const casesData = this.timeseries.map(d => d.cases).concat(forecastList.map(() => null));
-      // Anomaly points: same length as labels, only show point where is_anomaly (anomalies align 1:1 with timeseries)
-      const anomalyData = (this.anomalies && this.anomalies.length === this.timeseries.length)
-        ? this.anomalies.map(a => a.is_anomaly ? a.cases : null).concat(forecastList.map(() => null))
-        : labels.map(() => null);
-      const anomalyRadii = anomalyData.map(v => v != null ? 6 : 0);
-      // Forecast line: nulls for observed then forecast values
-      const forecastData = this.timeseries.map(() => null).concat(forecastList.map(d => d.forecast));
-
-      if (this.casesChart) {
-        this.casesChart.destroy();
+      if (typeof Chart === 'undefined') {
+        console.error('[Dashboard] Chart.js not available, skipping chart render');
+        return;
       }
-      const casesCtx = document.getElementById('casesChart');
-      if (casesCtx) {
-        const datasets = [
-          {
-            label: 'Cases',
-            data: casesData,
-            borderColor: 'rgb(75, 192, 192)',
-            tension: 0.1,
-            fill: false
-          }
-        ];
+      const casesCanvas = document.getElementById('casesChart');
+      if (!casesCanvas) {
+        console.warn('[Dashboard] missing canvas:', 'casesChart');
+        return;
+      }
+      const casesCtx = casesCanvas.getContext('2d');
+      const diseasesCanvas = document.getElementById('diseasesChart');
+      if (!diseasesCanvas) {
+        console.warn('[Dashboard] missing canvas:', 'diseasesChart');
+        return;
+      }
+      const diseasesCtx = diseasesCanvas.getContext('2d');
+
+      if (this.casesChartInstance) {
+        this.casesChartInstance.destroy();
+        this.casesChartInstance = null;
+      }
+      if (this.diseasesChartInstance) {
+        this.diseasesChartInstance.destroy();
+        this.diseasesChartInstance = null;
+      }
+
+      const timeseries = this.timeseries || [];
+      const topDiseases = this.topDiseases || [];
+      const forecastList = (this.forecast && this.forecast.forecast) ? this.forecast.forecast : [];
+
+      const labels = timeseries.map(d => d.date).concat(forecastList.map(d => d.date));
+      const safeLabels = labels.length ? labels : ['No data'];
+      const casesData = timeseries.map(d => d.cases).concat(forecastList.map(() => null));
+      const safeCasesData = casesData.length ? casesData : [0];
+      const anomalyData = (this.anomalies && this.anomalies.length === timeseries.length)
+        ? this.anomalies.map(a => a.is_anomaly ? a.cases : null).concat(forecastList.map(() => null))
+        : safeLabels.map(() => null);
+      const anomalyRadii = anomalyData.map(v => v != null ? 6 : 0);
+      const forecastData = timeseries.map(() => null).concat(forecastList.map(d => d.forecast));
+
+      try {
+        const datasets = [{
+          label: 'Cases',
+          data: safeCasesData,
+          borderColor: 'rgb(75, 192, 192)',
+          tension: 0.1,
+          fill: false
+        }];
         if (forecastList.length) {
           datasets.push({
             label: 'Forecast',
@@ -527,51 +577,69 @@ function dashboardData() {
             order: 0
           });
         }
-        this.casesChart = new Chart(casesCtx, {
+        this.casesChartInstance = new Chart(casesCanvas, {
           type: 'line',
-          data: {
-            labels: labels,
-            datasets: datasets
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false
-          }
+          data: { labels: safeLabels, datasets: datasets },
+          options: { responsive: true, maintainAspectRatio: false }
         });
+        console.log('[Dashboard] cases chart rendered');
+      } catch (err) {
+        console.error('[Dashboard] Error rendering cases chart:', err);
       }
 
-      // Update diseases bar chart
-      if (this.diseasesChart) {
-        this.diseasesChart.destroy();
-      }
-      const diseasesCtx = document.getElementById('diseasesChart');
-      if (diseasesCtx) {
-        this.diseasesChart = new Chart(diseasesCtx, {
+      try {
+        if (!diseasesCtx) {
+          console.warn('[Dashboard] diseasesChart getContext(\'2d\') failed');
+          return;
+        }
+        const diseaseLabels = topDiseases.length ? topDiseases.map(d => d.disease_name) : ['No data'];
+        const diseaseData = topDiseases.length ? topDiseases.map(d => d.cases) : [0];
+        this.diseasesChartInstance = new Chart(diseasesCanvas, {
           type: 'bar',
           data: {
-            labels: this.topDiseases.map(d => d.disease_name),
-            datasets: [{
-              label: 'Cases',
-              data: this.topDiseases.map(d => d.cases),
-              backgroundColor: 'rgba(54, 162, 235, 0.5)'
-            }]
+            labels: diseaseLabels,
+            datasets: [{ label: 'Cases', data: diseaseData, backgroundColor: 'rgba(54, 162, 235, 0.5)' }]
           },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            indexAxis: 'y'
-          }
+          options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y' }
         });
+        console.log('[Dashboard] diseases chart rendered');
+      } catch (err) {
+        console.error('[Dashboard] Error rendering diseases chart:', err);
       }
     },
 
     initMap() {
-      // Initialize Leaflet map centered on Greater Accra
-      this.map = L.map('map').setView([5.6037, -0.1870], 10);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors'
-      }).addTo(this.map);
-      this.updateMap();
+      if (this._mapInitialized) return;
+      this._mapInitialized = true;
+
+      try {
+        if (typeof L === 'undefined') {
+          console.warn('[Dashboard] Leaflet not loaded, map will not render');
+          this._mapInitialized = false;
+          return;
+        }
+        const mapEl = document.getElementById('map');
+        if (!mapEl) {
+          console.warn('[Dashboard] #map element not found');
+          this._mapInitialized = false;
+          return;
+        }
+        if (this.map) {
+          this.map.remove();
+          this.map = null;
+        }
+        if (mapEl._leaflet_id) {
+          mapEl._leaflet_id = null;
+        }
+        this.map = L.map(mapEl).setView([5.6037, -0.1870], 10);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '© OpenStreetMap contributors'
+        }).addTo(this.map);
+        this.updateMap();
+      } catch (err) {
+        console.error('[Dashboard] Error initializing map:', err);
+        this._mapInitialized = false;
+      }
     },
 
     updateMap() {

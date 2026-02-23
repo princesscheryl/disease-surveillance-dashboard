@@ -23,12 +23,14 @@ class ReportForm(forms.Form):
         queryset=Disease.objects.filter(is_active=True).order_by("disease_name"),
         required=True,
         label="Disease",
+        empty_label="--------- Select disease ---------",
         widget=forms.Select(attrs={"class": "form-select"}),
     )
     location = forms.ModelChoiceField(
-        queryset=Location.objects.filter(is_active=True).order_by("district_name", "area_name"),
+        queryset=Location.objects.filter(is_active=True).order_by("district_name"),
         required=True,
         label="Reporting District",
+        empty_label="--------- Select district ---------",
         widget=forms.Select(attrs={"class": "form-select"}),
     )
     observed_date = forms.DateField(

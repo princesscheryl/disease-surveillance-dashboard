@@ -1,0 +1,77 @@
+/* ================================================================
+   base.css — Global resets, typography, links, focus states
+   ================================================================ */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont,
+               'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-size: 0.9375rem;
+  font-weight: 400;
+  line-height: 1.6;
+  color: var(--t-text);
+  background-color: var(--t-bg);
+  min-height: 100vh;
+}
+
+/* ── Typography ─────────────────────────────────────────────── */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--t-text);
+  letter-spacing: -0.015em;
+  margin-top: 0;
+}
+
+h1 { font-size: 1.75rem;   }
+h2 { font-size: 1.375rem;  }
+h3 { font-size: 1.125rem;  }
+h4 { font-size: 1rem;      font-weight: 600; }
+h5 { font-size: 0.9375rem; font-weight: 600; }
+h6 { font-size: 0.8125rem; font-weight: 600; }
+
+p { color: var(--t-text-secondary); margin-bottom: 1rem; }
+
+a {
+  color: var(--t-primary);
+  text-decoration: none;
+  transition: color var(--t-base) var(--t-ease);
+}
+a:hover { color: var(--t-primary-dark); }
+
+small, .small { font-size: 0.8125rem; }
+.text-muted { color: var(--t-text-muted) !important; }
+
+/* ── Focus (accessibility) ──────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--t-primary);
+  outline-offset: 2px;
+  border-radius: var(--t-r-xs);
+}
+
+/* ── Scrollbar ──────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: var(--t-bg); }
+::-webkit-scrollbar-thumb { background: var(--t-border-strong); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* ── Alpine cloak ───────────────────────────────────────────── */
+[x-cloak] { display: none !important; }
+
+/* ── Print ──────────────────────────────────────────────────── */
+@media print {
+  body { background: #fff; color: #000; }
+  .ds-sidebar, .ds-topbar, .btn { display: none !important; }
+  .ds-main { margin: 0 !important; padding: 0 !important; }
+  .card { box-shadow: none; border: 1px solid #ccc; }
+}

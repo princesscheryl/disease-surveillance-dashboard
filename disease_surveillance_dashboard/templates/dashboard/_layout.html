@@ -1,0 +1,314 @@
+{% load static i18n %}{% get_current_language as LANGUAGE_CODE %}<!DOCTYPE html>
+{#
+  templates/dashboard/_layout.html
+  Self-contained dashboard shell. Does NOT extend base.html.
+  Blocks available to child pages:
+    title, topbar_title, page_css, page_js, page_content, inline_javascript
+#}
+<html lang="{{ LANGUAGE_CODE }}">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="x-ua-compatible" content="ie=edge" />
+  <title>{% block title %}Dashboard{% endblock %} — Disease Surveillance</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description"
+        content="Disease surveillance dashboard with predictive trend analysis for early warning in Greater Accra." />
+  <link rel="icon" href="{% static 'images/favicons/favicon.ico' %}" />
+
+  <!-- Google Fonts preconnect -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+  <!-- Bootstrap 5 -->
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.2.3/css/bootstrap.min.css"
+        integrity="sha512-SbiR/eusphKoMVVXysTKG/7VseWii+Y3FdHrt0EpKgpToZeemhqHeZeLWLhJutz/2ut2Vw1uQEj2MbRF+TVBUA=="
+        crossorigin="anonymous"
+        referrerpolicy="no-referrer" />
+
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+
+  <!-- Design system CSS -->
+  <link href="{% static 'css/tokens.css' %}"     rel="stylesheet" />
+  <link href="{% static 'css/base.css' %}"       rel="stylesheet" />
+  <link href="{% static 'css/layout.css' %}"     rel="stylesheet" />
+  <link href="{% static 'css/components.css' %}" rel="stylesheet" />
+
+  <!-- Per-page CSS -->
+  {% block page_css %}{% endblock %}
+
+  <!--
+    Sidebar state restore: runs synchronously before first paint to avoid
+    a flash of the expanded sidebar on pages where it was previously collapsed.
+    We add the class to <html> here; the body script moves it to #dsApp once
+    that element exists.
+  -->
+  <script>
+    (function () {
+      try {
+        if (localStorage.getItem('ds_sidebar') === 'collapsed' &&
+            window.matchMedia('(min-width:992px)').matches) {
+          document.documentElement.classList.add('sidebar-collapsed-preload');
+        }
+      } catch (e) {}
+    })();
+  </script>
+  <style>
+    /* Applied before #dsApp renders so there is no layout shift */
+    html.sidebar-collapsed-preload .ds-sidebar { width: var(--t-sidebar-w-collapsed); }
+    html.sidebar-collapsed-preload .ds-topbar  { left:  var(--t-sidebar-w-collapsed); }
+    html.sidebar-collapsed-preload .ds-main    { margin-left: var(--t-sidebar-w-collapsed); }
+  </style>
+
+  <!-- Bootstrap JS -->
+  <script defer
+          src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.2.3/js/bootstrap.min.js"
+          integrity="sha512-1/RvZTcCDEUjY/CypiMz+iqqtaoQfAITmNSJY17Myp4Ms5mdxPS5UV7iOfdZoxcGhzFbOm6sntTKJppjvuhg4g=="
+          crossorigin="anonymous"
+          referrerpolicy="no-referrer"></script>
+  <script defer src="{% static 'js/project.js' %}"></script>
+
+  <!-- Per-page JS (ECharts, Leaflet, Alpine, etc.) -->
+  {% block page_js %}{% endblock %}
+
+</head>
+<body>
+<div class="ds-app" id="dsApp">
+
+  <!-- Sidebar overlay (mobile tap-to-close) -->
+  <div class="ds-sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+  <!-- ============================================================
+       SIDEBAR
+  ============================================================ -->
+  <aside class="ds-sidebar" id="sidebar" role="navigation" aria-label="Main navigation">
+
+    <!-- Brand -->
+    <a class="ds-sidebar-brand" href="{% url 'home' %}" title="Disease Surveillance Dashboard">
+      <div class="ds-brand-icon" aria-hidden="true">
+        <i class="bi bi-activity"></i>
+      </div>
+      <div class="ds-brand-text">
+        DSD
+        <small>Disease Surveillance</small>
+      </div>
+    </a>
+
+    <!-- Nav links -->
+    <nav class="ds-sidebar-nav">
+
+      <div class="ds-nav-section">
+        <div class="ds-nav-section-label">Monitoring</div>
+
+        <a href="{% url 'dashboard:overview' %}"
+           title="Overview"
+           class="ds-nav-link{% if request.resolver_match.url_name == 'overview' or request.resolver_match.url_name == 'dashboard' %} active{% endif %}"
+           {% if request.resolver_match.url_name == 'overview' or request.resolver_match.url_name == 'dashboard' %}aria-current="page"{% endif %}>
+          <i class="bi bi-grid-1x2-fill ds-nav-icon" aria-hidden="true"></i>
+          <span>Overview</span>
+        </a>
+
+        <a href="{% url 'dashboard:analytics' %}"
+           title="Analytics"
+           class="ds-nav-link{% if request.resolver_match.url_name == 'analytics' %} active{% endif %}"
+           {% if request.resolver_match.url_name == 'analytics' %}aria-current="page"{% endif %}>
+          <i class="bi bi-graph-up-arrow ds-nav-icon" aria-hidden="true"></i>
+          <span>Analytics</span>
+        </a>
+
+        <a href="{% url 'dashboard:live_map' %}"
+           title="Live Map"
+           class="ds-nav-link{% if request.resolver_match.url_name == 'live_map' %} active{% endif %}"
+           {% if request.resolver_match.url_name == 'live_map' %}aria-current="page"{% endif %}>
+          <i class="bi bi-geo-alt-fill ds-nav-icon" aria-hidden="true"></i>
+          <span>Live Map</span>
+        </a>
+
+        <a href="{% url 'dashboard:alerts' %}"
+           title="Alerts &amp; Investigations"
+           class="ds-nav-link{% if request.resolver_match.url_name == 'alerts' %} active{% endif %}"
+           {% if request.resolver_match.url_name == 'alerts' %}aria-current="page"{% endif %}>
+          <i class="bi bi-exclamation-triangle-fill ds-nav-icon" aria-hidden="true"></i>
+          <span>Alerts &amp; Investigations</span>
+        </a>
+
+        <a href="{% url 'dashboard:reports' %}"
+           title="Reports"
+           class="ds-nav-link{% if request.resolver_match.url_name == 'reports' %} active{% endif %}"
+           {% if request.resolver_match.url_name == 'reports' %}aria-current="page"{% endif %}>
+          <i class="bi bi-table ds-nav-icon" aria-hidden="true"></i>
+          <span>Reports</span>
+        </a>
+
+      </div>
+
+      <div class="ds-nav-section">
+        <div class="ds-nav-section-label">Data Entry</div>
+
+        <a href="{% url 'reporting:report_new' %}"
+           title="Report Case"
+           class="ds-nav-link">
+          <i class="bi bi-plus-circle-fill ds-nav-icon" aria-hidden="true"></i>
+          <span>Report Case</span>
+        </a>
+      </div>
+
+    </nav>
+
+    <!-- Sidebar footer -->
+    <div class="ds-sidebar-footer">
+      {% if request.user.is_authenticated %}
+        <a href="{% url 'account_logout' %}"
+           title="Sign Out"
+           class="ds-nav-link"
+           style="color:var(--t-text-muted) !important;">
+          <i class="bi bi-box-arrow-left ds-nav-icon" aria-hidden="true"></i>
+          <span>{% translate "Sign Out" %}</span>
+        </a>
+      {% endif %}
+    </div>
+
+  </aside>
+
+  <!-- ============================================================
+       TOPBAR
+  ============================================================ -->
+  <header class="ds-topbar" role="banner">
+
+    <!-- Toggle: on desktop collapses sidebar; on mobile opens drawer -->
+    <button class="ds-sidebar-toggle"
+            id="sidebarToggle"
+            type="button"
+            aria-label="Toggle navigation"
+            aria-controls="sidebar"
+            aria-expanded="true"
+            onclick="toggleSidebar()">
+      <i class="bi bi-list" aria-hidden="true"></i>
+    </button>
+
+    <span class="ds-topbar-title">{% block topbar_title %}Dashboard{% endblock %}</span>
+
+    <div class="ds-topbar-right">
+
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert alert-dismissible {% if message.tags %}alert-{{ message.tags }}{% endif %} py-2 px-3 me-2 mb-0 small">
+            {{ message }}
+            <button type="button" class="btn-close btn-sm"
+                    data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+
+      {% if request.user.is_authenticated %}
+        <a href="{% url 'users:detail' request.user.pk %}" class="ds-user-chip">
+          <div class="ds-user-avatar" aria-hidden="true">
+            {{ request.user.get_full_name|first|upper|default:request.user.email|first|upper }}
+          </div>
+          <span class="d-none d-md-inline">
+            {{ request.user.full_name|default:request.user.email }}
+          </span>
+        </a>
+      {% endif %}
+
+    </div>
+  </header>
+
+  <!-- ============================================================
+       MAIN CONTENT
+  ============================================================ -->
+  <main class="ds-main" id="mainContent">
+    <div class="ds-page">
+      {% block page_content %}{% endblock %}
+    </div>
+  </main>
+
+</div><!-- /.ds-app -->
+
+<!-- ============================================================
+     SIDEBAR BEHAVIOUR JS
+     Desktop: toggles .sidebar-collapsed on #dsApp, persists to localStorage.
+     Mobile:  toggles .open on #sidebar + overlay.
+     Charts:  calls window.dsResizeCharts() after transition ends so
+              ECharts containers resize correctly.
+============================================================ -->
+<script>
+(function () {
+  var STORE_KEY = 'ds_sidebar';
+  var app       = document.getElementById('dsApp');
+  var sidebar   = document.getElementById('sidebar');
+  var overlay   = document.getElementById('sidebarOverlay');
+  var toggle    = document.getElementById('sidebarToggle');
+  var DESKTOP   = window.matchMedia('(min-width: 992px)');
+
+  /* ── Restore saved state on desktop ──────────────────────── */
+  function applyStoredState() {
+    /* Remove preload class from <html> — real state is now on #dsApp */
+    document.documentElement.classList.remove('sidebar-collapsed-preload');
+    if (!DESKTOP.matches) return;
+    try {
+      if (localStorage.getItem(STORE_KEY) === 'collapsed') {
+        app.classList.add('sidebar-collapsed');
+        toggle.setAttribute('aria-expanded', 'false');
+      } else {
+        app.classList.remove('sidebar-collapsed');
+        toggle.setAttribute('aria-expanded', 'true');
+      }
+    } catch (e) {}
+  }
+  applyStoredState();
+
+  /* ── Public toggle function (called by onclick) ─────────── */
+  window.toggleSidebar = function () {
+    if (DESKTOP.matches) {
+      /* Desktop: collapse / expand */
+      var isCollapsed = app.classList.toggle('sidebar-collapsed');
+      toggle.setAttribute('aria-expanded', String(!isCollapsed));
+      try {
+        localStorage.setItem(STORE_KEY, isCollapsed ? 'collapsed' : 'expanded');
+      } catch (e) {}
+      /* After CSS transition ends, tell charts to resize */
+      setTimeout(function () {
+        if (typeof window.dsResizeCharts === 'function') window.dsResizeCharts();
+      }, 280); /* matches --t-sidebar-transition */
+    } else {
+      /* Mobile: slide drawer */
+      var isOpen = sidebar.classList.toggle('open');
+      overlay.classList.toggle('active', isOpen);
+      toggle.setAttribute('aria-expanded', String(isOpen));
+    }
+  };
+
+  /* ── Close mobile drawer ─────────────────────────────────── */
+  window.closeSidebar = function () {
+    sidebar.classList.remove('open');
+    overlay.classList.remove('active');
+    toggle.setAttribute('aria-expanded', 'false');
+  };
+
+  /* Close mobile drawer on Escape */
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !DESKTOP.matches) window.closeSidebar();
+  });
+
+  /* Re-apply stored state when crossing the 992px breakpoint */
+  DESKTOP.addEventListener('change', function () {
+    if (DESKTOP.matches) {
+      /* Coming back to desktop: restore stored state, close mobile drawer */
+      sidebar.classList.remove('open');
+      overlay.classList.remove('active');
+      applyStoredState();
+    } else {
+      /* Going to mobile: remove desktop collapsed class */
+      app.classList.remove('sidebar-collapsed');
+    }
+  });
+})();
+</script>
+
+{% block inline_javascript %}{% endblock %}
+
+</body>
+</html>

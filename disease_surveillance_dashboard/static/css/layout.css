@@ -1,0 +1,493 @@
+/* ================================================================
+   layout.css — App shell: sidebar + topbar + main content
+   Also provides the top-navbar for non-dashboard public pages.
+   ================================================================ */
+
+/* ── Public pages: top navbar ───────────────────────────────── */
+.ds-navbar {
+  height: 60px;
+  background: rgba(255,255,255,0.92);
+  backdrop-filter: blur(12px) saturate(160%);
+  -webkit-backdrop-filter: blur(12px) saturate(160%);
+  border-bottom: 1px solid var(--t-border);
+  box-shadow: 0 1px 2px rgba(13,27,42,0.04);
+  position: sticky;
+  top: 0;
+  z-index: 1030;
+}
+
+.ds-navbar::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--t-primary) 0%, var(--t-blue) 50%, transparent 100%);
+  opacity: 0.4;
+}
+
+.ds-navbar .navbar-brand {
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--t-text) !important;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ds-navbar .nav-link {
+  color: var(--t-text-secondary) !important;
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding: 0.4375rem 0.875rem !important;
+  border-radius: var(--t-r-sm);
+  transition: color var(--t-base) var(--t-ease), background var(--t-base) var(--t-ease);
+}
+
+.ds-navbar .nav-link:hover {
+  color: var(--t-primary) !important;
+  background: var(--t-primary-light);
+}
+
+.ds-navbar .navbar-toggler { border-color: var(--t-border-strong); }
+
+.ds-navbar .navbar-toggler-icon {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba(13,27,42,0.7)' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+}
+
+/* Public pages: main content container */
+.ds-main-container {
+  padding-top: 2rem;
+  padding-bottom: 3.5rem;
+}
+
+/* ================================================================
+   SIDEBAR WIDTHS (tokens used everywhere)
+   Expanded : --t-sidebar-w         (set in tokens.css → 240px)
+   Collapsed: --t-sidebar-w-collapsed (set in tokens.css → 64px)
+   ================================================================ */
+
+/* ── App shell wrapper ──────────────────────────────────────── */
+.ds-app {
+  display: flex;
+  min-height: 100vh;
+  background: var(--t-bg);
+}
+
+/* ================================================================
+   SIDEBAR — expanded state (default)
+   ================================================================ */
+.ds-sidebar {
+  width: var(--t-sidebar-w);
+  min-height: 100vh;
+  background: var(--t-surface);
+  border-right: 1px solid var(--t-border);
+  box-shadow: var(--t-shadow-sm);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  position: fixed;
+  top: 0; left: 0; bottom: 0;
+  z-index: 200;
+  overflow: hidden;
+  transition: width var(--t-sidebar-transition);
+}
+
+/* ── Sidebar brand ──────────────────────────────────────────── */
+.ds-sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0 1.25rem;
+  height: var(--t-topbar-h);
+  border-bottom: 1px solid var(--t-border);
+  flex-shrink: 0;
+  text-decoration: none;
+  color: var(--t-text) !important;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.ds-sidebar-brand:hover { text-decoration: none; color: var(--t-text) !important; }
+
+.ds-brand-icon {
+  width: 32px; height: 32px;
+  background: var(--t-primary);
+  border-radius: var(--t-r-sm);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  color: #fff;
+  font-size: 1rem;
+}
+
+.ds-brand-text {
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  color: var(--t-text);
+  white-space: nowrap;
+  overflow: hidden;
+  transition: opacity var(--t-sidebar-transition), width var(--t-sidebar-transition);
+}
+
+.ds-brand-text small {
+  display: block;
+  font-size: 0.65rem;
+  font-weight: 500;
+  color: var(--t-text-muted);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  margin-top: 1px;
+}
+
+/* ── Sidebar nav ────────────────────────────────────────────── */
+.ds-sidebar-nav {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 1rem 0.75rem;
+}
+
+.ds-nav-section { margin-bottom: 1.5rem; }
+
+.ds-nav-section-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--t-text-muted);
+  padding: 0 0.625rem;
+  margin-bottom: 0.375rem;
+  white-space: nowrap;
+  overflow: hidden;
+  transition: opacity var(--t-sidebar-transition);
+}
+
+/* Individual nav link */
+.ds-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--t-r-sm);
+  color: var(--t-text-secondary) !important;
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-decoration: none !important;
+  white-space: nowrap;
+  overflow: hidden;
+  transition: background var(--t-base) var(--t-ease),
+              color var(--t-base) var(--t-ease),
+              padding var(--t-sidebar-transition);
+  position: relative;
+  margin-bottom: 2px;
+}
+
+.ds-nav-link .ds-nav-icon {
+  font-size: 1.05rem;
+  flex-shrink: 0;
+  width: 20px;
+  text-align: center;
+  color: var(--t-text-muted);
+  transition: color var(--t-base) var(--t-ease);
+}
+
+.ds-nav-link span {
+  transition: opacity var(--t-sidebar-transition), width var(--t-sidebar-transition);
+  overflow: hidden;
+}
+
+.ds-nav-link:hover {
+  background: var(--t-primary-light);
+  color: var(--t-primary) !important;
+}
+.ds-nav-link:hover .ds-nav-icon { color: var(--t-primary); }
+
+.ds-nav-link.active,
+.ds-nav-link[aria-current="page"] {
+  background: var(--t-primary-light);
+  color: var(--t-primary) !important;
+  font-weight: 600;
+}
+.ds-nav-link.active .ds-nav-icon,
+.ds-nav-link[aria-current="page"] .ds-nav-icon { color: var(--t-primary); }
+
+/* Active indicator bar */
+.ds-nav-link.active::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 4px; bottom: 4px;
+  width: 3px;
+  background: var(--t-primary);
+  border-radius: 0 2px 2px 0;
+}
+
+/* Sidebar footer */
+.ds-sidebar-footer {
+  padding: 0.75rem;
+  border-top: 1px solid var(--t-border);
+  flex-shrink: 0;
+}
+
+/* ================================================================
+   COLLAPSED STATE  (.ds-app.sidebar-collapsed)
+   Desktop only — shrinks sidebar to icon rail
+   ================================================================ */
+@media (min-width: 992px) {
+  .ds-app.sidebar-collapsed .ds-sidebar {
+    width: var(--t-sidebar-w-collapsed);
+  }
+
+  /* Brand: hide text, keep icon centered */
+  .ds-app.sidebar-collapsed .ds-sidebar-brand {
+    padding: 0;
+    justify-content: center;
+    gap: 0;
+  }
+  .ds-app.sidebar-collapsed .ds-brand-text {
+    opacity: 0;
+    width: 0;
+    overflow: hidden;
+  }
+
+  /* Nav padding: centre the icons */
+  .ds-app.sidebar-collapsed .ds-sidebar-nav {
+    padding: 1rem 0.5rem;
+  }
+
+  /* Section labels: hidden */
+  .ds-app.sidebar-collapsed .ds-nav-section-label {
+    opacity: 0;
+    height: 0;
+    margin: 0;
+    overflow: hidden;
+  }
+
+  /* Nav links: icon only, centred */
+  .ds-app.sidebar-collapsed .ds-nav-link {
+    padding: 0.5rem;
+    justify-content: center;
+    gap: 0;
+  }
+  .ds-app.sidebar-collapsed .ds-nav-link span {
+    opacity: 0;
+    width: 0;
+    overflow: hidden;
+  }
+  .ds-app.sidebar-collapsed .ds-nav-link .ds-nav-icon {
+    width: auto;
+  }
+
+  /* Active bar still visible */
+  .ds-app.sidebar-collapsed .ds-nav-link.active::before {
+    top: 6px; bottom: 6px;
+  }
+
+  /* Footer */
+  .ds-app.sidebar-collapsed .ds-sidebar-footer {
+    padding: 0.75rem 0.5rem;
+  }
+
+  /* Topbar shifts left */
+  .ds-app.sidebar-collapsed .ds-topbar {
+    left: var(--t-sidebar-w-collapsed);
+  }
+
+  /* Main content shifts left */
+  .ds-app.sidebar-collapsed .ds-main {
+    margin-left: var(--t-sidebar-w-collapsed);
+  }
+}
+
+/* ================================================================
+   TOPBAR
+   ================================================================ */
+.ds-topbar {
+  position: fixed;
+  top: 0;
+  left: var(--t-sidebar-w);
+  right: 0;
+  height: var(--t-topbar-h);
+  background: rgba(255,255,255,0.92);
+  backdrop-filter: blur(12px) saturate(160%);
+  -webkit-backdrop-filter: blur(12px) saturate(160%);
+  border-bottom: 1px solid var(--t-border);
+  box-shadow: var(--t-shadow-xs);
+  display: flex;
+  align-items: center;
+  padding: 0 1.5rem;
+  z-index: 100;
+  gap: 0.75rem;
+  transition: left var(--t-sidebar-transition);
+}
+
+.ds-topbar::after {
+  content: '';
+  position: absolute;
+  bottom: -1px; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--t-primary) 0%, var(--t-blue) 50%, transparent 100%);
+  opacity: 0.4;
+}
+
+/* Sidebar toggle button — always visible on dashboard */
+.ds-sidebar-toggle {
+  background: none;
+  border: none;
+  padding: 0.375rem 0.5rem;
+  border-radius: var(--t-r-xs);
+  color: var(--t-text-secondary);
+  cursor: pointer;
+  font-size: 1.25rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background var(--t-fast) var(--t-ease), color var(--t-fast) var(--t-ease);
+}
+.ds-sidebar-toggle:hover { background: var(--t-primary-light); color: var(--t-primary); }
+
+/* Topbar page title */
+.ds-topbar-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--t-text);
+  letter-spacing: -0.01em;
+}
+
+.ds-topbar-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* User chip */
+.ds-user-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3125rem 0.75rem 0.3125rem 0.375rem;
+  border-radius: var(--t-r-pill);
+  background: var(--t-bg);
+  border: 1px solid var(--t-border);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--t-text-secondary);
+  text-decoration: none !important;
+  transition: background var(--t-base) var(--t-ease), border-color var(--t-base) var(--t-ease);
+}
+.ds-user-chip:hover {
+  background: var(--t-primary-light);
+  border-color: var(--t-primary);
+  color: var(--t-primary) !important;
+}
+
+.ds-user-avatar {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--t-primary);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.ds-icon-btn {
+  width: 36px; height: 36px;
+  border-radius: var(--t-r-sm);
+  background: transparent;
+  border: 1px solid var(--t-border);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--t-text-muted);
+  font-size: 1rem;
+  text-decoration: none !important;
+  cursor: pointer;
+  transition: background var(--t-base) var(--t-ease),
+              color var(--t-base) var(--t-ease),
+              border-color var(--t-base) var(--t-ease);
+}
+.ds-icon-btn:hover {
+  background: var(--t-primary-light);
+  border-color: var(--t-primary);
+  color: var(--t-primary) !important;
+}
+
+/* ================================================================
+   MAIN CONTENT AREA
+   ================================================================ */
+.ds-main {
+  margin-left: var(--t-sidebar-w);
+  padding-top: var(--t-topbar-h);
+  min-height: 100vh;
+  width: 100%;
+  transition: margin-left var(--t-sidebar-transition);
+}
+
+.ds-page {
+  padding: 1.75rem 1.5rem 3rem;
+  max-width: 1600px;
+}
+
+.ds-page-header { margin-bottom: 1.5rem; }
+
+.ds-page-title {
+  font-size: 1.375rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--t-text);
+  margin-bottom: 0.2rem;
+  line-height: 1.2;
+}
+
+.ds-page-subtitle {
+  font-size: 0.8125rem;
+  color: var(--t-text-muted);
+  font-weight: 400;
+}
+
+/* ================================================================
+   SIDEBAR OVERLAY & MOBILE
+   ================================================================ */
+.ds-sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(13,27,42,0.4);
+  z-index: 190;
+  backdrop-filter: blur(2px);
+}
+.ds-sidebar-overlay.active { display: block; }
+
+@media (max-width: 991.98px) {
+  /* Mobile: slide sidebar off-screen by default */
+  .ds-sidebar {
+    transform: translateX(-100%);
+    /* Reset any collapsed-state width from desktop */
+    width: var(--t-sidebar-w) !important;
+  }
+
+  .ds-sidebar.open { transform: translateX(0); }
+
+  /* Sidebar text always visible when drawer is open on mobile */
+  .ds-sidebar-brand { padding: 0 1.25rem; justify-content: flex-start; gap: 0.75rem; }
+  .ds-brand-text    { opacity: 1 !important; width: auto !important; }
+  .ds-nav-section-label { opacity: 1 !important; height: auto !important; margin-bottom: 0.375rem !important; }
+  .ds-nav-link { padding: 0.5rem 0.75rem !important; justify-content: flex-start !important; gap: 0.75rem !important; }
+  .ds-nav-link span { opacity: 1 !important; width: auto !important; }
+
+  /* Topbar full width */
+  .ds-topbar { left: 0; }
+
+  /* No left margin on mobile */
+  .ds-main { margin-left: 0; }
+}
+
+@media (max-width: 575.98px) {
+  .ds-page    { padding: 1.25rem 1rem 2rem; }
+  .ds-topbar  { padding: 0 1rem; }
+  .ds-topbar-title { font-size: 0.875rem; }
+}

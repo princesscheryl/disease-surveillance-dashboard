@@ -1,0 +1,45 @@
+{% comment %}
+  templates/dashboard/_filters.html
+  Shared filter bar — date range + disease + location.
+  Requires: Alpine dashboardData() component already mounted on parent.
+{% endcomment %}
+<div class="card mb-4 filter-card">
+  <div class="card-header d-flex align-items-center gap-2">
+    <i class="bi bi-funnel-fill text-muted" style="font-size:0.875rem;" aria-hidden="true"></i>
+    <h5 class="mb-0">Filters</h5>
+  </div>
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-md-3">
+        <label for="startDate" class="form-label">Start Date</label>
+        <input type="date" id="startDate" class="form-control"
+               x-model="filters.startDate" @change="loadData()">
+      </div>
+      <div class="col-md-3">
+        <label for="endDate" class="form-label">End Date</label>
+        <input type="date" id="endDate" class="form-control"
+               x-model="filters.endDate" @change="loadData()">
+      </div>
+      <div class="col-md-3">
+        <label for="diseaseFilter" class="form-label">Disease</label>
+        <select id="diseaseFilter" class="form-select"
+                x-model="filters.diseaseId" @change="loadData()">
+          <option value="">All Diseases</option>
+          <template x-for="disease in diseases" :key="disease.id">
+            <option :value="disease.id" x-text="disease.disease_name"></option>
+          </template>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label for="locationFilter" class="form-label">Location</label>
+        <select id="locationFilter" class="form-select"
+                x-model="filters.locationId" @change="loadData()">
+          <option value="">All Locations</option>
+          <template x-for="location in locations" :key="location.id">
+            <option :value="location.id" x-text="location.district_name"></option>
+          </template>
+        </select>
+      </div>
+    </div>
+  </div>
+</div>

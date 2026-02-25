@@ -8,35 +8,22 @@
 <!-- Leaflet CSS -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <style>
-  .kpi-card {
-    border-left: 4px solid #007bff;
-    padding: 1rem;
-    margin-bottom: 1rem;
-  }
-  .kpi-value {
-    font-size: 2rem;
-    font-weight: bold;
-  }
-  #map {
-    height: 500px;
-    width: 100%;
-  }
-  .chart-container {
-    position: relative;
-    height: 300px;
-    margin-bottom: 2rem;
-  }
+  /* Dashboard-page-only overrides (non-conflicting with project.css) */
+  .kpi-card { margin-bottom: 0; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid mt-4" x-data="dashboardData()" x-init="init()">
-  <h1 class="mb-4">Disease Surveillance Monitoring Dashboard</h1>
+  <div class="mb-4">
+    <h1 class="dashboard-title">Disease Surveillance Monitoring Dashboard</h1>
+    <p class="dashboard-subtitle">Real-time epidemiological intelligence for Greater Accra &mdash; powered by CUSUM &amp; Moving Average analysis</p>
+  </div>
 
   <!-- Filters -->
-  <div class="card mb-4">
+  <div class="card mb-4 filter-card">
     <div class="card-header">
-      <h5>Filters</h5>
+      <h5>&#9881;&nbsp; Filters</h5>
     </div>
     <div class="card-body">
       <div class="row g-3">
@@ -160,7 +147,7 @@
         </div>
         <div class="card-body">
           <div class="table-responsive">
-            <table class="table table-sm">
+            <table class="table table-sm table-striped table-hover">
               <thead>
                 <tr>
                   <th>Disease</th>
@@ -196,7 +183,7 @@
         </div>
         <div class="card-body">
           <div class="table-responsive">
-            <table class="table table-sm">
+            <table class="table table-sm table-striped table-hover">
               <thead>
                 <tr>
                   <th>Alert ID</th>

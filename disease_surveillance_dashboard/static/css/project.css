@@ -1,13 +1,12 @@
-/* These styles are generated from project.scss. */
-
-.alert-debug {
-  color: black;
-  background-color: white;
-  border-color: #d6e9c6;
-}
-
-.alert-error {
-  color: #b94a48;
-  background-color: #f2dede;
-  border-color: #eed3d7;
-}
+/*
+  project.css — DEPRECATED
+  This file is kept as an empty stub so any existing references
+  (e.g. cached browser requests) do not 404.
+  All styles have been migrated to:
+    css/tokens.css
+    css/base.css
+    css/layout.css
+    css/components.css
+    css/pages/dashboard.css
+    css/pages/reporting.css
+*/

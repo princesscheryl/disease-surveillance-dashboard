@@ -1,0 +1,94 @@
+{% extends "dashboard/_layout.html" %}
+{% load static i18n %}
+
+{% block title %}Analytics — Disease Surveillance Dashboard{% endblock %}
+{% block topbar_title %}Analytics{% endblock %}
+
+{% block page_css %}
+<link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}" />
+{% endblock %}
+
+{% block page_js %}
+<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js"></script>
+{% endblock %}
+
+{% block page_content %}
+<div x-data="dashboardData()" x-init="init()">
+
+  <div class="ds-page-header">
+    <h1 class="ds-page-title">Analytics</h1>
+    <p class="ds-page-subtitle">Trend analysis, forecasts, and epidemiological charts</p>
+  </div>
+
+  {% include "dashboard/_filters.html" %}
+
+  {# Timeseries + forecast chart #}
+  <div class="row g-3 mb-4">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header d-flex align-items-center gap-2">
+          <i class="bi bi-graph-up-arrow text-muted" aria-hidden="true"></i>
+          <h5 class="mb-0">Daily Cases Trend &amp; Forecast</h5>
+        </div>
+        <div class="card-body">
+          <div class="chart-container" style="height:320px;">
+            <div id="casesChart" class="ds-chart"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# Top diseases bar chart #}
+  <div class="row g-3">
+    <div class="col-md-6">
+      <div class="card h-100">
+        <div class="card-header d-flex align-items-center gap-2">
+          <i class="bi bi-bar-chart-horizontal-fill text-muted" aria-hidden="true"></i>
+          <h5 class="mb-0">Top Diseases by Case Count</h5>
+        </div>
+        <div class="card-body">
+          <div class="chart-container">
+            <div id="diseasesChart" class="ds-chart"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card h-100">
+        <div class="card-header d-flex align-items-center gap-2">
+          <i class="bi bi-info-circle text-muted" aria-hidden="true"></i>
+          <h5 class="mb-0">Analysis Notes</h5>
+        </div>
+        <div class="card-body">
+          <ul class="list-unstyled" style="font-size:0.875rem; color:var(--t-text-secondary);">
+            <li class="mb-2">
+              <i class="bi bi-dot" style="color:#1b8a78;"></i>
+              <strong>Cases</strong> — actual daily reported case counts
+            </li>
+            <li class="mb-2">
+              <i class="bi bi-dot" style="color:#f59e0b;"></i>
+              <strong>Forecast</strong> — CUSUM-based projected values
+            </li>
+            <li class="mb-2">
+              <i class="bi bi-dot" style="color:#ef4444;"></i>
+              <strong>Anomaly</strong> — statistical outliers flagged by Moving Average
+            </li>
+          </ul>
+          <hr style="border-color:var(--t-border);">
+          <p style="font-size:0.8rem;color:var(--t-text-muted);">
+            Baseline metrics are computed using a rolling window.
+            Alerts are generated when CUSUM exceeds the configured threshold.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block inline_javascript %}
+{% include "dashboard/_alpine_data.html" %}
+{% endblock %}

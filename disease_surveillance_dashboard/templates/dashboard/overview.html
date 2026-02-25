@@ -1,0 +1,102 @@
+{% extends "dashboard/_layout.html" %}
+{% load static i18n %}
+
+{% block title %}Overview — Disease Surveillance Dashboard{% endblock %}
+{% block topbar_title %}Overview{% endblock %}
+
+{% block page_css %}
+<link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}" />
+{% endblock %}
+
+{% block page_js %}
+<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js"></script>
+{% endblock %}
+
+{% block page_content %}
+<div x-data="dashboardData()" x-init="init()">
+
+  {# Page header #}
+  <div class="ds-page-header">
+    <h1 class="ds-page-title">Surveillance Overview</h1>
+    <p class="ds-page-subtitle">
+      Real-time epidemiological summary for Greater Accra &mdash;
+      powered by CUSUM &amp; Moving Average analysis
+    </p>
+  </div>
+
+  {# Filters #}
+  {% include "dashboard/_filters.html" %}
+
+  {# KPI Cards #}
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+      <div class="card kpi-card h-100">
+        <div class="card-body">
+          <h6 class="text-muted">Cases (7 days)</h6>
+          <div class="kpi-value" x-text="summary.cases_7d ?? 0"></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card kpi-card h-100">
+        <div class="card-body">
+          <h6 class="text-muted">Cases (30 days)</h6>
+          <div class="kpi-value" x-text="summary.cases_30d ?? 0"></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card kpi-card h-100">
+        <div class="card-body">
+          <h6 class="text-muted">Reports (7 days)</h6>
+          <div class="kpi-value" x-text="summary.reports_7d ?? 0"></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card kpi-card h-100">
+        <div class="card-body">
+          <h6 class="text-muted">Active Alerts</h6>
+          <div class="kpi-value" x-text="summary.active_alerts ?? 0"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# At-a-glance mini charts #}
+  <div class="row g-3">
+    <div class="col-md-8">
+      <div class="card h-100">
+        <div class="card-header d-flex align-items-center gap-2">
+          <i class="bi bi-graph-up text-muted" aria-hidden="true"></i>
+          <h5 class="mb-0">Daily Cases Trend</h5>
+        </div>
+        <div class="card-body">
+          <div class="chart-container">
+            <div id="casesChart" class="ds-chart"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card h-100">
+        <div class="card-header d-flex align-items-center gap-2">
+          <i class="bi bi-bar-chart-fill text-muted" aria-hidden="true"></i>
+          <h5 class="mb-0">Top Diseases</h5>
+        </div>
+        <div class="card-body">
+          <div class="chart-container">
+            <div id="diseasesChart" class="ds-chart"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block inline_javascript %}
+{% include "dashboard/_alpine_data.html" %}
+{% endblock %}

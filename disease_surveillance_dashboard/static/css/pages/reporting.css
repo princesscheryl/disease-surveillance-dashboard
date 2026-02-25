@@ -1,0 +1,32 @@
+/* ================================================================
+   pages/reporting.css — Report Case form page
+   ================================================================ */
+
+/* Page wrapper */
+.reporting-page {
+  max-width: 960px;
+}
+
+/* Tighter card body for forms */
+.reporting-page .card-body {
+  padding: 1.75rem 2rem;
+}
+
+/* Field error helper */
+.field-error {
+  display: block;
+  font-size: 0.79rem;
+  color: var(--t-danger);
+  margin-top: 0.25rem;
+}
+
+/* Textarea auto-grow hint */
+.form-hint {
+  font-size: 0.75rem;
+  color: var(--t-text-muted);
+  margin-top: 0.25rem;
+}
+
+@media (max-width: 576px) {
+  .reporting-page .card-body { padding: 1.25rem 1rem; }
+}

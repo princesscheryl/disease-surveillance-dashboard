@@ -1,0 +1,518 @@
+{% comment %}
+  templates/dashboard/_alpine_data.html
+  Shared Alpine.js component definition — dashboardData().
+  Include this once per page via the inline_javascript block.
+  All API endpoints and fetch logic are preserved exactly.
+  Charts now use Apache ECharts instead of Chart.js.
+{% endcomment %}
+<script>
+function dashboardData() {
+  return {
+    summary: {},
+    timeseries: [],
+    anomalies: [],
+    forecast: { forecast: [] },
+    topDiseases: [],
+    mapPoints: [],
+    recentAlerts: [],
+    recentInvestigations: [],
+    diseases: [],
+    locations: [],
+    filters: {
+      startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      endDate: new Date().toISOString().split('T')[0],
+      diseaseId: '',
+      locationId: ''
+    },
+    canEvaluate: false,
+    casesChart: null,
+    diseasesChart: null,
+    map: null,
+    _mapInitialized: false,
+    _loadVersion: 0,
+    _loading: false,
+
+    async init() {
+      console.log('[Dashboard] init() started');
+      try {
+        if (typeof echarts === 'undefined') {
+          console.error('[Dashboard] ECharts not loaded — charts will not render');
+        }
+        await this.loadDiseases();
+        await this.loadLocations();
+        await this.checkEvaluatePermission();
+        await this.loadData();
+        this.initMap();
+        /* Register global resize helper so sidebar toggle can call it */
+        window.dsResizeCharts = () => {
+          if (this.casesChart)    this.casesChart.resize();
+          if (this.diseasesChart) this.diseasesChart.resize();
+        };
+        console.log('[Dashboard] init() completed');
+      } catch (err) {
+        console.error('[Dashboard] init() failed:', err);
+      }
+    },
+
+    async loadDiseases() {
+      try {
+        const r = await fetch('/api/v1/diseases/', {
+          credentials: 'include',
+          headers: { 'X-CSRFToken': this.getCsrfToken() }
+        });
+        const data = await r.json();
+        this.diseases = Array.isArray(data) ? data : (data.results || []);
+      } catch (e) { console.error('Error loading diseases:', e); }
+    },
+
+    async loadLocations() {
+      try {
+        const r = await fetch('/api/v1/locations/', {
+          credentials: 'include',
+          headers: { 'X-CSRFToken': this.getCsrfToken() }
+        });
+        const data = await r.json();
+        this.locations = Array.isArray(data) ? data : (data.results || []);
+      } catch (e) { console.error('Error loading locations:', e); }
+    },
+
+    async checkEvaluatePermission() {
+      this.canEvaluate = true;
+    },
+
+    buildQueryParams() {
+      const p = new URLSearchParams();
+      if (this.filters.startDate)  p.append('start_date',  this.filters.startDate);
+      if (this.filters.endDate)    p.append('end_date',    this.filters.endDate);
+      if (this.filters.diseaseId)  p.append('disease_id',  this.filters.diseaseId);
+      if (this.filters.locationId) p.append('location_id', this.filters.locationId);
+      return p.toString();
+    },
+
+    async loadData() {
+      const version = ++this._loadVersion;
+      this._loading = true;
+      const params = this.buildQueryParams();
+
+      await Promise.all([
+        this.loadSummary(params),
+        this.loadTimeseries(params),
+        this.loadAnomalies(params),
+        this.loadForecast(params),
+        this.loadTopDiseases(params),
+        this.loadMapPoints(params),
+        this.loadRecentAlerts(params),
+        this.loadRecentInvestigations()
+      ]);
+
+      if (version !== this._loadVersion) {
+        console.log('[Dashboard] loadData() cancelled — stale version', version);
+        return;
+      }
+      await this.$nextTick();
+      if (version !== this._loadVersion) return;
+
+      this.updateCharts();
+      this.updateMap();
+      if (version === this._loadVersion) { this._loading = false; }
+    },
+
+    getCsrfToken() {
+      for (const cookie of document.cookie.split(';')) {
+        const [name, value] = cookie.trim().split('=');
+        if (name === 'csrftoken') return value;
+      }
+      return '';
+    },
+
+    async loadSummary(params) {
+      const url = `/api/v1/dashboard/summary/?${params}`;
+      console.log('[Dashboard] fetch:', url);
+      try {
+        const r = await fetch(url, { credentials: 'include', headers: { 'X-CSRFToken': this.getCsrfToken() } });
+        console.log('[Dashboard] summary status:', r.status);
+        if (r.ok) this.summary = await r.json();
+        else console.warn('[Dashboard] summary failed:', r.status);
+      } catch (e) { console.error('[Dashboard] Error loading summary:', e); }
+    },
+
+    async loadTimeseries(params) {
+      const url = `/api/v1/dashboard/cases-timeseries/?${params}`;
+      console.log('[Dashboard] fetch:', url);
+      try {
+        const r = await fetch(url, { credentials: 'include', headers: { 'X-CSRFToken': this.getCsrfToken() } });
+        console.log('[Dashboard] timeseries status:', r.status);
+        if (r.ok) {
+          const data = await r.json();
+          this.timeseries = Array.isArray(data) ? data : [];
+          console.log('[Dashboard] timeseries length:', this.timeseries.length);
+        } else { console.warn('[Dashboard] timeseries failed:', r.status); }
+      } catch (e) { console.error('[Dashboard] Error loading timeseries:', e); }
+    },
+
+    async loadAnomalies(params) {
+      const url = `/api/v1/dashboard/anomalies/?${params}`;
+      console.log('[Dashboard] fetch:', url);
+      try {
+        const r = await fetch(url, { credentials: 'include', headers: { 'X-CSRFToken': this.getCsrfToken() } });
+        console.log('[Dashboard] anomalies status:', r.status);
+        if (r.ok) { const data = await r.json(); this.anomalies = Array.isArray(data) ? data : []; }
+      } catch (e) { console.error('[Dashboard] Error loading anomalies:', e); }
+    },
+
+    async loadForecast(params) {
+      const url = `/api/v1/dashboard/forecast/?${params}`;
+      console.log('[Dashboard] fetch:', url);
+      try {
+        const r = await fetch(url, { credentials: 'include', headers: { 'X-CSRFToken': this.getCsrfToken() } });
+        console.log('[Dashboard] forecast status:', r.status);
+        if (r.ok) this.forecast = await r.json();
+      } catch (e) { console.error('[Dashboard] Error loading forecast:', e); }
+    },
+
+    async loadTopDiseases(params) {
+      const url = `/api/v1/dashboard/top-diseases/?${params}`;
+      console.log('[Dashboard] fetch:', url);
+      try {
+        const r = await fetch(url, { credentials: 'include', headers: { 'X-CSRFToken': this.getCsrfToken() } });
+        console.log('[Dashboard] top-diseases status:', r.status);
+        if (r.ok) {
+          const data = await r.json();
+          this.topDiseases = Array.isArray(data) ? data : [];
+          console.log('[Dashboard] topDiseases length:', this.topDiseases.length);
+        } else { console.warn('[Dashboard] top-diseases failed:', r.status); }
+      } catch (e) { console.error('[Dashboard] Error loading top diseases:', e); }
+    },
+
+    async loadMapPoints(params) {
+      const url = `/api/v1/dashboard/map-points/?${params}`;
+      console.log('[Dashboard] fetch:', url);
+      try {
+        const r = await fetch(url, { credentials: 'include', headers: { 'X-CSRFToken': this.getCsrfToken() } });
+        console.log('[Dashboard] map-points status:', r.status);
+        if (r.ok) { const data = await r.json(); this.mapPoints = Array.isArray(data) ? data : []; }
+      } catch (e) { console.error('[Dashboard] Error loading map points:', e); }
+    },
+
+    async loadRecentAlerts(params) {
+      const url = `/api/v1/dashboard/recent-alerts/?${params}`;
+      console.log('[Dashboard] fetch:', url);
+      try {
+        const r = await fetch(url, { credentials: 'include', headers: { 'X-CSRFToken': this.getCsrfToken() } });
+        console.log('[Dashboard] recent-alerts status:', r.status);
+        if (r.ok) { const data = await r.json(); this.recentAlerts = Array.isArray(data) ? data : []; }
+      } catch (e) { console.error('[Dashboard] Error loading recent alerts:', e); }
+    },
+
+    async loadRecentInvestigations() {
+      const url = '/api/v1/dashboard/recent-investigations/';
+      console.log('[Dashboard] fetch:', url);
+      try {
+        const r = await fetch(url, { credentials: 'include', headers: { 'X-CSRFToken': this.getCsrfToken() } });
+        console.log('[Dashboard] recent-investigations status:', r.status);
+        if (r.ok) { const data = await r.json(); this.recentInvestigations = Array.isArray(data) ? data : []; }
+      } catch (e) { console.error('[Dashboard] Error loading recent investigations:', e); }
+    },
+
+    /* ============================================================
+       CHART RENDERING — Apache ECharts
+       Each call safely disposes any existing instance before
+       re-initialising, preventing the "container already has a
+       chart" error that caused the old Chart.js race condition.
+    ============================================================ */
+    updateCharts() {
+      if (typeof echarts === 'undefined') {
+        console.error('[Dashboard] ECharts not available, skipping render');
+        return;
+      }
+      this._renderCasesChart();
+      this._renderDiseasesChart();
+    },
+
+    _renderCasesChart() {
+      const el = document.getElementById('casesChart');
+      if (!el) { console.warn('[Dashboard] missing div: casesChart'); return; }
+
+      /* Dispose existing instance to prevent double-init errors */
+      const existing = echarts.getInstanceByDom(el);
+      if (existing) { existing.dispose(); }
+      this.casesChart = null;
+
+      const timeseries   = this.timeseries   || [];
+      const forecastList = (this.forecast && this.forecast.forecast) ? this.forecast.forecast : [];
+      const anomalies    = this.anomalies    || [];
+
+      const allDates = timeseries.map(d => d.date).concat(forecastList.map(d => d.date));
+      const dates    = allDates.length ? allDates : [];
+
+      /* Actual cases — null-pad for forecast region */
+      const casesData = timeseries.map(d => d.cases)
+                                  .concat(forecastList.map(() => null));
+
+      /* Forecast — null-pad for historical region */
+      const forecastData = timeseries.map(() => null)
+                                     .concat(forecastList.map(d => d.forecast));
+
+      /* Anomaly scatter points */
+      const anomalyScatter = (anomalies.length === timeseries.length)
+        ? timeseries
+            .map((d, i) => anomalies[i] && anomalies[i].is_anomaly
+              ? { value: [d.date, d.cases] }
+              : null)
+            .filter(Boolean)
+        : [];
+
+      const series = [
+        {
+          name: 'Cases',
+          type: 'line',
+          data: casesData.length ? casesData : [0],
+          smooth: true,
+          symbol: 'circle',
+          symbolSize: 4,
+          lineStyle: { width: 2, color: '#1b8a78' },
+          itemStyle: { color: '#1b8a78' },
+          areaStyle: {
+            color: {
+              type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+              colorStops: [
+                { offset: 0, color: 'rgba(27,138,120,0.15)' },
+                { offset: 1, color: 'rgba(27,138,120,0.01)' }
+              ]
+            }
+          }
+        }
+      ];
+
+      if (forecastList.length) {
+        series.push({
+          name: 'Forecast',
+          type: 'line',
+          data: forecastData,
+          smooth: true,
+          symbol: 'none',
+          lineStyle: { width: 2, type: 'dashed', color: '#f59e0b' },
+          itemStyle: { color: '#f59e0b' }
+        });
+      }
+
+      if (anomalyScatter.length) {
+        series.push({
+          name: 'Anomaly',
+          type: 'scatter',
+          data: anomalyScatter,
+          symbolSize: 10,
+          itemStyle: { color: '#ef4444', borderColor: '#fff', borderWidth: 2 },
+          z: 10
+        });
+      }
+
+      try {
+        this.casesChart = echarts.init(el, null, { renderer: 'canvas' });
+        this.casesChart.setOption({
+          animation: false,
+          grid: { top: 32, right: 24, bottom: 40, left: 56, containLabel: false },
+          tooltip: {
+            trigger: 'axis',
+            backgroundColor: '#fff',
+            borderColor: '#e8ecf0',
+            borderWidth: 1,
+            textStyle: { color: '#0d1b2a', fontSize: 12 },
+            axisPointer: { type: 'cross', lineStyle: { color: '#d1d9e0' } }
+          },
+          legend: {
+            top: 4, right: 0,
+            textStyle: { color: '#3d5166', fontSize: 11 },
+            itemHeight: 8
+          },
+          xAxis: {
+            type: 'category',
+            data: dates.length ? dates : ['No data'],
+            axisLine: { lineStyle: { color: '#e8ecf0' } },
+            axisTick: { show: false },
+            axisLabel: { color: '#7a8fa6', fontSize: 11, rotate: dates.length > 14 ? 30 : 0 }
+          },
+          yAxis: {
+            type: 'value',
+            splitLine: { lineStyle: { color: '#f0f2f5', type: 'dashed' } },
+            axisLabel: { color: '#7a8fa6', fontSize: 11 },
+            axisLine: { show: false },
+            axisTick: { show: false }
+          },
+          series: series
+        });
+        console.log('[Dashboard] ECharts cases chart rendered');
+      } catch (err) { console.error('[Dashboard] Error rendering cases chart:', err); }
+    },
+
+    _renderDiseasesChart() {
+      const el = document.getElementById('diseasesChart');
+      if (!el) { console.warn('[Dashboard] missing div: diseasesChart'); return; }
+
+      const existing = echarts.getInstanceByDom(el);
+      if (existing) { existing.dispose(); }
+      this.diseasesChart = null;
+
+      const topDiseases = this.topDiseases || [];
+      /* Sort descending so largest bar is at top */
+      const sorted = [...topDiseases].sort((a, b) => a.cases - b.cases);
+      const names  = sorted.length ? sorted.map(d => d.disease_name) : ['No data'];
+      const values = sorted.length ? sorted.map(d => d.cases)       : [0];
+
+      const palette = [
+        '#1b8a78','#21a88f','#3b82f6','#6366f1','#8b5cf6',
+        '#ec4899','#f59e0b','#10b981','#0ea5e9','#e11d48'
+      ];
+
+      try {
+        this.diseasesChart = echarts.init(el, null, { renderer: 'canvas' });
+        this.diseasesChart.setOption({
+          animation: false,
+          grid: { top: 8, right: 64, bottom: 16, left: 8, containLabel: true },
+          tooltip: {
+            trigger: 'axis',
+            axisPointer: { type: 'shadow' },
+            backgroundColor: '#fff',
+            borderColor: '#e8ecf0',
+            borderWidth: 1,
+            textStyle: { color: '#0d1b2a', fontSize: 12 }
+          },
+          xAxis: {
+            type: 'value',
+            splitLine: { lineStyle: { color: '#f0f2f5', type: 'dashed' } },
+            axisLabel: { color: '#7a8fa6', fontSize: 11 },
+            axisLine: { show: false },
+            axisTick: { show: false }
+          },
+          yAxis: {
+            type: 'category',
+            data: names,
+            axisLine: { show: false },
+            axisTick: { show: false },
+            axisLabel: {
+              color: '#3d5166',
+              fontSize: 11,
+              width: 120,
+              overflow: 'truncate'
+            }
+          },
+          series: [{
+            name: 'Cases',
+            type: 'bar',
+            data: values.map((v, i) => ({
+              value: v,
+              itemStyle: { color: palette[i % palette.length], borderRadius: [0, 4, 4, 0] }
+            })),
+            label: {
+              show: true,
+              position: 'right',
+              fontSize: 11,
+              color: '#7a8fa6'
+            },
+            barMaxWidth: 28
+          }]
+        });
+        console.log('[Dashboard] ECharts diseases chart rendered');
+      } catch (err) { console.error('[Dashboard] Error rendering diseases chart:', err); }
+    },
+
+    /* ============================================================
+       MAP — Leaflet (unchanged)
+    ============================================================ */
+    initMap() {
+      if (this._mapInitialized) return;
+      this._mapInitialized = true;
+      try {
+        if (typeof L === 'undefined') {
+          console.warn('[Dashboard] Leaflet not loaded, map will not render');
+          this._mapInitialized = false; return;
+        }
+        const mapEl = document.getElementById('map');
+        if (!mapEl) {
+          console.warn('[Dashboard] #map element not found');
+          this._mapInitialized = false; return;
+        }
+        if (this.map) { this.map.remove(); this.map = null; }
+        if (mapEl._leaflet_id) mapEl._leaflet_id = null;
+        this.map = L.map(mapEl).setView([5.6037, -0.1870], 10);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '© OpenStreetMap contributors'
+        }).addTo(this.map);
+        this.updateMap();
+      } catch (err) {
+        console.error('[Dashboard] Error initializing map:', err);
+        this._mapInitialized = false;
+      }
+    },
+
+    updateMap() {
+      if (!this.map) return;
+      this.map.eachLayer(layer => {
+        if (layer instanceof L.Marker) this.map.removeLayer(layer);
+      });
+      this.mapPoints.forEach(point => {
+        const popupContent = `
+          <strong>${point.district_name}</strong>${point.area_name ? '<br>' + point.area_name : ''}<br>
+          Cases: ${point.cases}<br>
+          ${point.has_alert ? `<span style="background:#ef4444;color:#fff;padding:1px 6px;border-radius:4px;font-size:11px;">Alert: ${point.alert_severity} (${point.alert_status})</span>` : ''}
+        `;
+        const marker = L.marker([point.latitude, point.longitude])
+          .addTo(this.map)
+          .bindPopup(popupContent);
+        if (point.has_alert) {
+          marker.setIcon(L.icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41]
+          }));
+        }
+      });
+    },
+
+    async evaluateWarning() {
+      const trendMetricId = prompt('Enter trend metric ID to evaluate:');
+      if (!trendMetricId) return;
+      try {
+        const r = await fetch('/api/v1/dashboard/evaluate/', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCsrfToken() },
+          body: JSON.stringify({ trend_metric_id: parseInt(trendMetricId) })
+        });
+        const data = await r.json();
+        if (r.ok) {
+          alert(data.message + (data.alert_id ? ` (Alert ID: ${data.alert_id})` : ''));
+          await this.loadRecentAlerts(this.buildQueryParams());
+        } else {
+          alert('Error: ' + (data.error || 'Unknown error'));
+        }
+      } catch (err) {
+        console.error('Error evaluating warning:', err);
+        alert('Error evaluating early warning');
+      }
+    },
+
+    getSeverityClass(severity) {
+      const map = { Low: 'bg-warning', Medium: 'bg-info', High: 'bg-danger' };
+      return map[severity] || 'bg-secondary';
+    },
+
+    formatDate(dateString) {
+      if (!dateString) return '-';
+      return new Date(dateString).toLocaleDateString();
+    }
+  };
+}
+</script>
+<!-- Global window resize listener — keeps charts sized correctly -->
+<script>
+(function () {
+  var resizeTimer;
+  window.addEventListener('resize', function () {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function () {
+      if (typeof window.dsResizeCharts === 'function') window.dsResizeCharts();
+    }, 100);
+  });
+})();
+</script>

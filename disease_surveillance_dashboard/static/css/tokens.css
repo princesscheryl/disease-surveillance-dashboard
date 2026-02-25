@@ -1,0 +1,79 @@
+/* ================================================================
+   tokens.css — Design Tokens
+   Single source of truth for all colour, spacing, and type values.
+   Import this first in every page so variables are available.
+   ================================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+:root {
+  /* ── Brand ───────────────────────────────────────────────── */
+  --t-primary:         #1b8a78;
+  --t-primary-dark:    #14705f;
+  --t-primary-mid:     #21a88f;
+  --t-primary-light:   #e6f7f4;
+  --t-primary-xlight:  #f0fbf8;
+
+  --t-blue:            #3b82f6;
+  --t-blue-dark:       #2563eb;
+  --t-blue-light:      #eff6ff;
+
+  /* ── Surfaces ────────────────────────────────────────────── */
+  --t-bg:              #f5f7fa;
+  --t-surface:         #ffffff;
+  --t-surface-hover:   #fafcff;
+
+  /* ── Borders ─────────────────────────────────────────────── */
+  --t-border:          #e8ecf0;
+  --t-border-strong:   #d1d9e0;
+
+  /* ── Typography ──────────────────────────────────────────── */
+  --t-text:            #0d1b2a;
+  --t-text-secondary:  #3d5166;
+  --t-text-muted:      #7a8fa6;
+  --t-text-placeholder:#aab7c4;
+
+  /* ── Semantic ────────────────────────────────────────────── */
+  --t-success:         #16a34a;
+  --t-success-bg:      #dcfce7;
+  --t-success-border:  rgba(22,163,74,0.2);
+
+  --t-warning:         #d97706;
+  --t-warning-bg:      #fef3c7;
+  --t-warning-border:  rgba(217,119,6,0.2);
+
+  --t-danger:          #dc2626;
+  --t-danger-bg:       #fee2e2;
+  --t-danger-border:   rgba(220,38,38,0.2);
+
+  --t-info:            #0284c7;
+  --t-info-bg:         #e0f2fe;
+  --t-info-border:     rgba(2,132,199,0.2);
+
+  /* ── Radii ───────────────────────────────────────────────── */
+  --t-r-xs:            4px;
+  --t-r-sm:            8px;
+  --t-r:               12px;
+  --t-r-lg:            16px;
+  --t-r-xl:            20px;
+  --t-r-pill:          100px;
+
+  /* ── Shadows ─────────────────────────────────────────────── */
+  --t-shadow-xs: 0 1px 2px rgba(13,27,42,0.04);
+  --t-shadow-sm: 0 2px 6px rgba(13,27,42,0.06), 0 1px 2px rgba(13,27,42,0.04);
+  --t-shadow:    0 4px 16px rgba(13,27,42,0.07), 0 1px 4px rgba(13,27,42,0.04);
+  --t-shadow-lg: 0 8px 28px rgba(13,27,42,0.10), 0 2px 8px rgba(13,27,42,0.05);
+  --t-shadow-xl: 0 16px 48px rgba(13,27,42,0.13), 0 4px 12px rgba(13,27,42,0.06);
+
+  /* ── Layout ──────────────────────────────────────────────── */
+  --t-sidebar-w:       240px;
+  --t-sidebar-w-collapsed: 64px;
+  --t-topbar-h:        60px;
+
+  /* ── Transitions ─────────────────────────────────────────── */
+  --t-ease:            cubic-bezier(0.4, 0, 0.2, 1);
+  --t-fast:            120ms;
+  --t-base:            180ms;
+  --t-slow:            260ms;
+  --t-sidebar-transition: 220ms var(--t-ease);
+}

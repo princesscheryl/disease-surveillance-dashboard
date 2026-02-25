@@ -1,0 +1,88 @@
+{% extends "dashboard/_layout.html" %}
+{% load static i18n %}
+
+{% block title %}Live Map — Disease Surveillance Dashboard{% endblock %}
+{% block topbar_title %}Live Map{% endblock %}
+
+{% block page_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}" />
+{% endblock %}
+
+{% block page_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js"></script>
+{% endblock %}
+
+{% block page_content %}
+<div x-data="dashboardData()" x-init="init()">
+
+  <div class="ds-page-header">
+    <h1 class="ds-page-title">Live Geographic Map</h1>
+    <p class="ds-page-subtitle">Case distribution and alert locations across Greater Accra</p>
+  </div>
+
+  {% include "dashboard/_filters.html" %}
+
+  <div class="card">
+    <div class="card-header d-flex align-items-center justify-content-between">
+      <div class="d-flex align-items-center gap-2">
+        <i class="bi bi-geo-alt-fill text-muted" aria-hidden="true"></i>
+        <h5 class="mb-0">Geographic Distribution</h5>
+      </div>
+      <div class="d-flex gap-2 align-items-center" style="font-size:0.8rem;color:var(--t-text-muted);">
+        <span><i class="bi bi-circle-fill" style="color:var(--t-primary);"></i> Cases</span>
+        <span><i class="bi bi-circle-fill" style="color:var(--t-danger);"></i> Active Alert</span>
+      </div>
+    </div>
+    <div class="card-body p-0">
+      <div id="map" style="border-radius:0 0 var(--t-r-lg) var(--t-r-lg);border:none;"></div>
+    </div>
+  </div>
+
+  {# Location summary below map #}
+  <div class="card mt-3">
+    <div class="card-header d-flex align-items-center gap-2">
+      <i class="bi bi-list-ul text-muted" aria-hidden="true"></i>
+      <h5 class="mb-0">Location Summary</h5>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0">
+          <thead>
+            <tr>
+              <th>District</th>
+              <th>Area</th>
+              <th>Cases</th>
+              <th>Alert</th>
+              <th>Severity</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="point in mapPoints" :key="point.district_name + point.area_name">
+              <tr>
+                <td x-text="point.district_name"></td>
+                <td x-text="point.area_name || '—'"></td>
+                <td x-text="point.cases"></td>
+                <td>
+                  <span x-show="point.has_alert" class="badge badge-severity-high">Active</span>
+                  <span x-show="!point.has_alert" class="badge bg-secondary">None</span>
+                </td>
+                <td x-text="point.alert_severity || '—'"></td>
+              </tr>
+            </template>
+            <tr x-show="mapPoints.length === 0">
+              <td colspan="5" class="text-center text-muted py-3">No location data</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block inline_javascript %}
+{% include "dashboard/_alpine_data.html" %}
+{% endblock %}

@@ -262,6 +262,8 @@ function dashboardData() {
     diseasesChartInstance: null,
     map: null,
     _mapInitialized: false,
+    _loadVersion: 0,
+    _loading: false,
 
     async init() {
       console.log('[Dashboard] init() started');
@@ -327,6 +329,10 @@ function dashboardData() {
     },
 
     async loadData() {
+      // Increment version and store current version for this load
+      const version = ++this._loadVersion;
+      this._loading = true;
+      
       const params = this.buildQueryParams();
       
       // Load all dashboard data in parallel
@@ -341,10 +347,28 @@ function dashboardData() {
         this.loadRecentInvestigations()
       ]);
 
-      // Defer chart/map update to next tick so DOM is ready
-      await new Promise(resolve => setTimeout(resolve, 0));
+      // Check if this load is still the most recent (cancel stale loads)
+      if (version !== this._loadVersion) {
+        console.log('[Dashboard] loadData() cancelled - stale version', version, 'vs current', this._loadVersion);
+        return;
+      }
+
+      // Defer chart/map update to next DOM tick so DOM is ready
+      await this.$nextTick();
+
+      // Check again before updating charts/map (another load may have started)
+      if (version !== this._loadVersion) {
+        console.log('[Dashboard] loadData() cancelled before update - stale version', version, 'vs current', this._loadVersion);
+        return;
+      }
+
       this.updateCharts();
       this.updateMap();
+      
+      // Mark loading as complete only for the most recent request
+      if (version === this._loadVersion) {
+        this._loading = false;
+      }
     },
 
     getCsrfToken() {
@@ -526,9 +550,19 @@ function dashboardData() {
       }
       const diseasesCtx = diseasesCanvas.getContext('2d');
 
+      // Destroy existing charts using Chart.js registry (more robust)
+      const existingCases = Chart.getChart('casesChart');
+      if (existingCases) {
+        existingCases.destroy();
+      }
       if (this.casesChartInstance) {
         this.casesChartInstance.destroy();
         this.casesChartInstance = null;
+      }
+      
+      const existingDiseases = Chart.getChart('diseasesChart');
+      if (existingDiseases) {
+        existingDiseases.destroy();
       }
       if (this.diseasesChartInstance) {
         this.diseasesChartInstance.destroy();
@@ -580,7 +614,11 @@ function dashboardData() {
         this.casesChartInstance = new Chart(casesCanvas, {
           type: 'line',
           data: { labels: safeLabels, datasets: datasets },
-          options: { responsive: true, maintainAspectRatio: false }
+          options: { 
+            responsive: true, 
+            maintainAspectRatio: false,
+            animation: false
+          }
         });
         console.log('[Dashboard] cases chart rendered');
       } catch (err) {
@@ -600,7 +638,12 @@ function dashboardData() {
             labels: diseaseLabels,
             datasets: [{ label: 'Cases', data: diseaseData, backgroundColor: 'rgba(54, 162, 235, 0.5)' }]
           },
-          options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y' }
+          options: { 
+            responsive: true, 
+            maintainAspectRatio: false, 
+            indexAxis: 'y',
+            animation: false
+          }
         });
         console.log('[Dashboard] diseases chart rendered');
       } catch (err) {

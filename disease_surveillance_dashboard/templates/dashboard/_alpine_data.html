@@ -1,13 +1,19 @@
 {% comment %}
   templates/dashboard/_alpine_data.html
-  Shared Alpine.js component definition — dashboardData().
-  Include this once per page via the inline_javascript block.
-  All API endpoints and fetch logic are preserved exactly.
-  Charts now use Apache ECharts instead of Chart.js.
+  Shared Alpine.js component — dashboardData().
+  Include once per dashboard page via the inline_javascript block.
+
+  Charts use Apache ECharts. All existing API endpoints are untouched.
+  Three new endpoints are called alongside the existing ones:
+    /api/v1/dashboard/situation-overview/
+    /api/v1/dashboard/detection-metrics/
+    /api/v1/dashboard/data-quality/
 {% endcomment %}
 <script>
+
 function dashboardData() {
   return {
+    /* ── Existing data state ──────────────────────────────── */
     summary: {},
     timeseries: [],
     anomalies: [],
@@ -20,40 +26,82 @@ function dashboardData() {
     locations: [],
     filters: {
       startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      endDate: new Date().toISOString().split('T')[0],
-      diseaseId: '',
+      endDate:   new Date().toISOString().split('T')[0],
+      diseaseId:  '',
       locationId: ''
     },
     canEvaluate: false,
-    casesChart: null,
-    diseasesChart: null,
-    map: null,
-    _mapInitialized: false,
-    _loadVersion: 0,
-    _loading: false,
 
+    /* ── New data state ───────────────────────────────────── */
+    situationOverview:  {},
+    detectionMetrics:   {},
+    dataQuality:        {},
+
+    /* ── Chart instance references ───────────────────────── */
+    casesChart:       null,
+    diseasesChart:    null,
+    detectionChart:   null,
+    cusumChart:       null,
+
+    /* ── Map ──────────────────────────────────────────────── */
+    map:             null,
+    _mapInitialized: false,
+
+    /* ── Load guard (stale-load cancellation) ─────────────── */
+    _loadVersion: 0,
+    _loading:     false,
+
+    /* ── Chart quarantine map ─────────────────────────────── */
+    /* Once a chart crashes it is disposed and recorded here.
+       Any subsequent resize or render attempt for that key is
+       skipped so a single bad instance cannot spam the console. */
+    _chartCrashed: {},
+
+    /* ================================================================
+       INIT
+    ================================================================ */
     async init() {
-      console.log('[Dashboard] init() started');
+      if (typeof echarts === 'undefined') {
+        console.error('[Dashboard] ECharts not loaded — charts will not render');
+      }
       try {
-        if (typeof echarts === 'undefined') {
-          console.error('[Dashboard] ECharts not loaded — charts will not render');
-        }
         await this.loadDiseases();
         await this.loadLocations();
         await this.checkEvaluatePermission();
         await this.loadData();
         this.initMap();
-        /* Register global resize helper so sidebar toggle can call it */
+        /* Register global resize helper so the sidebar toggle can call it.
+           Each resize is deferred to the next animation frame so the DOM
+           has finished reflowing before ECharts measures the container.
+           The __dsReady guard ensures we never call resize() on an instance
+           whose internal layout structures have not been fully populated by
+           a prior setOption call — that is the direct cause of the
+           "Cannot read properties of undefined (reading 'type')" crash. */
+        /* Deferred to the next animation frame so the browser finishes the
+           CSS reflow (sidebar width change) before ECharts reads container
+           dimensions.  Skipped entirely while a data load is in progress
+           because charts are being torn down and rebuilt at that moment —
+           calling resize() on a mid-rebuild instance is the source of the
+           "reading 'type'" and "reading 'getAxis'" crashes. */
         window.dsResizeCharts = () => {
-          if (this.casesChart)    this.casesChart.resize();
-          if (this.diseasesChart) this.diseasesChart.resize();
+          requestAnimationFrame(() => {
+            if (this._loading) return;
+            ['casesChart', 'diseasesChart', 'detectionChart', 'cusumChart'].forEach(key => {
+              const c = this[key];
+              if (!c) return;
+              try { c.resize(); }
+              catch (e) { console.error('[Dashboard] resize failed for', key, e); }
+            });
+          });
         };
-        console.log('[Dashboard] init() completed');
       } catch (err) {
         console.error('[Dashboard] init() failed:', err);
       }
     },
 
+    /* ================================================================
+       REFERENCE DATA LOADERS
+    ================================================================ */
     async loadDiseases() {
       try {
         const r = await fetch('/api/v1/diseases/', {
@@ -80,6 +128,9 @@ function dashboardData() {
       this.canEvaluate = true;
     },
 
+    /* ================================================================
+       QUERY PARAM HELPERS
+    ================================================================ */
     buildQueryParams() {
       const p = new URLSearchParams();
       if (this.filters.startDate)  p.append('start_date',  this.filters.startDate);
@@ -87,34 +138,6 @@ function dashboardData() {
       if (this.filters.diseaseId)  p.append('disease_id',  this.filters.diseaseId);
       if (this.filters.locationId) p.append('location_id', this.filters.locationId);
       return p.toString();
-    },
-
-    async loadData() {
-      const version = ++this._loadVersion;
-      this._loading = true;
-      const params = this.buildQueryParams();
-
-      await Promise.all([
-        this.loadSummary(params),
-        this.loadTimeseries(params),
-        this.loadAnomalies(params),
-        this.loadForecast(params),
-        this.loadTopDiseases(params),
-        this.loadMapPoints(params),
-        this.loadRecentAlerts(params),
-        this.loadRecentInvestigations()
-      ]);
-
-      if (version !== this._loadVersion) {
-        console.log('[Dashboard] loadData() cancelled — stale version', version);
-        return;
-      }
-      await this.$nextTick();
-      if (version !== this._loadVersion) return;
-
-      this.updateCharts();
-      this.updateMap();
-      if (version === this._loadVersion) { this._loading = false; }
     },
 
     getCsrfToken() {
@@ -125,313 +148,649 @@ function dashboardData() {
       return '';
     },
 
+    /* ================================================================
+       MAIN LOAD ORCHESTRATOR
+       Stale-load cancellation: a new call increments _loadVersion.
+       Any in-flight call that finds its version no longer current exits
+       early rather than overwriting state with out-of-date results.
+    ================================================================ */
+    async loadData() {
+      const version = ++this._loadVersion;
+      this._loading = true;
+      const params = this.buildQueryParams();
+
+      await Promise.all([
+        /* Existing endpoints */
+        this.loadSummary(params),
+        this.loadTimeseries(params),
+        this.loadAnomalies(params),
+        this.loadForecast(params),
+        this.loadTopDiseases(params),
+        this.loadMapPoints(params),
+        this.loadRecentAlerts(params),
+        this.loadRecentInvestigations(),
+        /* New endpoints */
+        this.loadSituationOverview(params),
+        this.loadDetectionMetrics(params),
+        this.loadDataQuality(params),
+      ]);
+
+      if (version !== this._loadVersion) return;
+      await this.$nextTick();
+      if (version !== this._loadVersion) return;
+
+      this.updateCharts();
+      this.updateMap();
+      if (version === this._loadVersion) { this._loading = false; }
+    },
+
+    /* ================================================================
+       EXISTING ENDPOINT FETCHERS
+    ================================================================ */
     async loadSummary(params) {
-      const url = `/api/v1/dashboard/summary/?${params}`;
-      console.log('[Dashboard] fetch:', url);
       try {
-        const r = await fetch(url, { credentials: 'include', headers: { 'X-CSRFToken': this.getCsrfToken() } });
-        console.log('[Dashboard] summary status:', r.status);
+        const r = await fetch(`/api/v1/dashboard/summary/?${params}`, {
+          credentials: 'include', headers: { 'X-CSRFToken': this.getCsrfToken() }
+        });
         if (r.ok) this.summary = await r.json();
-        else console.warn('[Dashboard] summary failed:', r.status);
-      } catch (e) { console.error('[Dashboard] Error loading summary:', e); }
+      } catch (e) { console.error('Error loading summary:', e); }
     },
 
     async loadTimeseries(params) {
-      const url = `/api/v1/dashboard/cases-timeseries/?${params}`;
-      console.log('[Dashboard] fetch:', url);
       try {
-        const r = await fetch(url, { credentials: 'include', headers: { 'X-CSRFToken': this.getCsrfToken() } });
-        console.log('[Dashboard] timeseries status:', r.status);
+        const r = await fetch(`/api/v1/dashboard/cases-timeseries/?${params}`, {
+          credentials: 'include', headers: { 'X-CSRFToken': this.getCsrfToken() }
+        });
         if (r.ok) {
           const data = await r.json();
           this.timeseries = Array.isArray(data) ? data : [];
-          console.log('[Dashboard] timeseries length:', this.timeseries.length);
-        } else { console.warn('[Dashboard] timeseries failed:', r.status); }
-      } catch (e) { console.error('[Dashboard] Error loading timeseries:', e); }
+        }
+      } catch (e) { console.error('Error loading timeseries:', e); }
     },
 
     async loadAnomalies(params) {
-      const url = `/api/v1/dashboard/anomalies/?${params}`;
-      console.log('[Dashboard] fetch:', url);
       try {
-        const r = await fetch(url, { credentials: 'include', headers: { 'X-CSRFToken': this.getCsrfToken() } });
-        console.log('[Dashboard] anomalies status:', r.status);
+        const r = await fetch(`/api/v1/dashboard/anomalies/?${params}`, {
+          credentials: 'include', headers: { 'X-CSRFToken': this.getCsrfToken() }
+        });
         if (r.ok) { const data = await r.json(); this.anomalies = Array.isArray(data) ? data : []; }
-      } catch (e) { console.error('[Dashboard] Error loading anomalies:', e); }
+      } catch (e) { console.error('Error loading anomalies:', e); }
     },
 
     async loadForecast(params) {
-      const url = `/api/v1/dashboard/forecast/?${params}`;
-      console.log('[Dashboard] fetch:', url);
       try {
-        const r = await fetch(url, { credentials: 'include', headers: { 'X-CSRFToken': this.getCsrfToken() } });
-        console.log('[Dashboard] forecast status:', r.status);
+        const r = await fetch(`/api/v1/dashboard/forecast/?${params}`, {
+          credentials: 'include', headers: { 'X-CSRFToken': this.getCsrfToken() }
+        });
         if (r.ok) this.forecast = await r.json();
-      } catch (e) { console.error('[Dashboard] Error loading forecast:', e); }
+      } catch (e) { console.error('Error loading forecast:', e); }
     },
 
     async loadTopDiseases(params) {
-      const url = `/api/v1/dashboard/top-diseases/?${params}`;
-      console.log('[Dashboard] fetch:', url);
       try {
-        const r = await fetch(url, { credentials: 'include', headers: { 'X-CSRFToken': this.getCsrfToken() } });
-        console.log('[Dashboard] top-diseases status:', r.status);
+        const r = await fetch(`/api/v1/dashboard/top-diseases/?${params}`, {
+          credentials: 'include', headers: { 'X-CSRFToken': this.getCsrfToken() }
+        });
         if (r.ok) {
           const data = await r.json();
           this.topDiseases = Array.isArray(data) ? data : [];
-          console.log('[Dashboard] topDiseases length:', this.topDiseases.length);
-        } else { console.warn('[Dashboard] top-diseases failed:', r.status); }
-      } catch (e) { console.error('[Dashboard] Error loading top diseases:', e); }
+        }
+      } catch (e) { console.error('Error loading top diseases:', e); }
     },
 
     async loadMapPoints(params) {
-      const url = `/api/v1/dashboard/map-points/?${params}`;
-      console.log('[Dashboard] fetch:', url);
       try {
-        const r = await fetch(url, { credentials: 'include', headers: { 'X-CSRFToken': this.getCsrfToken() } });
-        console.log('[Dashboard] map-points status:', r.status);
+        const r = await fetch(`/api/v1/dashboard/map-points/?${params}`, {
+          credentials: 'include', headers: { 'X-CSRFToken': this.getCsrfToken() }
+        });
         if (r.ok) { const data = await r.json(); this.mapPoints = Array.isArray(data) ? data : []; }
-      } catch (e) { console.error('[Dashboard] Error loading map points:', e); }
+      } catch (e) { console.error('Error loading map points:', e); }
     },
 
     async loadRecentAlerts(params) {
-      const url = `/api/v1/dashboard/recent-alerts/?${params}`;
-      console.log('[Dashboard] fetch:', url);
       try {
-        const r = await fetch(url, { credentials: 'include', headers: { 'X-CSRFToken': this.getCsrfToken() } });
-        console.log('[Dashboard] recent-alerts status:', r.status);
+        const r = await fetch(`/api/v1/dashboard/recent-alerts/?${params}`, {
+          credentials: 'include', headers: { 'X-CSRFToken': this.getCsrfToken() }
+        });
         if (r.ok) { const data = await r.json(); this.recentAlerts = Array.isArray(data) ? data : []; }
-      } catch (e) { console.error('[Dashboard] Error loading recent alerts:', e); }
+      } catch (e) { console.error('Error loading recent alerts:', e); }
     },
 
     async loadRecentInvestigations() {
-      const url = '/api/v1/dashboard/recent-investigations/';
-      console.log('[Dashboard] fetch:', url);
       try {
-        const r = await fetch(url, { credentials: 'include', headers: { 'X-CSRFToken': this.getCsrfToken() } });
-        console.log('[Dashboard] recent-investigations status:', r.status);
+        const r = await fetch('/api/v1/dashboard/recent-investigations/', {
+          credentials: 'include', headers: { 'X-CSRFToken': this.getCsrfToken() }
+        });
         if (r.ok) { const data = await r.json(); this.recentInvestigations = Array.isArray(data) ? data : []; }
-      } catch (e) { console.error('[Dashboard] Error loading recent investigations:', e); }
+      } catch (e) { console.error('Error loading recent investigations:', e); }
     },
 
-    /* ============================================================
+    /* ================================================================
+       NEW ENDPOINT FETCHERS
+    ================================================================ */
+    async loadSituationOverview(params) {
+      try {
+        const r = await fetch(`/api/v1/dashboard/situation-overview/?${params}`, {
+          credentials: 'include', headers: { 'X-CSRFToken': this.getCsrfToken() }
+        });
+        if (r.ok) this.situationOverview = await r.json();
+      } catch (e) { console.error('Error loading situation overview:', e); }
+    },
+
+    async loadDetectionMetrics(params) {
+      try {
+        const r = await fetch(`/api/v1/dashboard/detection-metrics/?${params}`, {
+          credentials: 'include', headers: { 'X-CSRFToken': this.getCsrfToken() }
+        });
+        if (r.ok) this.detectionMetrics = await r.json();
+      } catch (e) { console.error('Error loading detection metrics:', e); }
+    },
+
+    async loadDataQuality(params) {
+      /* Safe default used whenever the endpoint is unavailable or returns an error. */
+      const fallback = {
+        total_reports: 0,
+        reporting_delay_avg_hours: null,
+        reporting_delay_median_hours: null,
+        missingness_summary: { sex: 0, age_group: 0, severity_level: 0 },
+        duplicate_flags_count: 0,
+        completeness_score: 100,
+        message: 'Data quality information is currently unavailable.',
+      };
+      try {
+        const r = await fetch(`/api/v1/dashboard/data-quality/?${params}`, {
+          credentials: 'include', headers: { 'X-CSRFToken': this.getCsrfToken() }
+        });
+        if (!r.ok) {
+          console.warn('[Dashboard] data-quality returned', r.status, '— using fallback');
+          this.dataQuality = fallback;
+          return;
+        }
+        const data = await r.json();
+        /* If the server returned a valid object, use it; otherwise fall back. */
+        this.dataQuality = (data && typeof data === 'object' && !Array.isArray(data))
+          ? data
+          : fallback;
+      } catch (e) {
+        console.error('Error loading data quality:', e);
+        this.dataQuality = fallback;
+      }
+    },
+
+    /* ================================================================
+       CHART QUARANTINE HELPERS
+       _disposeChart — tears down a crashed/stale chart instance and
+         records it in _chartCrashed so no further operations are
+         attempted on it during this page lifetime.
+       _safeResize   — the single call-site for resize(); respects the
+         quarantine map so a dead instance never reaches resize().
+    ================================================================ */
+    _disposeChart(key, reason, err) {
+      if (this[key]) {
+        try { this[key].dispose(); } catch (_) { /* already gone */ }
+        this[key] = null;
+      }
+      this._chartCrashed[key] = true;
+      console.error('[Dashboard] chart quarantined —', key, '— reason:', reason, err || '');
+    },
+
+    _safeResize(key) {
+      /* Skip instantly if the instance is absent or previously quarantined */
+      if (!this[key] || this._chartCrashed[key]) return;
+      try {
+        this[key].resize();
+      } catch (err) {
+        this._disposeChart(key, 'resize() crash', err);
+      }
+    },
+
+    /* ================================================================
+       SAFE SET OPTION
+       Central helper that every chart render method goes through.
+       Cleans the option object before handing it to ECharts so a bad
+       series definition never reaches the renderer and causes the
+       "t.type is undefined" crash we have been seeing.
+    ================================================================ */
+    _safeSetOption(chart, option, chartName) {
+      if (!chart) return;
+
+      /* option must be a plain object */
+      if (!option || typeof option !== 'object') {
+        console.error('[Dashboard] _safeSetOption: option is not an object for', chartName, option);
+        return;
+      }
+
+      /* series must always be an array; coerce whatever came in */
+      const rawSeries = Array.isArray(option.series) ? option.series : [];
+
+      /* Double-pass clean: first remove anything that isn't a real object (catches
+         null, undefined, and any stray primitives), then repair each survivor so
+         ECharts always receives a valid type string and a data array.  The extra
+         filter after the map catches the unlikely case where spread produces a
+         bad entry somehow. */
+      const cleanSeries = rawSeries
+        .filter(s => s != null && typeof s === 'object')
+        .map(s => ({
+          ...s,
+          type: (typeof s.type === 'string' && s.type.length > 0) ? s.type : 'line',
+          data: Array.isArray(s.data) ? s.data : [],
+        }))
+        .filter(s => s != null);
+
+      /* Log a summary before every setOption call so we can see exactly what
+         is being handed to ECharts in the browser console. */
+      console.warn(
+        '[Dashboard] _safeSetOption →', chartName,
+        '| series count:', cleanSeries.length,
+        '| types:', cleanSeries.map(s => s.type),
+        '| lengths:', cleanSeries.map(s => s.data.length)
+      );
+
+      /* When no valid series survive, render an empty-state message instead of
+         handing ECharts a series array it cannot work with. */
+      if (cleanSeries.length === 0) {
+        try {
+          /* Include minimal axis/grid definitions alongside the empty series.
+             Without them, ECharts leaves internal layout structures unpopulated.
+             A subsequent resize() then tries to read those structures and throws
+             "Cannot read properties of undefined (reading 'type')" or
+             "reading 'getAxis'".  Providing stubs commits a complete layout
+             state so resize() has valid data to work with. */
+          chart.setOption({
+            grid:   { top: 0, right: 0, bottom: 0, left: 0 },
+            xAxis:  { type: 'category', data: [], show: false },
+            yAxis:  { type: 'value',    show: false },
+            series: [],
+            graphic: [{
+              type: 'text', left: 'center', top: 'middle',
+              style: { text: 'No data for selected filters', fill: '#aab7c4', fontSize: 13 },
+            }],
+          }, true);
+          chart.__dsReady = true;
+        } catch (err) {
+          chart.__dsReady = false;
+          /* Quarantine the instance so resize() never runs against this
+             partially-initialised chart again. */
+          this._disposeChart(chartName, 'setOption empty-state crash', err);
+        }
+        return;
+      }
+
+      const safeOption = { ...option, series: cleanSeries };
+
+      try {
+        chart.setOption(safeOption, true);
+        chart.__dsReady = true;
+      } catch (err) {
+        chart.__dsReady = false;
+        /* Quarantine so no further resize() or re-render spams the console. */
+        this._disposeChart(chartName, 'setOption crash', err);
+      }
+    },
+
+    /* ================================================================
        CHART RENDERING — Apache ECharts
-       Each call safely disposes any existing instance before
-       re-initialising, preventing the "container already has a
-       chart" error that caused the old Chart.js race condition.
-    ============================================================ */
+       Each render cycle disposes the existing instance before
+       reinitialising to prevent double-init and stale state issues.
+       All setOption calls go through _safeSetOption so a malformed
+       series can never reach the ECharts renderer unchecked.
+    ================================================================ */
     updateCharts() {
       if (typeof echarts === 'undefined') {
-        console.error('[Dashboard] ECharts not available, skipping render');
+        console.error('[Dashboard] ECharts not available');
         return;
       }
       this._renderCasesChart();
       this._renderDiseasesChart();
+      this._renderDetectionChart();
+      this._renderCusumChart();
     },
 
+    /* Cases trend + forecast + anomaly scatter */
     _renderCasesChart() {
+      /* A new data load clears the crashed flag so the chart gets a fresh
+         attempt; if it crashes again it will be quarantined again. */
+      delete this._chartCrashed['casesChart'];
       const el = document.getElementById('casesChart');
-      if (!el) { console.warn('[Dashboard] missing div: casesChart'); return; }
-
-      /* Dispose existing instance to prevent double-init errors */
-      const existing = echarts.getInstanceByDom(el);
-      if (existing) { existing.dispose(); }
+      if (!el) return;
+      const ex = echarts.getInstanceByDom(el);
+      if (ex) {
+        ex.__dsReady = false;
+        ex.dispose();
+      }
       this.casesChart = null;
 
-      const timeseries   = this.timeseries   || [];
-      const forecastList = (this.forecast && this.forecast.forecast) ? this.forecast.forecast : [];
-      const anomalies    = this.anomalies    || [];
+      const timeseries   = Array.isArray(this.timeseries)   ? this.timeseries   : [];
+      const forecastList = (this.forecast && Array.isArray(this.forecast.forecast))
+        ? this.forecast.forecast : [];
+      const anomalies    = Array.isArray(this.anomalies)    ? this.anomalies    : [];
 
-      const allDates = timeseries.map(d => d.date).concat(forecastList.map(d => d.date));
-      const dates    = allDates.length ? allDates : [];
+      this.casesChart = echarts.init(el, null, { renderer: 'canvas' });
 
-      /* Actual cases — null-pad for forecast region */
-      const casesData = timeseries.map(d => d.cases)
-                                  .concat(forecastList.map(() => null));
+      /* Nothing to draw — _safeSetOption will render the empty-state message */
+      if (!timeseries.length && !forecastList.length) {
+        this._safeSetOption(this.casesChart, { series: [] }, 'casesChart');
+        return;
+      }
 
-      /* Forecast — null-pad for historical region */
-      const forecastData = timeseries.map(() => null)
-                                     .concat(forecastList.map(d => d.forecast));
-
-      /* Anomaly scatter points */
+      const allDates  = timeseries.map(d => d.date).concat(forecastList.map(d => d.date));
+      const casesData = timeseries.map(d => d.cases).concat(forecastList.map(() => null));
+      const fcastData = timeseries.map(() => null).concat(forecastList.map(d => d.forecast));
       const anomalyScatter = (anomalies.length === timeseries.length)
         ? timeseries
-            .map((d, i) => anomalies[i] && anomalies[i].is_anomaly
-              ? { value: [d.date, d.cases] }
-              : null)
-            .filter(Boolean)
+            .map((d, i) => anomalies[i] && anomalies[i].is_anomaly ? d.cases : null)
+            .filter(v => v !== null)
         : [];
+        
 
       const series = [
         {
-          name: 'Cases',
-          type: 'line',
-          data: casesData.length ? casesData : [0],
-          smooth: true,
-          symbol: 'circle',
-          symbolSize: 4,
+          name: 'Cases', type: 'line', data: casesData.length ? casesData : [0],
+          smooth: true, symbol: 'circle', symbolSize: 4,
           lineStyle: { width: 2, color: '#1b8a78' },
           itemStyle: { color: '#1b8a78' },
-          areaStyle: {
-            color: {
-              type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
-              colorStops: [
-                { offset: 0, color: 'rgba(27,138,120,0.15)' },
-                { offset: 1, color: 'rgba(27,138,120,0.01)' }
-              ]
-            }
-          }
+          areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+            colorStops: [{ offset: 0, color: 'rgba(27,138,120,0.14)' },
+                         { offset: 1, color: 'rgba(27,138,120,0.01)' }] } }
         }
       ];
 
       if (forecastList.length) {
         series.push({
-          name: 'Forecast',
-          type: 'line',
-          data: forecastData,
-          smooth: true,
-          symbol: 'none',
+          name: 'Forecast', type: 'line', data: fcastData,
+          smooth: true, symbol: 'none',
           lineStyle: { width: 2, type: 'dashed', color: '#f59e0b' },
           itemStyle: { color: '#f59e0b' }
         });
       }
-
       if (anomalyScatter.length) {
         series.push({
-          name: 'Anomaly',
-          type: 'scatter',
-          data: anomalyScatter,
-          symbolSize: 10,
-          itemStyle: { color: '#ef4444', borderColor: '#fff', borderWidth: 2 },
-          z: 10
+          name: 'Anomaly', type: 'scatter', data: timeseries.map((d, i) => anomalies[i] && anomalies[i].is_anomaly ? d.cases : null),
+          symbolSize: 10, z: 10,
+          itemStyle: { color: '#ef4444', borderColor: '#fff', borderWidth: 2 }
         });
       }
 
-      try {
-        this.casesChart = echarts.init(el, null, { renderer: 'canvas' });
-        this.casesChart.setOption({
-          animation: false,
-          grid: { top: 32, right: 24, bottom: 40, left: 56, containLabel: false },
-          tooltip: {
-            trigger: 'axis',
-            backgroundColor: '#fff',
-            borderColor: '#e8ecf0',
-            borderWidth: 1,
-            textStyle: { color: '#0d1b2a', fontSize: 12 },
-            axisPointer: { type: 'cross', lineStyle: { color: '#d1d9e0' } }
-          },
-          legend: {
-            top: 4, right: 0,
-            textStyle: { color: '#3d5166', fontSize: 11 },
-            itemHeight: 8
-          },
-          xAxis: {
-            type: 'category',
-            data: dates.length ? dates : ['No data'],
-            axisLine: { lineStyle: { color: '#e8ecf0' } },
-            axisTick: { show: false },
-            axisLabel: { color: '#7a8fa6', fontSize: 11, rotate: dates.length > 14 ? 30 : 0 }
-          },
-          yAxis: {
-            type: 'value',
-            splitLine: { lineStyle: { color: '#f0f2f5', type: 'dashed' } },
-            axisLabel: { color: '#7a8fa6', fontSize: 11 },
-            axisLine: { show: false },
-            axisTick: { show: false }
-          },
-          series: series
-        });
-        console.log('[Dashboard] ECharts cases chart rendered');
-      } catch (err) { console.error('[Dashboard] Error rendering cases chart:', err); }
+      this._safeSetOption(this.casesChart, {
+        animation: false,
+        grid: { top: 32, right: 16, bottom: 40, left: 56, containLabel: false },
+        tooltip: {
+          trigger: 'axis', backgroundColor: '#fff',
+          borderColor: '#e8ecf0', borderWidth: 1,
+          textStyle: { color: '#0d1b2a', fontSize: 12 },
+          axisPointer: { type: 'cross', lineStyle: { color: '#d1d9e0' } }
+        },
+        legend: { top: 4, right: 0, textStyle: { color: '#3d5166', fontSize: 11 }, itemHeight: 8 },
+        xAxis: {
+          type: 'category', data: allDates.length ? allDates : ['No data'],
+          axisLine: { lineStyle: { color: '#e8ecf0' } },
+          axisTick: { show: false },
+          axisLabel: { color: '#7a8fa6', fontSize: 11, rotate: allDates.length > 14 ? 30 : 0 }
+        },
+        yAxis: {
+          type: 'value',
+          splitLine: { lineStyle: { color: '#f0f2f5', type: 'dashed' } },
+          axisLabel: { color: '#7a8fa6', fontSize: 11 },
+          axisLine: { show: false }, axisTick: { show: false }
+        },
+        series,
+      }, 'casesChart');
     },
 
+    /* Top diseases horizontal bar */
     _renderDiseasesChart() {
+      delete this._chartCrashed['diseasesChart'];
       const el = document.getElementById('diseasesChart');
-      if (!el) { console.warn('[Dashboard] missing div: diseasesChart'); return; }
-
-      const existing = echarts.getInstanceByDom(el);
-      if (existing) { existing.dispose(); }
+      if (!el) return;
+      const ex = echarts.getInstanceByDom(el);
+      if (ex) {
+        ex.__dsReady = false;
+        ex.dispose();
+      }
       this.diseasesChart = null;
 
-      const topDiseases = this.topDiseases || [];
-      /* Sort descending so largest bar is at top */
-      const sorted = [...topDiseases].sort((a, b) => a.cases - b.cases);
-      const names  = sorted.length ? sorted.map(d => d.disease_name) : ['No data'];
-      const values = sorted.length ? sorted.map(d => d.cases)       : [0];
+      const raw    = Array.isArray(this.topDiseases) ? this.topDiseases : [];
+      const sorted = [...raw].sort((a, b) => a.cases - b.cases);
 
-      const palette = [
-        '#1b8a78','#21a88f','#3b82f6','#6366f1','#8b5cf6',
-        '#ec4899','#f59e0b','#10b981','#0ea5e9','#e11d48'
-      ];
+      this.diseasesChart = echarts.init(el, null, { renderer: 'canvas' });
 
-      try {
-        this.diseasesChart = echarts.init(el, null, { renderer: 'canvas' });
-        this.diseasesChart.setOption({
-          animation: false,
-          grid: { top: 8, right: 64, bottom: 16, left: 8, containLabel: true },
-          tooltip: {
-            trigger: 'axis',
-            axisPointer: { type: 'shadow' },
-            backgroundColor: '#fff',
-            borderColor: '#e8ecf0',
-            borderWidth: 1,
-            textStyle: { color: '#0d1b2a', fontSize: 12 }
-          },
-          xAxis: {
-            type: 'value',
-            splitLine: { lineStyle: { color: '#f0f2f5', type: 'dashed' } },
-            axisLabel: { color: '#7a8fa6', fontSize: 11 },
-            axisLine: { show: false },
-            axisTick: { show: false }
-          },
-          yAxis: {
-            type: 'category',
-            data: names,
-            axisLine: { show: false },
-            axisTick: { show: false },
-            axisLabel: {
-              color: '#3d5166',
-              fontSize: 11,
-              width: 120,
-              overflow: 'truncate'
-            }
-          },
-          series: [{
-            name: 'Cases',
-            type: 'bar',
-            data: values.map((v, i) => ({
-              value: v,
-              itemStyle: { color: palette[i % palette.length], borderRadius: [0, 4, 4, 0] }
-            })),
-            label: {
-              show: true,
-              position: 'right',
-              fontSize: 11,
-              color: '#7a8fa6'
-            },
-            barMaxWidth: 28
-          }]
-        });
-        console.log('[Dashboard] ECharts diseases chart rendered');
-      } catch (err) { console.error('[Dashboard] Error rendering diseases chart:', err); }
+      /* No diseases returned — empty state */
+      if (!sorted.length) {
+        this._safeSetOption(this.diseasesChart, { series: [] }, 'diseasesChart');
+        return;
+      }
+
+      const names   = sorted.map(d => d.disease_name);
+      const values  = sorted.map(d => d.cases);
+      const palette = ['#1b8a78','#21a88f','#3b82f6','#6366f1','#8b5cf6',
+                       '#ec4899','#f59e0b','#10b981','#0ea5e9','#e11d48'];
+
+      this._safeSetOption(this.diseasesChart, {
+        animation: false,
+        grid: { top: 8, right: 56, bottom: 16, left: 8, containLabel: true },
+        tooltip: {
+          trigger: 'axis', axisPointer: { type: 'shadow' },
+          backgroundColor: '#fff', borderColor: '#e8ecf0', borderWidth: 1,
+          textStyle: { color: '#0d1b2a', fontSize: 12 }
+        },
+        xAxis: {
+          type: 'value',
+          splitLine: { lineStyle: { color: '#f0f2f5', type: 'dashed' } },
+          axisLabel: { color: '#7a8fa6', fontSize: 11 },
+          axisLine: { show: false }, axisTick: { show: false }
+        },
+        yAxis: {
+          type: 'category', data: names,
+          axisLine: { show: false }, axisTick: { show: false },
+          axisLabel: { color: '#3d5166', fontSize: 11, width: 120, overflow: 'truncate' }
+        },
+        series: [{
+          name: 'Cases', type: 'bar',
+          data: values.map((v, i) => ({
+            value: v,
+            itemStyle: { color: palette[i % palette.length], borderRadius: [0, 4, 4, 0] }
+          })),
+          label: { show: true, position: 'right', fontSize: 11, color: '#7a8fa6' },
+          barMaxWidth: 28,
+        }],
+      }, 'diseasesChart');
     },
 
-    /* ============================================================
+    /* Detection: daily cases bars + 7-day moving average line */
+    _renderDetectionChart() {
+      delete this._chartCrashed['detectionChart'];
+      const el = document.getElementById('detectionChart');
+      if (!el) return;
+      const ex = echarts.getInstanceByDom(el);
+      if (ex) {
+        ex.__dsReady = false;
+        ex.dispose();
+      }
+      this.detectionChart = null;
+
+      const dm       = (this.detectionMetrics && typeof this.detectionMetrics === 'object')
+        ? this.detectionMetrics : {};
+      const dates    = Array.isArray(dm.dates)         ? dm.dates         : [];
+      const cases    = Array.isArray(dm.daily_cases)   ? dm.daily_cases   : [];
+      const ma7      = Array.isArray(dm.moving_avg_7d) ? dm.moving_avg_7d : [];
+      const triggers = new Set(Array.isArray(dm.trigger_points) ? dm.trigger_points : []);
+
+      this.detectionChart = echarts.init(el, null, { renderer: 'canvas' });
+
+      /* Not enough points to draw anything useful */
+      if (!dates.length || !cases.length) {
+        this._safeSetOption(this.detectionChart, { series: [] }, 'detectionChart');
+        return;
+      }
+
+      /* Colour trigger-point bars red so outbreak dates stand out */
+      const barData = cases.map((v, i) => ({
+        value: v,
+        itemStyle: {
+          color: triggers.has(dates[i]) ? '#ef4444' : 'rgba(27,138,120,0.55)',
+          borderRadius: [2, 2, 0, 0],
+        },
+      }));
+
+      this._safeSetOption(this.detectionChart, {
+        animation: false,
+        grid: { top: 36, right: 16, bottom: 44, left: 56 },
+        tooltip: {
+          trigger: 'axis', backgroundColor: '#fff',
+          borderColor: '#e8ecf0', borderWidth: 1,
+          textStyle: { color: '#0d1b2a', fontSize: 12 },
+          axisPointer: { type: 'shadow' }
+        },
+        legend: {
+          top: 4, right: 0,
+          data: ['Daily Cases', '7-Day Moving Avg'],
+          textStyle: { color: '#3d5166', fontSize: 11 }, itemHeight: 8
+        },
+        xAxis: {
+          type: 'category', data: dates,
+          axisLine: { lineStyle: { color: '#e8ecf0' } },
+          axisTick: { show: false },
+          axisLabel: { color: '#7a8fa6', fontSize: 10, rotate: dates.length > 14 ? 30 : 0 }
+        },
+        yAxis: {
+          type: 'value',
+          splitLine: { lineStyle: { color: '#f0f2f5', type: 'dashed' } },
+          axisLabel: { color: '#7a8fa6', fontSize: 11 },
+          axisLine: { show: false }, axisTick: { show: false }
+        },
+        series: [
+          { name: 'Daily Cases',     type: 'bar',  data: barData, barMaxWidth: 20 },
+          { name: '7-Day Moving Avg', type: 'line', data: ma7,
+            smooth: true, symbol: 'none',
+            lineStyle: { width: 2, color: '#3b82f6' },
+            itemStyle: { color: '#3b82f6' } },
+        ],
+      }, 'detectionChart');
+    },
+
+    /* CUSUM series — threshold via markLine, trigger points via markPoint.
+       Data is a plain numeric array so ECharts never sees object wrappers
+       that it tries to inspect for a "type" field (the crash root-cause). */
+    _renderCusumChart() {
+      delete this._chartCrashed['cusumChart'];
+      const el = document.getElementById('cusumChart');
+      if (!el) return;
+
+      const ex = echarts.getInstanceByDom(el);
+      if (ex) {
+        ex.__dsReady = false;
+        ex.dispose();
+      }
+      this.cusumChart = null;
+
+      const dm        = (this.detectionMetrics && typeof this.detectionMetrics === 'object')
+        ? this.detectionMetrics : {};
+      const rawDates  = Array.isArray(dm.dates)          ? dm.dates          : [];
+      const rawCusum  = Array.isArray(dm.cusum_series)   ? dm.cusum_series   : [];
+      const threshold = (dm.cusum_threshold != null)     ? dm.cusum_threshold : 5.0;
+      const triggers  = Array.isArray(dm.trigger_points) ? dm.trigger_points  : [];
+
+      this.cusumChart = echarts.init(el, null, { renderer: 'canvas' });
+
+      if (!rawDates.length || !rawCusum.length) {
+        this._safeSetOption(this.cusumChart, { series: [] }, 'cusumChart');
+        return;
+      }
+
+      /* If the two arrays differ in length (API inconsistency) slice both to
+         the shorter one so index-based access never produces undefined. */
+      const len   = Math.min(rawDates.length, rawCusum.length);
+      const dates = rawDates.slice(0, len);
+      const cusum = rawCusum.slice(0, len);
+
+      /* Only keep valid numeric values — filter out any null/NaN the API
+         might return without breaking the index alignment. */
+      const safeCusum = cusum.map(v => (typeof v === 'number' && isFinite(v)) ? v : 0);
+
+      /* Collect indices where the CUSUM value meets or exceeds the threshold.
+         We build markPoint coords from these so the red dots are accurate. */
+      const triggerIndices = dates
+        .map((d, i) => (triggers.includes(d) ? i : null))
+        .filter(i => i !== null);
+
+      /* Each markPoint entry needs both a coord and an explicit name so ECharts
+         does not try to derive them from undefined fields. */
+      const markPointData = triggerIndices
+        .filter(i => i >= 0 && i < len)
+        .map(i => ({
+          name:  dates[i],
+          coord: [dates[i], safeCusum[i]],
+        }));
+
+      this._safeSetOption(this.cusumChart, {
+        animation: false,
+        grid: { top: 36, right: 16, bottom: 44, left: 56 },
+        tooltip: {
+          trigger: 'axis',
+          backgroundColor: '#fff',
+          borderColor: '#e8ecf0',
+          borderWidth: 1,
+          textStyle: { color: '#0d1b2a', fontSize: 12 }
+        },
+        legend: {
+          top: 4, right: 0,
+          data: ['CUSUM'],
+          textStyle: { color: '#3d5166', fontSize: 11 },
+          itemHeight: 8
+        },
+        xAxis: {
+          type: 'category',
+          data: dates,
+          axisLine: { lineStyle: { color: '#e8ecf0' } },
+          axisTick: { show: false },
+          axisLabel: { color: '#7a8fa6', fontSize: 10, rotate: dates.length > 14 ? 30 : 0 }
+        },
+        yAxis: {
+          type: 'value',
+          splitLine: { lineStyle: { color: '#f0f2f5', type: 'dashed' } },
+          axisLabel: { color: '#7a8fa6', fontSize: 11 },
+          axisLine: { show: false },
+          axisTick: { show: false },
+          min: 0
+        },
+        series: [
+          {
+            name: 'CUSUM',
+            type: 'line',
+            data: safeCusum,
+            smooth: false,
+            symbol: 'none',
+            lineStyle: { width: 2, color: '#1b8a78' },
+            itemStyle: { color: '#1b8a78' },
+            markLine: {
+              silent: true,
+              lineStyle: { type: 'dashed', color: '#ef4444', width: 1.5 },
+              data: [{ yAxis: threshold }]
+            },
+            markPoint: {
+              symbol: 'circle',
+              symbolSize: 10,
+              itemStyle: { color: '#ef4444', borderColor: '#fff', borderWidth: 2 },
+              data: markPointData
+            }
+          }
+        ],
+      }, 'cusumChart');
+    },
+
+    /* ================================================================
        MAP — Leaflet (unchanged)
-    ============================================================ */
+    ================================================================ */
     initMap() {
       if (this._mapInitialized) return;
       this._mapInitialized = true;
       try {
         if (typeof L === 'undefined') {
-          console.warn('[Dashboard] Leaflet not loaded, map will not render');
+          console.warn('[Dashboard] Leaflet not loaded');
           this._mapInitialized = false; return;
         }
         const mapEl = document.getElementById('map');
-        if (!mapEl) {
-          console.warn('[Dashboard] #map element not found');
-          this._mapInitialized = false; return;
-        }
+        if (!mapEl) { this._mapInitialized = false; return; }
         if (this.map) { this.map.remove(); this.map = null; }
         if (mapEl._leaflet_id) mapEl._leaflet_id = null;
         this.map = L.map(mapEl).setView([5.6037, -0.1870], 10);
@@ -451,31 +810,34 @@ function dashboardData() {
         if (layer instanceof L.Marker) this.map.removeLayer(layer);
       });
       this.mapPoints.forEach(point => {
-        const popupContent = `
-          <strong>${point.district_name}</strong>${point.area_name ? '<br>' + point.area_name : ''}<br>
+        const popup = `<strong>${point.district_name}</strong>
+          ${point.area_name ? '<br>' + point.area_name : ''}<br>
           Cases: ${point.cases}<br>
-          ${point.has_alert ? `<span style="background:#ef4444;color:#fff;padding:1px 6px;border-radius:4px;font-size:11px;">Alert: ${point.alert_severity} (${point.alert_status})</span>` : ''}
-        `;
+          ${point.has_alert
+            ? `<span style="background:#ef4444;color:#fff;padding:1px 6px;border-radius:4px;font-size:11px;">
+               Alert: ${point.alert_severity} (${point.alert_status})</span>`
+            : ''}`;
         const marker = L.marker([point.latitude, point.longitude])
-          .addTo(this.map)
-          .bindPopup(popupContent);
+          .addTo(this.map).bindPopup(popup);
         if (point.has_alert) {
           marker.setIcon(L.icon({
-            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
-            iconSize: [25, 41],
+            iconUrl:    'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
+            iconSize:   [25, 41],
             iconAnchor: [12, 41]
           }));
         }
       });
     },
 
+    /* ================================================================
+       EARLY WARNING EVALUATION (unchanged)
+    ================================================================ */
     async evaluateWarning() {
       const trendMetricId = prompt('Enter trend metric ID to evaluate:');
       if (!trendMetricId) return;
       try {
         const r = await fetch('/api/v1/dashboard/evaluate/', {
-          method: 'POST',
-          credentials: 'include',
+          method: 'POST', credentials: 'include',
           headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCsrfToken() },
           body: JSON.stringify({ trend_metric_id: parseInt(trendMetricId) })
         });
@@ -492,9 +854,28 @@ function dashboardData() {
       }
     },
 
+    /* ================================================================
+       UTILITY HELPERS
+    ================================================================ */
     getSeverityClass(severity) {
       const map = { Low: 'bg-warning', Medium: 'bg-info', High: 'bg-danger' };
       return map[severity] || 'bg-secondary';
+    },
+
+    getSignalClass(status) {
+      const map = { Normal: 'signal-normal', Watch: 'signal-watch', Alert: 'signal-alert' };
+      return map[status] || 'signal-normal';
+    },
+
+    formatPct(val) {
+      if (val === null || val === undefined) return 'N/A';
+      const sign = val >= 0 ? '+' : '';
+      return sign + val.toFixed(1) + '%';
+    },
+
+    formatFactor(val) {
+      if (val === null || val === undefined) return 'N/A';
+      return val.toFixed(2) + 'x';
     },
 
     formatDate(dateString) {
@@ -504,15 +885,71 @@ function dashboardData() {
   };
 }
 </script>
-<!-- Global window resize listener — keeps charts sized correctly -->
+<!-- Global window resize listener — keeps ECharts containers sized correctly -->
 <script>
 (function () {
-  var resizeTimer;
+  var timer;
   window.addEventListener('resize', function () {
-    clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(function () {
+    clearTimeout(timer);
+    timer = setTimeout(function () {
       if (typeof window.dsResizeCharts === 'function') window.dsResizeCharts();
     }, 100);
+  });
+})();
+</script>
+
+<!-- Dev error overlay — visible only when a JS runtime error occurs.
+     Shows the full error message, file, line/col, and stack so problems
+     are caught immediately without opening DevTools. -->
+<div id="dsErrorOverlay" style="
+  display: none;
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  max-height: 260px;
+  overflow-y: auto;
+  background: #1e1e2e;
+  color: #f38ba8;
+  font: 12px/1.5 'Fira Mono', 'Cascadia Code', monospace;
+  padding: 10px 14px;
+  z-index: 99999;
+  border-top: 2px solid #f38ba8;
+  white-space: pre-wrap;
+  word-break: break-all;
+"></div>
+<script>
+(function () {
+  var overlay = document.getElementById('dsErrorOverlay');
+  if (!overlay) return;
+
+  function show(lines) {
+    overlay.style.display = 'block';
+    overlay.textContent += lines + '\n' + '─'.repeat(60) + '\n';
+    /* Scroll to the latest entry */
+    overlay.scrollTop = overlay.scrollHeight;
+  }
+
+  /* Synchronous runtime errors (including ECharts crashes) */
+  window.addEventListener('error', function (evt) {
+    var parts = [
+      '[ERROR] ' + (evt.message || 'Unknown error'),
+      'File: '  + (evt.filename || '?') + '  Line: ' + (evt.lineno || '?') + '  Col: ' + (evt.colno || '?'),
+    ];
+    if (evt.error && evt.error.stack) {
+      parts.push('Stack:\n' + evt.error.stack);
+    }
+    show(parts.join('\n'));
+  });
+
+  /* Unhandled promise rejections (failed fetch, async throws, etc.) */
+  window.addEventListener('unhandledrejection', function (evt) {
+    var reason = evt.reason;
+    var parts = [
+      '[UNHANDLED REJECTION] ' + (reason && reason.message ? reason.message : String(reason)),
+    ];
+    if (reason && reason.stack) {
+      parts.push('Stack:\n' + reason.stack);
+    }
+    show(parts.join('\n'));
   });
 })();
 </script>

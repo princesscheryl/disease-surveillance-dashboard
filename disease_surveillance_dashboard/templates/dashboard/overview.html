@@ -6,29 +6,106 @@
 
 {% block page_css %}
 <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}" />
+<style>
+  /* ── Situation status banner ─────────────────────────────── */
+  .signal-banner {
+    border-radius: var(--t-r);
+    padding: 0.875rem 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border: 1px solid transparent;
+    margin-bottom: 1.25rem;
+  }
+  .signal-banner.signal-normal {
+    background: #f0fbf8; border-color: rgba(27,138,120,0.25); color: #14705f;
+  }
+  .signal-banner.signal-watch {
+    background: #fffbeb; border-color: rgba(245,158,11,0.35); color: #92400e;
+  }
+  .signal-banner.signal-alert {
+    background: #fff1f2; border-color: rgba(239,68,68,0.35); color: #991b1b;
+  }
+  .signal-banner-icon { font-size: 1.15rem; flex-shrink: 0; }
+  .signal-banner-badge {
+    margin-left: auto;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 0.2rem 0.7rem;
+    border-radius: var(--t-r-pill);
+  }
+  .signal-normal .signal-banner-badge { background: #dcfce7; color: #15803d; }
+  .signal-watch  .signal-banner-badge { background: #fef3c7; color: #b45309; }
+  .signal-alert  .signal-banner-badge { background: #fee2e2; color: #b91c1c; }
+
+  /* ── Compact WoW stat pills ──────────────────────────────── */
+  .wow-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.15rem 0.6rem;
+    border-radius: var(--t-r-pill);
+    font-size: 0.75rem;
+    font-weight: 700;
+  }
+  .wow-pill.up   { background: #fee2e2; color: #b91c1c; }
+  .wow-pill.down { background: #dcfce7; color: #15803d; }
+  .wow-pill.flat { background: var(--t-bg);  color: var(--t-text-muted); }
+</style>
 {% endblock %}
 
 {% block page_js %}
-<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
-<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js" crossorigin="anonymous"></script>
 {% endblock %}
 
 {% block page_content %}
 <div x-data="dashboardData()" x-init="init()">
 
-  {# Page header #}
   <div class="ds-page-header">
     <h1 class="ds-page-title">Surveillance Overview</h1>
     <p class="ds-page-subtitle">
-      Real-time epidemiological summary for Greater Accra &mdash;
+      Real-time epidemiological summary for Greater Accra —
       powered by CUSUM &amp; Moving Average analysis
     </p>
   </div>
 
-  {# Filters #}
   {% include "dashboard/_filters.html" %}
 
-  {# KPI Cards #}
+  {# ── Situation status banner ──────────────────────────── #}
+  <template x-if="situationOverview.signal_status">
+    <div class="signal-banner" :class="'signal-' + (situationOverview.signal_status || 'normal').toLowerCase()">
+      <span class="signal-banner-icon">
+        <i class="bi"
+           :class="situationOverview.signal_status === 'Alert' ? 'bi-exclamation-triangle-fill' :
+                   situationOverview.signal_status === 'Watch' ? 'bi-eye-fill' :
+                   'bi-check-circle-fill'"
+           aria-hidden="true"></i>
+      </span>
+      <span>
+        <strong x-text="situationOverview.signal_status"></strong>
+        signal this week —
+        <span x-text="situationOverview.current_cases_7d ?? 0"></span> cases in the past 7 days
+        (<span :class="(situationOverview.wow_pct_change ?? 0) >= 0
+                         ? 'wow-pill up' : 'wow-pill down'"
+               x-text="(situationOverview.wow_pct_change ?? 0) >= 0
+                          ? '+' + (situationOverview.wow_pct_change ?? 0).toFixed(1) + '%'
+                          : (situationOverview.wow_pct_change ?? 0).toFixed(1) + '%'">
+        </span>
+        vs prior week).
+        Growth factor:
+        <strong x-text="situationOverview.growth_factor != null
+                           ? situationOverview.growth_factor.toFixed(2) + 'x' : 'N/A'"></strong>
+      </span>
+      <span class="signal-banner-badge" x-text="situationOverview.signal_status"></span>
+    </div>
+  </template>
+
+  {# ── KPI Cards ────────────────────────────────────────── #}
   <div class="row g-3 mb-4">
     <div class="col-6 col-md-3">
       <div class="card kpi-card h-100">
@@ -64,8 +141,8 @@
     </div>
   </div>
 
-  {# At-a-glance mini charts #}
-  <div class="row g-3">
+  {# ── Mini charts ──────────────────────────────────────── #}
+  <div class="row g-3 mb-4">
     <div class="col-md-8">
       <div class="card h-100">
         <div class="card-header d-flex align-items-center gap-2">
@@ -94,7 +171,39 @@
     </div>
   </div>
 
-</div>
+  {# ── Data Quality compact strip ───────────────────────── #}
+  <template x-if="dataQuality.completeness_score != null">
+    <div class="card mb-4">
+      <div class="card-body py-3">
+        <div class="d-flex align-items-center gap-3 flex-wrap">
+          <span style="font-size:0.75rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--t-text-muted);">
+            Data Quality
+          </span>
+          <span style="font-size:1rem;font-weight:800;color:var(--t-primary);"
+                x-text="(dataQuality.completeness_score ?? 100) + '%'"></span>
+          <span style="font-size:0.8rem;color:var(--t-text-secondary);">completeness</span>
+          <span class="vr d-none d-md-inline" style="color:var(--t-border);"></span>
+          <span style="font-size:0.8rem;color:var(--t-text-secondary);">
+            Avg delay:
+            <strong x-text="dataQuality.reporting_delay_avg_hours != null
+                              ? dataQuality.reporting_delay_avg_hours.toFixed(1) + ' hrs'
+                              : 'N/A'"></strong>
+          </span>
+          <span class="vr d-none d-md-inline" style="color:var(--t-border);"></span>
+          <span style="font-size:0.8rem;color:var(--t-text-secondary);">
+            Duplicates flagged: <strong x-text="dataQuality.duplicate_flags_count ?? 0"></strong>
+          </span>
+          <a href="{% url 'dashboard:analytics' %}"
+             class="ms-auto btn btn-sm btn-outline-secondary d-none d-md-inline-flex align-items-center gap-1"
+             style="font-size:0.78rem;">
+            <i class="bi bi-arrow-right" aria-hidden="true"></i> Full analytics
+          </a>
+        </div>
+      </div>
+    </div>
+  </template>
+
+</div>{# /x-data #}
 {% endblock %}
 
 {% block inline_javascript %}

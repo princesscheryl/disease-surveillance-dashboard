@@ -68,7 +68,7 @@ def compute_moving_average(disease_id, location_id, window_days=30):
     # Calculate average daily case count
     total_cases = sum(daily_totals)
     num_days = len(daily_totals)
-    average = total_cases / num_days if num_days > 0 else 0.0
+    average = total_cases / num_days if num_days > 0 else 0.0   
 
     return float(average)
 

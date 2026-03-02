@@ -1,0 +1,2547 @@
++<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Disease Surveillance — Mobile Companion App (Figma Canvas)</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+<style>
+/* ================================================================
+   DESIGN TOKENS — Derived from web app tokens.css
+   ================================================================ */
+:root {
+  /* ── Brand ─────────────────────────────────────────────── */
+  --t-primary:         #1b8a78;
+  --t-primary-dark:    #14705f;
+  --t-primary-mid:     #21a88f;
+  --t-primary-light:   #e6f7f4;
+  --t-primary-xlight:  #f0fbf8;
+  --t-blue:            #3b82f6;
+  --t-blue-dark:       #2563eb;
+  --t-blue-light:      #eff6ff;
+
+  /* ── Surfaces ──────────────────────────────────────────── */
+  --t-bg:              #f5f7fa;
+  --t-surface:         #ffffff;
+  --t-surface-hover:   #fafcff;
+
+  /* ── Borders ───────────────────────────────────────────── */
+  --t-border:          #e8ecf0;
+  --t-border-strong:   #d1d9e0;
+
+  /* ── Typography ────────────────────────────────────────── */
+  --t-text:            #0d1b2a;
+  --t-text-secondary:  #3d5166;
+  --t-text-muted:      #7a8fa6;
+  --t-text-placeholder:#aab7c4;
+
+  /* ── Semantic ──────────────────────────────────────────── */
+  --t-success:         #16a34a;
+  --t-success-bg:      #dcfce7;
+  --t-success-border:  rgba(22,163,74,0.2);
+  --t-warning:         #d97706;
+  --t-warning-bg:      #fef3c7;
+  --t-warning-border:  rgba(217,119,6,0.2);
+  --t-danger:          #dc2626;
+  --t-danger-bg:       #fee2e2;
+  --t-danger-border:   rgba(220,38,38,0.2);
+  --t-info:            #0284c7;
+  --t-info-bg:         #e0f2fe;
+  --t-info-border:     rgba(2,132,199,0.2);
+  --t-critical:        #7e22ce;
+  --t-critical-bg:     #f3e8ff;
+
+  /* ── Radii ─────────────────────────────────────────────── */
+  --t-r-xs:            4px;
+  --t-r-sm:            8px;
+  --t-r:               12px;
+  --t-r-lg:            16px;
+  --t-r-xl:            20px;
+  --t-r-pill:          100px;
+
+  /* ── Shadows ───────────────────────────────────────────── */
+  --t-shadow-xs: 0 1px 2px rgba(13,27,42,0.04);
+  --t-shadow-sm: 0 2px 6px rgba(13,27,42,0.06), 0 1px 2px rgba(13,27,42,0.04);
+  --t-shadow:    0 4px 16px rgba(13,27,42,0.07), 0 1px 4px rgba(13,27,42,0.04);
+  --t-shadow-lg: 0 8px 28px rgba(13,27,42,0.10), 0 2px 8px rgba(13,27,42,0.05);
+  --t-shadow-xl: 0 16px 48px rgba(13,27,42,0.13), 0 4px 12px rgba(13,27,42,0.06);
+
+  /* ── Spacing Scale (8-based) ───────────────────────────── */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 20px;
+  --s6: 24px;
+  --s7: 32px;
+  --s8: 40px;
+  --s9: 48px;
+  --s10: 56px;
+  --s11: 64px;
+  --s12: 80px;
+
+  /* ── Typography Scale ──────────────────────────────────── */
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --fs-xs:    11px;
+  --fs-sm:    13px;
+  --fs-base:  15px;
+  --fs-md:    17px;
+  --fs-lg:    20px;
+  --fs-xl:    24px;
+  --fs-2xl:   28px;
+  --fs-3xl:   34px;
+  --fw-regular: 400;
+  --fw-medium:  500;
+  --fw-semi:    600;
+  --fw-bold:    700;
+  --fw-extra:   800;
+  --lh-tight:   1.2;
+  --lh-base:    1.5;
+  --lh-relaxed: 1.6;
+
+  /* ── Transitions ───────────────────────────────────────── */
+  --t-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --t-fast: 120ms;
+  --t-base: 180ms;
+  --t-slow: 260ms;
+
+  /* ── Mobile Frame ──────────────────────────────────────── */
+  --frame-w: 390px;
+  --frame-h: 844px;
+  --frame-radius: 44px;
+  --status-h: 54px;
+  --bottom-nav-h: 80px;
+}
+
+/* ================================================================
+   CANVAS CHROME — The Figma-like workspace
+   ================================================================ */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  font-family: var(--font-family);
+  background: #e8ecf0;
+  color: var(--t-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Left Panel ─────────────────────────────────────────── */
+#left-panel {
+  position: fixed; top: 0; left: 0; bottom: 0;
+  width: 240px;
+  background: var(--t-surface);
+  border-right: 1px solid var(--t-border);
+  z-index: 1000;
+  display: flex; flex-direction: column;
+  transition: transform var(--t-slow) var(--t-ease);
+  box-shadow: var(--t-shadow-sm);
+}
+#left-panel.collapsed { transform: translateX(-240px); }
+
+#left-panel .panel-header {
+  padding: var(--s4) var(--s5);
+  border-bottom: 1px solid var(--t-border);
+  display: flex; align-items: center; gap: var(--s3);
+  flex-shrink: 0;
+}
+#left-panel .panel-header .brand-icon {
+  width: 28px; height: 28px;
+  background: var(--t-primary);
+  border-radius: var(--t-r-sm);
+  display: flex; align-items: center; justify-content: center;
+  color: #ffffff; font-size: 14px; flex-shrink: 0;
+}
+#left-panel .panel-header span {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
+  color: var(--t-text);
+  letter-spacing: -0.01em;
+}
+
+.panel-screens {
+  flex: 1; overflow-y: auto;
+  padding: var(--s3) var(--s2);
+}
+.panel-screen-item {
+  display: flex; align-items: center; gap: var(--s2);
+  padding: var(--s2) var(--s3);
+  border-radius: var(--t-r-xs);
+  cursor: pointer;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--t-text-secondary);
+  transition: background var(--t-fast) var(--t-ease);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.panel-screen-item:hover { background: var(--t-primary-light); color: var(--t-primary); }
+.panel-screen-item .material-icons-round { font-size: 16px; color: var(--t-text-muted); }
+
+.panel-controls {
+  padding: var(--s3) var(--s4);
+  border-top: 1px solid var(--t-border);
+  display: flex; flex-direction: column; gap: var(--s2);
+  flex-shrink: 0;
+}
+.panel-toggle {
+  display: flex; align-items: center; gap: var(--s2);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semi);
+  color: var(--t-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+.panel-toggle input { accent-color: var(--t-primary); }
+
+/* ── Canvas Viewport ────────────────────────────────────── */
+#canvas-viewport {
+  position: fixed;
+  top: 0; left: 240px; right: 0; bottom: 0;
+  overflow: hidden;
+  cursor: grab;
+  transition: left var(--t-slow) var(--t-ease);
+}
+#canvas-viewport.panel-collapsed { left: 0; }
+#canvas-viewport:active { cursor: grabbing; }
+
+#design-canvas {
+  position: absolute;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+/* ── Zoom Indicator ─────────────────────────────────────── */
+#zoom-indicator {
+  position: fixed; bottom: var(--s5); right: var(--s5);
+  background: var(--t-surface);
+  border: 1px solid var(--t-border);
+  border-radius: var(--t-r-sm);
+  padding: var(--s1) var(--s3);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semi);
+  color: var(--t-text-muted);
+  z-index: 999;
+  display: flex; align-items: center; gap: var(--s2);
+  box-shadow: var(--t-shadow-sm);
+  user-select: none;
+}
+#zoom-indicator button {
+  background: none; border: none; cursor: pointer;
+  color: var(--t-text-muted); font-size: 16px;
+  display: flex; align-items: center; padding: 2px;
+  border-radius: var(--t-r-xs);
+}
+#zoom-indicator button:hover { background: var(--t-primary-light); color: var(--t-primary); }
+
+/* ── Panel Toggle Button ────────────────────────────────── */
+#panel-toggle-btn {
+  position: fixed; top: var(--s3); left: var(--s3);
+  z-index: 1001;
+  background: var(--t-surface);
+  border: 1px solid var(--t-border);
+  border-radius: var(--t-r-sm);
+  width: 36px; height: 36px;
+  display: none; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--t-text-muted);
+  box-shadow: var(--t-shadow-sm);
+}
+#panel-toggle-btn:hover { color: var(--t-primary); border-color: var(--t-primary); }
+#left-panel.collapsed ~ #panel-toggle-btn { display: flex; }
+
+/* ================================================================
+   FRAME — Each mobile screen wrapper
+   ================================================================ */
+.frame-group {
+  position: absolute;
+  display: flex; flex-direction: column; gap: var(--s3);
+}
+.frame-label {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
+  color: var(--t-text-secondary);
+  letter-spacing: -0.01em;
+  padding-left: var(--s1);
+}
+.frame-device {
+  width: var(--frame-w);
+  height: var(--frame-h);
+  background: var(--t-surface);
+  border-radius: var(--frame-radius);
+  box-shadow: var(--t-shadow-lg);
+  overflow: hidden;
+  position: relative;
+  border: 1px solid var(--t-border);
+}
+.frame-device > .screen-content {
+  width: 100%; height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex; flex-direction: column;
+}
+
+/* ── Status Bar ─────────────────────────────────────────── */
+.status-bar {
+  height: var(--status-h);
+  padding: var(--s7) var(--s6) 0;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semi);
+  color: var(--t-text);
+}
+.status-bar-dark { color: #ffffff; }
+.status-bar .time { font-weight: var(--fw-bold); }
+.status-icons { display: flex; gap: var(--s1); align-items: center; }
+.status-icons .material-icons-round { font-size: 14px; }
+
+/* ── Section Labels (Figma reconstruction) ──────────────── */
+.section-label {
+  font-size: 9px;
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--t-primary);
+  opacity: 0.6;
+  padding: var(--s1) var(--s4);
+  pointer-events: none;
+}
+.labels-hidden .section-label { display: none; }
+
+/* ── Debug Mode ─────────────────────────────────────────── */
+.debug-mode .debug-outline {
+  outline: 1px dashed rgba(27,138,120,0.35) !important;
+  outline-offset: -1px;
+}
+.debug-mode .section-label { opacity: 1; background: var(--t-primary-light); border-radius: 2px; }
+
+/* ================================================================
+   MOBILE COMPONENT LIBRARY
+   ================================================================ */
+
+/* ── App Bar ────────────────────────────────────────────── */
+.m-app-bar {
+  padding: var(--s3) var(--s4);
+  display: flex; align-items: center; gap: var(--s3);
+  flex-shrink: 0;
+}
+.m-app-bar-title {
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-extra);
+  color: var(--t-text);
+  letter-spacing: -0.02em;
+  flex: 1;
+}
+.m-app-bar-subtitle {
+  font-size: var(--fs-xs);
+  color: var(--t-text-muted);
+  font-weight: var(--fw-regular);
+}
+.m-icon-btn {
+  width: 40px; height: 40px;
+  border-radius: var(--t-r-sm);
+  background: transparent;
+  border: 1px solid var(--t-border);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--t-text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  position: relative;
+}
+.m-icon-btn:active { background: var(--t-primary-light); }
+.m-icon-btn .dot-badge {
+  position: absolute; top: 6px; right: 6px;
+  width: 8px; height: 8px;
+  background: var(--t-danger);
+  border-radius: 50%;
+  border: 2px solid var(--t-surface);
+}
+
+/* ── Bottom Navigation ──────────────────────────────────── */
+.m-bottom-nav {
+  height: var(--bottom-nav-h);
+  background: var(--t-surface);
+  border-top: 1px solid var(--t-border);
+  display: flex; align-items: flex-start;
+  padding-top: var(--s2);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+  flex-shrink: 0;
+  position: relative;
+}
+.m-bottom-nav::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--t-primary), var(--t-blue), transparent);
+  opacity: 0.3;
+}
+.m-nav-item {
+  flex: 1;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  cursor: pointer;
+  padding: var(--s1) 0;
+  color: var(--t-text-muted);
+  font-size: 10px;
+  font-weight: var(--fw-semi);
+  transition: color var(--t-fast) var(--t-ease);
+}
+.m-nav-item .material-icons-round { font-size: 22px; }
+.m-nav-item.active { color: var(--t-primary); }
+.m-nav-item:active { color: var(--t-primary-dark); }
+
+/* ── KPI Cards ──────────────────────────────────────────── */
+.m-kpi-row {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: var(--s3); padding: 0 var(--s4);
+}
+.m-kpi-card {
+  background: var(--t-surface);
+  border: 1px solid var(--t-border);
+  border-radius: var(--t-r);
+  padding: var(--s4);
+  position: relative;
+  overflow: hidden;
+}
+.m-kpi-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0;
+  height: 3px;
+  background: var(--t-primary);
+  border-radius: var(--t-r) var(--t-r) 0 0;
+}
+.m-kpi-card.blue::before { background: var(--t-blue); }
+.m-kpi-card.amber::before { background: #f59e0b; }
+.m-kpi-card.red::before { background: #ef4444; }
+.m-kpi-label {
+  font-size: 10px;
+  font-weight: var(--fw-semi);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--t-text-muted);
+  margin-bottom: var(--s2);
+}
+.m-kpi-value {
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-extra);
+  letter-spacing: -0.03em;
+  color: var(--t-primary);
+  line-height: 1;
+}
+.m-kpi-card.blue .m-kpi-value { color: var(--t-blue); }
+.m-kpi-card.amber .m-kpi-value { color: #d97706; }
+.m-kpi-card.red .m-kpi-value { color: #dc2626; }
+.m-kpi-change {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  color: var(--t-text-muted);
+  margin-top: var(--s1);
+}
+.m-kpi-change.up { color: var(--t-danger); }
+.m-kpi-change.down { color: var(--t-success); }
+
+/* ── Situation Banner ───────────────────────────────────── */
+.m-situation-banner {
+  margin: 0 var(--s4) var(--s3);
+  padding: var(--s3) var(--s4);
+  border-radius: var(--t-r);
+  display: flex; align-items: center; gap: var(--s3);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semi);
+}
+.m-situation-banner.normal { background: var(--t-success-bg); color: #14532d; border: 1px solid var(--t-success-border); }
+.m-situation-banner.watch { background: var(--t-warning-bg); color: #78350f; border: 1px solid var(--t-warning-border); }
+.m-situation-banner.alert-status { background: var(--t-danger-bg); color: #7f1d1d; border: 1px solid var(--t-danger-border); }
+.m-situation-banner .material-icons-round { font-size: 18px; }
+
+/* ── Cards ──────────────────────────────────────────────── */
+.m-card {
+  background: var(--t-surface);
+  border: 1px solid var(--t-border);
+  border-radius: var(--t-r);
+  margin: 0 var(--s4) var(--s3);
+  overflow: hidden;
+}
+.m-card-header {
+  padding: var(--s4);
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid var(--t-border);
+}
+.m-card-header h3 {
+  font-size: var(--fs-base);
+  font-weight: var(--fw-bold);
+  color: var(--t-text);
+  letter-spacing: -0.01em;
+  display: flex; align-items: center; gap: var(--s2);
+}
+.m-card-header h3::before {
+  content: '';
+  width: 3px; height: 14px;
+  background: var(--t-primary);
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.m-card-body { padding: var(--s4); }
+
+/* ── Chart Placeholder ──────────────────────────────────── */
+.m-chart-placeholder {
+  height: 180px;
+  background: linear-gradient(180deg, var(--t-primary-xlight), var(--t-surface));
+  border-radius: var(--t-r-sm);
+  display: flex; align-items: center; justify-content: center;
+  position: relative; overflow: hidden;
+}
+.m-chart-placeholder .chart-lines {
+  position: absolute; bottom: 0; left: 0; right: 0; height: 120px;
+}
+.m-chart-placeholder svg { width: 100%; height: 100%; }
+.chart-label-overlay {
+  position: absolute; top: var(--s3); left: var(--s3);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semi);
+  color: var(--t-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* ── List Items ─────────────────────────────────────────── */
+.m-list-item {
+  display: flex; align-items: center; gap: var(--s3);
+  padding: var(--s3) var(--s4);
+  border-bottom: 1px solid var(--t-border);
+  cursor: pointer;
+  transition: background var(--t-fast) var(--t-ease);
+}
+.m-list-item:last-child { border-bottom: none; }
+.m-list-item:active { background: var(--t-primary-xlight); }
+.m-list-icon {
+  width: 40px; height: 40px;
+  border-radius: var(--t-r-sm);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; font-size: 18px;
+}
+.m-list-content { flex: 1; min-width: 0; }
+.m-list-title {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semi);
+  color: var(--t-text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.m-list-subtitle {
+  font-size: var(--fs-xs);
+  color: var(--t-text-muted);
+  margin-top: 1px;
+}
+.m-list-trail {
+  flex-shrink: 0;
+  display: flex; flex-direction: column; align-items: flex-end; gap: 2px;
+}
+
+/* ── Badge ──────────────────────────────────────────────── */
+.m-badge {
+  font-size: 10px;
+  font-weight: var(--fw-semi);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: var(--t-r-pill);
+  border: 1px solid transparent;
+  display: inline-flex; align-items: center;
+}
+.m-badge.success { background: var(--t-success-bg); color: var(--t-success); border-color: var(--t-success-border); }
+.m-badge.warning { background: var(--t-warning-bg); color: var(--t-warning); border-color: var(--t-warning-border); }
+.m-badge.danger { background: var(--t-danger-bg); color: var(--t-danger); border-color: var(--t-danger-border); }
+.m-badge.info { background: var(--t-info-bg); color: var(--t-info); border-color: var(--t-info-border); }
+.m-badge.critical { background: var(--t-critical-bg); color: var(--t-critical); border-color: rgba(126,34,206,0.2); }
+.m-badge.neutral { background: #f1f5f9; color: #475569; border-color: #e2e8f0; }
+
+/* ── Buttons ────────────────────────────────────────────── */
+.m-btn {
+  font-family: var(--font-family);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semi);
+  border-radius: var(--t-r-sm);
+  padding: var(--s3) var(--s5);
+  border: 1.5px solid transparent;
+  cursor: pointer;
+  display: inline-flex; align-items: center; gap: var(--s2);
+  transition: background var(--t-base) var(--t-ease), transform var(--t-fast) var(--t-ease);
+  min-height: 44px;
+}
+.m-btn:active { transform: scale(0.97); }
+.m-btn-primary {
+  background: var(--t-primary);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(27,138,120,0.25);
+}
+.m-btn-primary:active { background: var(--t-primary-dark); }
+.m-btn-secondary {
+  background: transparent;
+  border-color: var(--t-border-strong);
+  color: var(--t-text-secondary);
+}
+.m-btn-full { width: 100%; justify-content: center; }
+.m-btn-lg { padding: var(--s4) var(--s6); font-size: var(--fs-base); border-radius: var(--t-r); }
+
+/* ── Form Inputs ────────────────────────────────────────── */
+.m-form-group { margin-bottom: var(--s4); }
+.m-form-label {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semi);
+  color: var(--t-text-secondary);
+  margin-bottom: var(--s1);
+  display: block;
+}
+.m-form-input, .m-form-select {
+  width: 100%;
+  background: #ffffff;
+  border: 1.5px solid var(--t-border-strong);
+  border-radius: var(--t-r-sm);
+  color: var(--t-text);
+  font-family: var(--font-family);
+  font-size: var(--fs-base);
+  padding: var(--s3) var(--s4);
+  min-height: 48px;
+  outline: none;
+  transition: border-color var(--t-base) var(--t-ease), box-shadow var(--t-base) var(--t-ease);
+}
+.m-form-input::placeholder { color: var(--t-text-placeholder); }
+.m-form-input:focus {
+  border-color: var(--t-primary);
+  box-shadow: 0 0 0 3px rgba(27,138,120,0.14);
+}
+
+/* ── Segmented Control ──────────────────────────────────── */
+.m-segmented {
+  display: flex;
+  background: var(--t-bg);
+  border-radius: var(--t-r-sm);
+  padding: 3px;
+  gap: 2px;
+}
+.m-segment {
+  flex: 1;
+  padding: var(--s2) var(--s3);
+  text-align: center;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semi);
+  color: var(--t-text-muted);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all var(--t-fast) var(--t-ease);
+}
+.m-segment.active {
+  background: var(--t-surface);
+  color: var(--t-primary);
+  box-shadow: var(--t-shadow-xs);
+}
+
+/* ── Toggle Switch ──────────────────────────────────────── */
+.m-toggle {
+  width: 48px; height: 28px;
+  background: var(--t-border-strong);
+  border-radius: 14px;
+  position: relative;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background var(--t-base) var(--t-ease);
+}
+.m-toggle::after {
+  content: '';
+  position: absolute;
+  top: 3px; left: 3px;
+  width: 22px; height: 22px;
+  background: #ffffff;
+  border-radius: 50%;
+  box-shadow: var(--t-shadow-sm);
+  transition: transform var(--t-base) var(--t-ease);
+}
+.m-toggle.on { background: var(--t-primary); }
+.m-toggle.on::after { transform: translateX(20px); }
+
+/* ── Dot indicators ─────────────────────────────────────── */
+.m-dot {
+  display: inline-block; width: 8px; height: 8px;
+  border-radius: 50%; flex-shrink: 0;
+}
+.m-dot.success { background: var(--t-success); }
+.m-dot.warning { background: var(--t-warning); }
+.m-dot.danger { background: var(--t-danger); }
+.m-dot.info { background: var(--t-info); }
+
+/* ── Map Placeholder ────────────────────────────────────── */
+.m-map-placeholder {
+  flex: 1; min-height: 300px;
+  background: #e8ecf0;
+  position: relative;
+  overflow: hidden;
+}
+.m-map-placeholder::after {
+  content: '';
+  position: absolute; inset: 0;
+  background:
+    repeating-linear-gradient(0deg, transparent, transparent 40px, rgba(27,138,120,0.06) 40px, rgba(27,138,120,0.06) 41px),
+    repeating-linear-gradient(90deg, transparent, transparent 40px, rgba(27,138,120,0.06) 40px, rgba(27,138,120,0.06) 41px);
+}
+.map-pin {
+  position: absolute;
+  width: 24px; height: 24px;
+  background: var(--t-primary);
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  box-shadow: 0 2px 6px rgba(27,138,120,0.4);
+  border: 2px solid #ffffff;
+  z-index: 1;
+}
+.map-pin.red { background: var(--t-danger); box-shadow: 0 2px 6px rgba(220,38,38,0.4); }
+.map-pin.amber { background: var(--t-warning); box-shadow: 0 2px 6px rgba(217,119,6,0.4); }
+.map-label {
+  position: absolute;
+  font-size: 9px;
+  font-weight: var(--fw-bold);
+  color: var(--t-text-secondary);
+  background: rgba(255,255,255,0.9);
+  padding: 2px 6px;
+  border-radius: var(--t-r-xs);
+  white-space: nowrap;
+  z-index: 2;
+}
+
+/* ── Bottom Sheet ───────────────────────────────────────── */
+.m-bottom-sheet-overlay {
+  position: absolute; inset: 0;
+  background: rgba(13,27,42,0.4);
+  z-index: 10;
+  display: none;
+}
+.m-bottom-sheet-overlay.open { display: block; }
+.m-bottom-sheet {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  background: var(--t-surface);
+  border-radius: var(--t-r-xl) var(--t-r-xl) 0 0;
+  box-shadow: var(--t-shadow-xl);
+  z-index: 11;
+  transform: translateY(100%);
+  transition: transform var(--t-slow) var(--t-ease);
+  max-height: 70%;
+  overflow-y: auto;
+}
+.m-bottom-sheet.open { transform: translateY(0); }
+.m-sheet-handle {
+  width: 36px; height: 4px;
+  background: var(--t-border-strong);
+  border-radius: 2px;
+  margin: var(--s3) auto var(--s2);
+}
+
+/* ── Scrollable body helper ─────────────────────────────── */
+.m-scroll-body {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: var(--s4);
+}
+
+/* ── Splash specific ────────────────────────────────────── */
+.splash-bg {
+  width: 100%; height: 100%;
+  background: linear-gradient(160deg, var(--t-primary-dark) 0%, var(--t-primary) 40%, var(--t-primary-mid) 100%);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: var(--s6);
+}
+.splash-logo {
+  width: 80px; height: 80px;
+  background: rgba(255,255,255,0.15);
+  border-radius: var(--t-r-xl);
+  display: flex; align-items: center; justify-content: center;
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,0.2);
+}
+.splash-logo .material-icons-round { font-size: 40px; color: #ffffff; }
+.splash-title {
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-extra);
+  color: #ffffff;
+  text-align: center;
+  letter-spacing: -0.02em;
+}
+.splash-subtitle {
+  font-size: var(--fs-sm);
+  color: rgba(255,255,255,0.7);
+  text-align: center;
+  font-weight: var(--fw-medium);
+}
+
+/* ── Data Quality Strip ─────────────────────────────────── */
+.m-data-quality {
+  display: flex; gap: var(--s2);
+  padding: 0 var(--s4);
+}
+.m-dq-item {
+  flex: 1;
+  background: var(--t-bg);
+  border-radius: var(--t-r-sm);
+  padding: var(--s3);
+  text-align: center;
+}
+.m-dq-value {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-bold);
+  color: var(--t-primary);
+}
+.m-dq-label {
+  font-size: 9px;
+  font-weight: var(--fw-semi);
+  color: var(--t-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-top: 2px;
+}
+
+/* ── Profile Avatar ─────────────────────────────────────── */
+.m-avatar-lg {
+  width: 72px; height: 72px;
+  border-radius: 50%;
+  background: var(--t-primary);
+  display: flex; align-items: center; justify-content: center;
+  color: #ffffff;
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-bold);
+}
+
+/* ── Settings row ───────────────────────────────────────── */
+.m-settings-row {
+  display: flex; align-items: center; gap: var(--s3);
+  padding: var(--s4);
+  border-bottom: 1px solid var(--t-border);
+  cursor: pointer;
+}
+.m-settings-row:active { background: var(--t-primary-xlight); }
+.m-settings-icon {
+  width: 36px; height: 36px;
+  border-radius: var(--t-r-sm);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; flex-shrink: 0;
+}
+.m-settings-text { flex: 1; }
+.m-settings-text .title { font-size: var(--fs-sm); font-weight: var(--fw-semi); color: var(--t-text); }
+.m-settings-text .desc { font-size: var(--fs-xs); color: var(--t-text-muted); }
+
+/* ── Search Bar ─────────────────────────────────────────── */
+.m-search-bar {
+  margin: 0 var(--s4) var(--s3);
+  position: relative;
+}
+.m-search-bar .material-icons-round {
+  position: absolute; left: var(--s3); top: 50%; transform: translateY(-50%);
+  font-size: 20px; color: var(--t-text-muted);
+}
+.m-search-bar input {
+  width: 100%;
+  background: var(--t-bg);
+  border: 1.5px solid var(--t-border);
+  border-radius: var(--t-r);
+  font-family: var(--font-family);
+  font-size: var(--fs-sm);
+  padding: var(--s3) var(--s4) var(--s3) 40px;
+  min-height: 44px;
+  outline: none;
+  color: var(--t-text);
+  transition: border-color var(--t-base) var(--t-ease), box-shadow var(--t-base) var(--t-ease);
+}
+.m-search-bar input::placeholder { color: var(--t-text-placeholder); }
+.m-search-bar input:focus {
+  border-color: var(--t-primary);
+  box-shadow: 0 0 0 3px rgba(27,138,120,0.14);
+  background: var(--t-surface);
+}
+
+/* ── Chip / Filter Tag ──────────────────────────────────── */
+.m-chip-row {
+  display: flex; gap: var(--s2);
+  padding: 0 var(--s4);
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin-bottom: var(--s3);
+}
+.m-chip-row::-webkit-scrollbar { display: none; }
+.m-chip {
+  padding: var(--s2) var(--s3);
+  border-radius: var(--t-r-pill);
+  border: 1px solid var(--t-border-strong);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semi);
+  color: var(--t-text-secondary);
+  white-space: nowrap;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all var(--t-fast) var(--t-ease);
+}
+.m-chip.active {
+  background: var(--t-primary-light);
+  border-color: var(--t-primary);
+  color: var(--t-primary);
+}
+
+/* ── Notification item ──────────────────────────────────── */
+.m-notif-item {
+  display: flex; gap: var(--s3);
+  padding: var(--s4);
+  border-bottom: 1px solid var(--t-border);
+}
+.m-notif-item.unread { background: var(--t-primary-xlight); }
+.m-notif-dot {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; font-size: 16px;
+}
+.m-notif-content { flex: 1; }
+.m-notif-text { font-size: var(--fs-sm); color: var(--t-text); font-weight: var(--fw-medium); line-height: var(--lh-base); }
+.m-notif-time { font-size: var(--fs-xs); color: var(--t-text-muted); margin-top: 2px; }
+
+/* ── Form Section Header ────────────────────────────────── */
+.m-form-section-header {
+  font-size: 10px;
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--t-primary);
+  margin-bottom: var(--s4);
+  padding-bottom: var(--s2);
+  border-bottom: 1px solid var(--t-border);
+  display: flex; align-items: center; gap: var(--s3);
+}
+.m-form-section-header::after {
+  content: ''; flex: 1; height: 1px; background: var(--t-border);
+}
+
+/* ── Empty State ────────────────────────────────────────── */
+.m-empty {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: var(--s9) var(--s6);
+  gap: var(--s3);
+}
+.m-empty .material-icons-round { font-size: 48px; color: var(--t-border-strong); }
+.m-empty-text { font-size: var(--fs-sm); color: var(--t-text-muted); text-align: center; }
+
+/* ================================================================
+   LEGEND CARD (on-canvas)
+   ================================================================ */
+.legend-group {
+  position: absolute;
+  background: var(--t-surface);
+  border: 1px solid var(--t-border);
+  border-radius: var(--t-r-lg);
+  box-shadow: var(--t-shadow);
+  padding: var(--s6);
+  width: 440px;
+}
+.legend-group h2 {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-extra);
+  color: var(--t-text);
+  margin-bottom: var(--s5);
+  letter-spacing: -0.02em;
+  display: flex; align-items: center; gap: var(--s2);
+}
+.legend-section { margin-bottom: var(--s5); }
+.legend-section h3 {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--t-text-muted);
+  margin-bottom: var(--s3);
+}
+.swatch-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  gap: var(--s2);
+}
+.swatch {
+  display: flex; flex-direction: column; gap: 2px;
+}
+.swatch-color {
+  width: 100%; height: 32px;
+  border-radius: var(--t-r-xs);
+  border: 1px solid var(--t-border);
+}
+.swatch-name { font-size: 9px; font-weight: var(--fw-semi); color: var(--t-text-secondary); }
+.swatch-hex { font-size: 9px; color: var(--t-text-muted); font-family: monospace; }
+
+.type-row {
+  display: flex; align-items: baseline; gap: var(--s4);
+  padding: var(--s1) 0;
+  border-bottom: 1px solid var(--t-border);
+}
+.type-row:last-child { border-bottom: none; }
+.type-sample { color: var(--t-text); }
+.type-meta { font-size: 9px; color: var(--t-text-muted); font-family: monospace; white-space: nowrap; }
+
+.spacing-row {
+  display: flex; align-items: center; gap: var(--s3);
+  margin-bottom: var(--s1);
+}
+.spacing-bar {
+  height: 12px;
+  background: var(--t-primary-light);
+  border: 1px solid rgba(27,138,120,0.2);
+  border-radius: 2px;
+}
+.spacing-label { font-size: 9px; color: var(--t-text-muted); font-family: monospace; white-space: nowrap; min-width: 55px; }
+</style>
+</head>
+<body>
+
+<!-- ================================================================
+     LEFT PANEL — Screen navigator
+     ================================================================ -->
+<div id="left-panel">
+  <div class="panel-header">
+    <div class="brand-icon"><span class="material-icons-round">coronavirus</span></div>
+    <span>DS Mobile — Screens</span>
+  </div>
+  <div class="panel-screens" id="screen-list"></div>
+  <div class="panel-controls">
+    <label class="panel-toggle">
+      <input type="checkbox" id="toggle-labels" checked> Section Labels
+    </label>
+    <label class="panel-toggle">
+      <input type="checkbox" id="toggle-debug"> Debug Mode
+    </label>
+    <label class="panel-toggle">
+      <input type="checkbox" id="toggle-panel-collapse"> Collapse Panel
+    </label>
+  </div>
+</div>
+
+<button id="panel-toggle-btn" class="material-icons-round" onclick="togglePanel()">menu</button>
+
+<!-- ================================================================
+     CANVAS VIEWPORT
+     ================================================================ -->
+<div id="canvas-viewport">
+  <div id="design-canvas">
+
+    <!-- ============================================================
+         SCREEN 01 — Splash
+         ============================================================ -->
+    <div class="frame-group" data-screen="01 Splash" style="left:80px; top:80px;">
+      <div class="frame-label">01 Splash</div>
+      <div class="frame-device">
+        <div class="screen-content">
+          <div class="splash-bg">
+            <div class="section-label" style="position:absolute;top:8px;left:8px;color:rgba(255,255,255,0.5);">SPLASH SCREEN</div>
+            <div class="splash-logo debug-outline">
+              <span class="material-icons-round">coronavirus</span>
+            </div>
+            <div>
+              <div class="splash-title debug-outline">Disease<br>Surveillance</div>
+              <div class="splash-subtitle" style="margin-top:8px;">Ghana Health Service</div>
+            </div>
+            <div style="position:absolute;bottom:120px;">
+              <div style="width:32px;height:3px;background:rgba(255,255,255,0.3);border-radius:2px;overflow:hidden;">
+                <div style="width:60%;height:100%;background:#fff;border-radius:2px;"></div>
+              </div>
+            </div>
+            <div class="splash-subtitle" style="position:absolute;bottom:60px;font-size:11px;opacity:0.5;">v2.0</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================
+         SCREEN 02 — Login
+         ============================================================ -->
+    <div class="frame-group" data-screen="02 Login" style="left:550px; top:80px;">
+      <div class="frame-label">02 Login</div>
+      <div class="frame-device">
+        <div class="screen-content" style="background:var(--t-bg);">
+          <div class="status-bar"><span class="time">9:41</span><div class="status-icons"><span class="material-icons-round">signal_cellular_alt</span><span class="material-icons-round">wifi</span><span class="material-icons-round">battery_full</span></div></div>
+          <div class="section-label">BRAND HEADER</div>
+          <div style="padding:var(--s8) var(--s6) var(--s6);text-align:center;" class="debug-outline">
+            <div style="width:56px;height:56px;background:var(--t-primary);border-radius:var(--t-r);display:inline-flex;align-items:center;justify-content:center;margin-bottom:var(--s4);">
+              <span class="material-icons-round" style="font-size:28px;color:#fff;">coronavirus</span>
+            </div>
+            <div style="font-size:var(--fs-lg);font-weight:var(--fw-extra);color:var(--t-text);letter-spacing:-0.02em;">Welcome Back</div>
+            <div style="font-size:var(--fs-sm);color:var(--t-text-muted);margin-top:var(--s1);">Sign in to continue monitoring</div>
+          </div>
+          <div class="section-label">LOGIN FORM</div>
+          <div style="padding:var(--s4) var(--s6);" class="debug-outline">
+            <div class="m-form-group">
+              <label class="m-form-label">Email Address</label>
+              <input class="m-form-input" type="email" placeholder="you@health.gov.gh">
+            </div>
+            <div class="m-form-group">
+              <label class="m-form-label">Password</label>
+              <input class="m-form-input" type="password" placeholder="Enter password">
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--s5);">
+              <label style="display:flex;align-items:center;gap:var(--s2);font-size:var(--fs-xs);color:var(--t-text-muted);cursor:pointer;">
+                <input type="checkbox" style="accent-color:var(--t-primary);"> Remember me
+              </label>
+              <a style="font-size:var(--fs-xs);color:var(--t-primary);font-weight:var(--fw-semi);text-decoration:none;">Forgot?</a>
+            </div>
+            <button class="m-btn m-btn-primary m-btn-full m-btn-lg">
+              <span class="material-icons-round" style="font-size:18px;">login</span> Sign In
+            </button>
+          </div>
+          <div class="section-label">SECONDARY ACTION</div>
+          <div style="padding:var(--s6);text-align:center;" class="debug-outline">
+            <div style="font-size:var(--fs-sm);color:var(--t-text-muted);">Don't have an account? <a style="color:var(--t-primary);font-weight:var(--fw-semi);text-decoration:none;">Sign Up</a></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================
+         SCREEN 03 — Home / Dashboard
+         ============================================================ -->
+    <div class="frame-group" data-screen="03 Home / Dashboard" style="left:1020px; top:80px;">
+      <div class="frame-label">03 Home / Dashboard</div>
+      <div class="frame-device">
+        <div class="screen-content" style="background:var(--t-bg);">
+          <div class="status-bar"><span class="time">9:41</span><div class="status-icons"><span class="material-icons-round">signal_cellular_alt</span><span class="material-icons-round">wifi</span><span class="material-icons-round">battery_full</span></div></div>
+          <div class="section-label">APP BAR</div>
+          <div class="m-app-bar debug-outline">
+            <div style="flex:1;">
+              <div class="m-app-bar-title">Overview</div>
+              <div class="m-app-bar-subtitle">Greater Accra Region</div>
+            </div>
+            <div class="m-icon-btn"><span class="material-icons-round" style="font-size:20px;">notifications</span><div class="dot-badge"></div></div>
+            <div class="m-icon-btn" onclick="openSheet('filter-sheet-03')"><span class="material-icons-round" style="font-size:20px;">tune</span></div>
+          </div>
+          <div class="m-scroll-body">
+            <div class="section-label">SITUATION BANNER</div>
+            <div class="m-situation-banner normal debug-outline">
+              <span class="material-icons-round">check_circle</span>
+              <div><strong>Normal</strong> — No active alerts in region</div>
+            </div>
+            <div class="section-label">KPI CARDS</div>
+            <div class="m-kpi-row debug-outline" style="margin-bottom:var(--s4);">
+              <div class="m-kpi-card">
+                <div class="m-kpi-label">Cases (7d)</div>
+                <div class="m-kpi-value">142</div>
+                <div class="m-kpi-change down">&#9660; 12% vs prev</div>
+              </div>
+              <div class="m-kpi-card blue">
+                <div class="m-kpi-label">Cases (30d)</div>
+                <div class="m-kpi-value">587</div>
+                <div class="m-kpi-change up">&#9650; 3% vs prev</div>
+              </div>
+              <div class="m-kpi-card amber">
+                <div class="m-kpi-label">Reports (7d)</div>
+                <div class="m-kpi-value">38</div>
+                <div class="m-kpi-change down">&#9660; 5%</div>
+              </div>
+              <div class="m-kpi-card red">
+                <div class="m-kpi-label">Active Alerts</div>
+                <div class="m-kpi-value">2</div>
+                <div class="m-kpi-change" style="color:var(--t-text-muted);">No change</div>
+              </div>
+            </div>
+            <div class="section-label">DAILY CASES CHART</div>
+            <div class="m-card debug-outline">
+              <div class="m-card-header"><h3>Daily Cases</h3></div>
+              <div class="m-card-body" style="padding:var(--s3);">
+                <div class="m-chart-placeholder">
+                  <div class="chart-label-overlay">LAST 30 DAYS</div>
+                  <div class="chart-lines">
+                    <svg viewBox="0 0 350 120" preserveAspectRatio="none">
+                      <polyline fill="none" stroke="var(--t-primary)" stroke-width="2" points="0,90 25,85 50,70 75,60 100,65 125,50 150,55 175,40 200,45 225,35 250,50 275,40 300,30 325,35 350,25"/>
+                      <polyline fill="rgba(27,138,120,0.08)" stroke="none" points="0,120 0,90 25,85 50,70 75,60 100,65 125,50 150,55 175,40 200,45 225,35 250,50 275,40 300,30 325,35 350,25 350,120"/>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="section-label">DATA QUALITY</div>
+            <div class="m-data-quality debug-outline" style="margin-bottom:var(--s4);">
+              <div class="m-dq-item"><div class="m-dq-value">94%</div><div class="m-dq-label">Complete</div></div>
+              <div class="m-dq-item"><div class="m-dq-value" style="color:var(--t-warning);">1.2d</div><div class="m-dq-label">Avg Delay</div></div>
+              <div class="m-dq-item"><div class="m-dq-value" style="color:var(--t-success);">2%</div><div class="m-dq-label">Duplicates</div></div>
+            </div>
+            <div class="section-label">TOP DISEASES</div>
+            <div class="m-card debug-outline">
+              <div class="m-card-header"><h3>Top Diseases</h3></div>
+              <div class="m-card-body" style="padding:var(--s3) var(--s4);">
+                <div style="margin-bottom:var(--s3);">
+                  <div style="display:flex;justify-content:space-between;font-size:var(--fs-xs);margin-bottom:var(--s1);"><span style="font-weight:var(--fw-semi);color:var(--t-text);">Malaria</span><span style="color:var(--t-text-muted);">62</span></div>
+                  <div style="height:6px;background:var(--t-bg);border-radius:3px;overflow:hidden;"><div style="width:75%;height:100%;background:var(--t-primary);border-radius:3px;"></div></div>
+                </div>
+                <div style="margin-bottom:var(--s3);">
+                  <div style="display:flex;justify-content:space-between;font-size:var(--fs-xs);margin-bottom:var(--s1);"><span style="font-weight:var(--fw-semi);color:var(--t-text);">Cholera</span><span style="color:var(--t-text-muted);">28</span></div>
+                  <div style="height:6px;background:var(--t-bg);border-radius:3px;overflow:hidden;"><div style="width:34%;height:100%;background:var(--t-blue);border-radius:3px;"></div></div>
+                </div>
+                <div style="margin-bottom:var(--s3);">
+                  <div style="display:flex;justify-content:space-between;font-size:var(--fs-xs);margin-bottom:var(--s1);"><span style="font-weight:var(--fw-semi);color:var(--t-text);">Dengue</span><span style="color:var(--t-text-muted);">18</span></div>
+                  <div style="height:6px;background:var(--t-bg);border-radius:3px;overflow:hidden;"><div style="width:22%;height:100%;background:#f59e0b;border-radius:3px;"></div></div>
+                </div>
+                <div>
+                  <div style="display:flex;justify-content:space-between;font-size:var(--fs-xs);margin-bottom:var(--s1);"><span style="font-weight:var(--fw-semi);color:var(--t-text);">COVID-19</span><span style="color:var(--t-text-muted);">12</span></div>
+                  <div style="height:6px;background:var(--t-bg);border-radius:3px;overflow:hidden;"><div style="width:14%;height:100%;background:#ef4444;border-radius:3px;"></div></div>
+                </div>
+              </div>
+            </div>
+            <div style="height:var(--s4);"></div>
+          </div>
+          <div class="section-label">BOTTOM NAVIGATION</div>
+          <div class="m-bottom-nav debug-outline">
+            <div class="m-nav-item active"><span class="material-icons-round">dashboard</span>Home</div>
+            <div class="m-nav-item"><span class="material-icons-round">analytics</span>Analytics</div>
+            <div class="m-nav-item"><span class="material-icons-round">map</span>Map</div>
+            <div class="m-nav-item"><span class="material-icons-round">warning</span>Alerts</div>
+            <div class="m-nav-item"><span class="material-icons-round">person</span>Profile</div>
+          </div>
+          <!-- Filter Bottom Sheet -->
+          <div class="m-bottom-sheet-overlay" id="filter-overlay-03" onclick="closeSheet('filter-sheet-03')"></div>
+          <div class="m-bottom-sheet" id="filter-sheet-03">
+            <div class="m-sheet-handle"></div>
+            <div style="padding:0 var(--s5) var(--s5);">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--s4);">
+                <h3 style="font-size:var(--fs-md);font-weight:var(--fw-bold);color:var(--t-text);">Filters</h3>
+                <span class="material-icons-round" style="cursor:pointer;color:var(--t-text-muted);" onclick="closeSheet('filter-sheet-03')">close</span>
+              </div>
+              <div class="m-form-group"><label class="m-form-label">Start Date</label><input class="m-form-input" type="date"></div>
+              <div class="m-form-group"><label class="m-form-label">End Date</label><input class="m-form-input" type="date"></div>
+              <div class="m-form-group"><label class="m-form-label">Disease</label><select class="m-form-input m-form-select"><option>All Diseases</option><option>Malaria</option><option>Cholera</option><option>Dengue</option></select></div>
+              <div class="m-form-group"><label class="m-form-label">Location</label><select class="m-form-input m-form-select"><option>All Locations</option><option>Accra Metro</option><option>Tema Metro</option></select></div>
+              <div style="display:flex;gap:var(--s3);margin-top:var(--s4);">
+                <button class="m-btn m-btn-secondary" style="flex:1;justify-content:center;" onclick="closeSheet('filter-sheet-03')">Reset</button>
+                <button class="m-btn m-btn-primary" style="flex:2;justify-content:center;" onclick="closeSheet('filter-sheet-03')">Apply Filters</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================
+         SCREEN 04 — Analytics
+         ============================================================ -->
+    <div class="frame-group" data-screen="04 Analytics" style="left:1490px; top:80px;">
+      <div class="frame-label">04 Analytics</div>
+      <div class="frame-device">
+        <div class="screen-content" style="background:var(--t-bg);">
+          <div class="status-bar"><span class="time">9:41</span><div class="status-icons"><span class="material-icons-round">signal_cellular_alt</span><span class="material-icons-round">wifi</span><span class="material-icons-round">battery_full</span></div></div>
+          <div class="section-label">APP BAR</div>
+          <div class="m-app-bar debug-outline">
+            <div class="m-app-bar-title" style="flex:1;">Analytics</div>
+            <div class="m-icon-btn"><span class="material-icons-round" style="font-size:20px;">tune</span></div>
+          </div>
+          <div class="m-scroll-body">
+            <div class="section-label">SEGMENTED CONTROL</div>
+            <div style="padding:0 var(--s4) var(--s3);">
+              <div class="m-segmented debug-outline" id="analytics-tabs">
+                <div class="m-segment active" onclick="switchAnalyticsTab(this,'trends')">Trends</div>
+                <div class="m-segment" onclick="switchAnalyticsTab(this,'cusum')">CUSUM</div>
+                <div class="m-segment" onclick="switchAnalyticsTab(this,'forecast')">Forecast</div>
+              </div>
+            </div>
+            <div class="section-label">SITUATION TILES</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--s3);padding:0 var(--s4) var(--s3);" class="debug-outline">
+              <div style="background:var(--t-surface);border:1px solid var(--t-border);border-radius:var(--t-r);padding:var(--s3);text-align:center;">
+                <div style="font-size:var(--fs-2xl);font-weight:var(--fw-extra);color:var(--t-primary);letter-spacing:-0.03em;">142</div>
+                <div style="font-size:10px;color:var(--t-text-muted);font-weight:var(--fw-semi);text-transform:uppercase;letter-spacing:0.04em;">Cases 7d</div>
+              </div>
+              <div style="background:var(--t-surface);border:1px solid var(--t-border);border-radius:var(--t-r);padding:var(--s3);text-align:center;">
+                <div style="font-size:var(--fs-2xl);font-weight:var(--fw-extra);color:var(--t-danger);letter-spacing:-0.03em;">-12%</div>
+                <div style="font-size:10px;color:var(--t-text-muted);font-weight:var(--fw-semi);text-transform:uppercase;letter-spacing:0.04em;">WoW Change</div>
+              </div>
+              <div style="background:var(--t-surface);border:1px solid var(--t-border);border-radius:var(--t-r);padding:var(--s3);text-align:center;">
+                <div style="font-size:var(--fs-2xl);font-weight:var(--fw-extra);color:var(--t-blue);letter-spacing:-0.03em;">0.88</div>
+                <div style="font-size:10px;color:var(--t-text-muted);font-weight:var(--fw-semi);text-transform:uppercase;letter-spacing:0.04em;">Growth Factor</div>
+              </div>
+              <div style="background:var(--t-success-bg);border:1px solid var(--t-success-border);border-radius:var(--t-r);padding:var(--s3);text-align:center;">
+                <div style="font-size:var(--fs-2xl);font-weight:var(--fw-extra);color:var(--t-success);letter-spacing:-0.03em;">&#10003;</div>
+                <div style="font-size:10px;color:var(--t-success);font-weight:var(--fw-semi);text-transform:uppercase;letter-spacing:0.04em;">No Signal</div>
+              </div>
+            </div>
+            <div class="section-label">TRENDS CHART</div>
+            <div id="analytics-content-trends" class="debug-outline">
+              <div class="m-card">
+                <div class="m-card-header"><h3>Daily Cases + 7d MA</h3></div>
+                <div class="m-card-body" style="padding:var(--s3);">
+                  <div class="m-chart-placeholder" style="height:200px;">
+                    <div class="chart-label-overlay">CUSUM TRIGGER POINTS</div>
+                    <div class="chart-lines">
+                      <svg viewBox="0 0 350 140" preserveAspectRatio="none">
+                        <rect x="0" y="0" width="350" height="140" fill="none"/>
+                        <rect x="20" y="100" width="10" height="30" fill="rgba(27,138,120,0.15)" rx="2"/>
+                        <rect x="40" y="85" width="10" height="45" fill="rgba(27,138,120,0.15)" rx="2"/>
+                        <rect x="60" y="70" width="10" height="60" fill="rgba(27,138,120,0.15)" rx="2"/>
+                        <rect x="80" y="90" width="10" height="40" fill="rgba(27,138,120,0.15)" rx="2"/>
+                        <rect x="100" y="65" width="10" height="65" fill="rgba(27,138,120,0.15)" rx="2"/>
+                        <rect x="120" y="80" width="10" height="50" fill="rgba(27,138,120,0.15)" rx="2"/>
+                        <rect x="140" y="55" width="10" height="75" fill="rgba(27,138,120,0.15)" rx="2"/>
+                        <rect x="160" y="60" width="10" height="70" fill="rgba(27,138,120,0.15)" rx="2"/>
+                        <rect x="180" y="45" width="10" height="85" fill="rgba(27,138,120,0.15)" rx="2"/>
+                        <rect x="200" y="50" width="10" height="80" fill="rgba(27,138,120,0.15)" rx="2"/>
+                        <rect x="220" y="35" width="10" height="95" fill="rgba(27,138,120,0.15)" rx="2"/>
+                        <rect x="240" y="55" width="10" height="75" fill="rgba(27,138,120,0.15)" rx="2"/>
+                        <rect x="260" y="40" width="10" height="90" fill="rgba(27,138,120,0.15)" rx="2"/>
+                        <rect x="280" y="30" width="10" height="100" fill="rgba(27,138,120,0.15)" rx="2"/>
+                        <rect x="300" y="25" width="10" height="105" fill="rgba(27,138,120,0.15)" rx="2"/>
+                        <rect x="320" y="35" width="10" height="95" fill="rgba(27,138,120,0.15)" rx="2"/>
+                        <polyline fill="none" stroke="var(--t-primary)" stroke-width="2.5" points="25,95 45,80 65,65 85,80 105,60 125,70 145,50 165,52 185,40 205,42 225,30 245,48 265,35 285,25 305,20 325,28"/>
+                        <line x1="0" y1="20" x2="350" y2="20" stroke="var(--t-danger)" stroke-width="1" stroke-dasharray="4,3" opacity="0.5"/>
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div id="analytics-content-cusum" style="display:none;">
+              <div class="m-card">
+                <div class="m-card-header"><h3>CUSUM Detection</h3></div>
+                <div class="m-card-body" style="padding:var(--s3);">
+                  <div class="m-chart-placeholder" style="height:200px;">
+                    <div class="chart-label-overlay">CUSUM SERIES</div>
+                    <div class="chart-lines">
+                      <svg viewBox="0 0 350 140" preserveAspectRatio="none">
+                        <line x1="0" y1="50" x2="350" y2="50" stroke="var(--t-danger)" stroke-width="1.5" stroke-dasharray="6,4"/>
+                        <polyline fill="none" stroke="var(--t-blue)" stroke-width="2.5" points="0,120 40,110 80,95 120,80 160,70 200,60 240,55 280,48 320,52 350,58"/>
+                        <polyline fill="rgba(59,130,246,0.08)" stroke="none" points="0,140 0,120 40,110 80,95 120,80 160,70 200,60 240,55 280,48 320,52 350,58 350,140"/>
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div id="analytics-content-forecast" style="display:none;">
+              <div class="m-card">
+                <div class="m-card-header"><h3>Cases Forecast</h3></div>
+                <div class="m-card-body" style="padding:var(--s3);">
+                  <div class="m-chart-placeholder" style="height:200px;">
+                    <div class="chart-label-overlay">14-DAY FORECAST</div>
+                    <div class="chart-lines">
+                      <svg viewBox="0 0 350 140" preserveAspectRatio="none">
+                        <polyline fill="none" stroke="var(--t-primary)" stroke-width="2.5" points="0,100 50,85 100,70 150,55 200,50"/>
+                        <polyline fill="none" stroke="var(--t-primary)" stroke-width="2" stroke-dasharray="6,4" points="200,50 250,42 300,38 350,35"/>
+                        <polyline fill="rgba(27,138,120,0.06)" stroke="none" points="200,50 250,30 300,22 350,18 350,55 300,55 250,52 200,50"/>
+                        <polyline fill="rgba(27,138,120,0.06)" stroke="none" points="200,50 250,55 300,60 350,65 350,35 300,38 250,42 200,50"/>
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="section-label">DATA QUALITY</div>
+            <div class="m-card debug-outline">
+              <div class="m-card-header"><h3>Data Quality</h3></div>
+              <div class="m-card-body" style="padding:var(--s3) var(--s4);">
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:var(--s2) 0;border-bottom:1px solid var(--t-border);">
+                  <span style="font-size:var(--fs-sm);color:var(--t-text);">Completeness</span>
+                  <span style="font-size:var(--fs-sm);font-weight:var(--fw-bold);color:var(--t-success);">94.2%</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:var(--s2) 0;border-bottom:1px solid var(--t-border);">
+                  <span style="font-size:var(--fs-sm);color:var(--t-text);">Avg Delay</span>
+                  <span style="font-size:var(--fs-sm);font-weight:var(--fw-bold);color:var(--t-warning);">1.2 days</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:var(--s2) 0;">
+                  <span style="font-size:var(--fs-sm);color:var(--t-text);">Missingness</span>
+                  <span style="font-size:var(--fs-sm);font-weight:var(--fw-bold);color:var(--t-primary);">3.1%</span>
+                </div>
+              </div>
+            </div>
+            <div style="height:var(--s4);"></div>
+          </div>
+          <div class="section-label">BOTTOM NAVIGATION</div>
+          <div class="m-bottom-nav debug-outline">
+            <div class="m-nav-item"><span class="material-icons-round">dashboard</span>Home</div>
+            <div class="m-nav-item active"><span class="material-icons-round">analytics</span>Analytics</div>
+            <div class="m-nav-item"><span class="material-icons-round">map</span>Map</div>
+            <div class="m-nav-item"><span class="material-icons-round">warning</span>Alerts</div>
+            <div class="m-nav-item"><span class="material-icons-round">person</span>Profile</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================
+         SCREEN 05 — Live Map
+         ============================================================ -->
+    <div class="frame-group" data-screen="05 Live Map" style="left:80px; top:1020px;">
+      <div class="frame-label">05 Live Map</div>
+      <div class="frame-device">
+        <div class="screen-content" style="background:var(--t-bg);">
+          <div class="status-bar" style="position:absolute;z-index:3;width:100%;background:linear-gradient(180deg,rgba(255,255,255,0.9),transparent);"><span class="time">9:41</span><div class="status-icons"><span class="material-icons-round">signal_cellular_alt</span><span class="material-icons-round">wifi</span><span class="material-icons-round">battery_full</span></div></div>
+          <div class="section-label" style="position:absolute;top:50px;z-index:3;">MAP VIEW</div>
+          <div class="m-map-placeholder debug-outline" style="height:520px;">
+            <div class="map-pin" style="top:120px;left:140px;"></div>
+            <div class="map-label" style="top:108px;left:168px;">Accra Metro (24)</div>
+            <div class="map-pin" style="top:200px;left:240px;"></div>
+            <div class="map-label" style="top:188px;left:268px;">Tema (18)</div>
+            <div class="map-pin red" style="top:160px;left:90px;"></div>
+            <div class="map-label" style="top:148px;left:118px;">Ga West (Alert)</div>
+            <div class="map-pin amber" style="top:280px;left:180px;"></div>
+            <div class="map-label" style="top:268px;left:208px;">Kpone (8)</div>
+            <div class="map-pin" style="top:350px;left:120px;"></div>
+            <div style="position:absolute;top:70px;right:12px;z-index:2;display:flex;flex-direction:column;gap:4px;">
+              <div style="width:36px;height:36px;background:var(--t-surface);border:1px solid var(--t-border);border-radius:var(--t-r-sm);display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--t-text-muted);box-shadow:var(--t-shadow-sm);">+</div>
+              <div style="width:36px;height:36px;background:var(--t-surface);border:1px solid var(--t-border);border-radius:var(--t-r-sm);display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--t-text-muted);box-shadow:var(--t-shadow-sm);">&minus;</div>
+            </div>
+          </div>
+          <div class="section-label">LOCATION LIST</div>
+          <div style="flex:1;overflow-y:auto;" class="debug-outline">
+            <div class="m-list-item">
+              <div class="m-list-icon" style="background:var(--t-primary-light);color:var(--t-primary);"><span class="material-icons-round">location_on</span></div>
+              <div class="m-list-content">
+                <div class="m-list-title">Accra Metropolitan</div>
+                <div class="m-list-subtitle">24 cases &middot; 2 facilities</div>
+              </div>
+              <div class="m-list-trail"><span class="m-badge success">Low</span></div>
+            </div>
+            <div class="m-list-item">
+              <div class="m-list-icon" style="background:var(--t-danger-bg);color:var(--t-danger);"><span class="material-icons-round">location_on</span></div>
+              <div class="m-list-content">
+                <div class="m-list-title">Ga West Municipal</div>
+                <div class="m-list-subtitle">31 cases &middot; Alert active</div>
+              </div>
+              <div class="m-list-trail"><span class="m-badge danger">High</span></div>
+            </div>
+            <div class="m-list-item">
+              <div class="m-list-icon" style="background:var(--t-blue-light);color:var(--t-blue);"><span class="material-icons-round">location_on</span></div>
+              <div class="m-list-content">
+                <div class="m-list-title">Tema Metropolitan</div>
+                <div class="m-list-subtitle">18 cases &middot; 1 facility</div>
+              </div>
+              <div class="m-list-trail"><span class="m-badge info">Medium</span></div>
+            </div>
+          </div>
+          <div class="section-label">BOTTOM NAVIGATION</div>
+          <div class="m-bottom-nav debug-outline">
+            <div class="m-nav-item"><span class="material-icons-round">dashboard</span>Home</div>
+            <div class="m-nav-item"><span class="material-icons-round">analytics</span>Analytics</div>
+            <div class="m-nav-item active"><span class="material-icons-round">map</span>Map</div>
+            <div class="m-nav-item"><span class="material-icons-round">warning</span>Alerts</div>
+            <div class="m-nav-item"><span class="material-icons-round">person</span>Profile</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================
+         SCREEN 06 — Alerts & Investigations
+         ============================================================ -->
+    <div class="frame-group" data-screen="06 Alerts" style="left:550px; top:1020px;">
+      <div class="frame-label">06 Alerts &amp; Investigations</div>
+      <div class="frame-device">
+        <div class="screen-content" style="background:var(--t-bg);">
+          <div class="status-bar"><span class="time">9:41</span><div class="status-icons"><span class="material-icons-round">signal_cellular_alt</span><span class="material-icons-round">wifi</span><span class="material-icons-round">battery_full</span></div></div>
+          <div class="section-label">APP BAR</div>
+          <div class="m-app-bar debug-outline">
+            <div class="m-app-bar-title" style="flex:1;">Alerts</div>
+            <button class="m-btn m-btn-primary" style="padding:var(--s2) var(--s3);font-size:var(--fs-xs);min-height:36px;">
+              <span class="material-icons-round" style="font-size:16px;">bolt</span> Evaluate
+            </button>
+          </div>
+          <div class="m-scroll-body">
+            <div class="section-label">SEGMENTED CONTROL</div>
+            <div style="padding:0 var(--s4) var(--s3);">
+              <div class="m-segmented debug-outline">
+                <div class="m-segment active">Alerts (3)</div>
+                <div class="m-segment">Tasks (5)</div>
+              </div>
+            </div>
+            <div class="section-label">ALERT LIST</div>
+            <div class="debug-outline">
+              <div class="m-list-item" onclick="scrollToScreen('07 Alert Detail')">
+                <div class="m-list-icon" style="background:var(--t-danger-bg);color:var(--t-danger);"><span class="material-icons-round">warning</span></div>
+                <div class="m-list-content">
+                  <div class="m-list-title">Cholera — Ga West</div>
+                  <div class="m-list-subtitle">Threshold exceeded &middot; 2h ago</div>
+                </div>
+                <div class="m-list-trail">
+                  <span class="m-badge danger">High</span>
+                  <span style="font-size:10px;color:var(--t-text-muted);">Open</span>
+                </div>
+              </div>
+              <div class="m-list-item">
+                <div class="m-list-icon" style="background:var(--t-critical-bg);color:var(--t-critical);"><span class="material-icons-round">warning</span></div>
+                <div class="m-list-content">
+                  <div class="m-list-title">Malaria — Tema Metro</div>
+                  <div class="m-list-subtitle">CUSUM trigger &middot; 6h ago</div>
+                </div>
+                <div class="m-list-trail">
+                  <span class="m-badge critical">Critical</span>
+                  <span style="font-size:10px;color:var(--t-text-muted);">Open</span>
+                </div>
+              </div>
+              <div class="m-list-item">
+                <div class="m-list-icon" style="background:var(--t-warning-bg);color:var(--t-warning);"><span class="material-icons-round">warning</span></div>
+                <div class="m-list-content">
+                  <div class="m-list-title">Dengue — Accra Metro</div>
+                  <div class="m-list-subtitle">Unusual increase &middot; 1d ago</div>
+                </div>
+                <div class="m-list-trail">
+                  <span class="m-badge warning">Medium</span>
+                  <span style="font-size:10px;color:var(--t-success);">Resolved</span>
+                </div>
+              </div>
+            </div>
+            <div class="section-label">INVESTIGATION TASKS</div>
+            <div class="m-card debug-outline">
+              <div class="m-card-body" style="padding:0;">
+                <div class="m-list-item">
+                  <div style="width:20px;height:20px;border:2px solid var(--t-border-strong);border-radius:var(--t-r-xs);flex-shrink:0;"></div>
+                  <div class="m-list-content">
+                    <div class="m-list-title">Collect samples — Ga West</div>
+                    <div class="m-list-subtitle">Assigned to Dr. Mensah</div>
+                  </div>
+                </div>
+                <div class="m-list-item">
+                  <div style="width:20px;height:20px;border:2px solid var(--t-primary);border-radius:var(--t-r-xs);flex-shrink:0;background:var(--t-primary);display:flex;align-items:center;justify-content:center;">
+                    <span class="material-icons-round" style="font-size:14px;color:#fff;">check</span>
+                  </div>
+                  <div class="m-list-content">
+                    <div class="m-list-title" style="text-decoration:line-through;color:var(--t-text-muted);">Contact tracing — Tema</div>
+                    <div class="m-list-subtitle">Completed by field team</div>
+                  </div>
+                </div>
+                <div class="m-list-item">
+                  <div style="width:20px;height:20px;border:2px solid var(--t-border-strong);border-radius:var(--t-r-xs);flex-shrink:0;"></div>
+                  <div class="m-list-content">
+                    <div class="m-list-title">Verify reports — Kpone</div>
+                    <div class="m-list-subtitle">Due tomorrow</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style="height:var(--s4);"></div>
+          </div>
+          <div class="section-label">BOTTOM NAVIGATION</div>
+          <div class="m-bottom-nav debug-outline">
+            <div class="m-nav-item"><span class="material-icons-round">dashboard</span>Home</div>
+            <div class="m-nav-item"><span class="material-icons-round">analytics</span>Analytics</div>
+            <div class="m-nav-item"><span class="material-icons-round">map</span>Map</div>
+            <div class="m-nav-item active"><span class="material-icons-round">warning</span>Alerts</div>
+            <div class="m-nav-item"><span class="material-icons-round">person</span>Profile</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================
+         SCREEN 07 — Alert Detail
+         ============================================================ -->
+    <div class="frame-group" data-screen="07 Alert Detail" style="left:1020px; top:1020px;">
+      <div class="frame-label">07 Alert Detail</div>
+      <div class="frame-device">
+        <div class="screen-content" style="background:var(--t-bg);">
+          <div class="status-bar"><span class="time">9:41</span><div class="status-icons"><span class="material-icons-round">signal_cellular_alt</span><span class="material-icons-round">wifi</span><span class="material-icons-round">battery_full</span></div></div>
+          <div class="section-label">APP BAR (BACK)</div>
+          <div class="m-app-bar debug-outline">
+            <div class="m-icon-btn" style="border:none;"><span class="material-icons-round" style="font-size:22px;">arrow_back</span></div>
+            <div class="m-app-bar-title" style="flex:1;">Alert Detail</div>
+            <span class="m-badge danger">HIGH</span>
+          </div>
+          <div class="m-scroll-body">
+            <div class="section-label">ALERT HEADER</div>
+            <div style="padding:0 var(--s4) var(--s4);" class="debug-outline">
+              <div style="font-size:var(--fs-lg);font-weight:var(--fw-extra);color:var(--t-text);letter-spacing:-0.02em;">Cholera Outbreak</div>
+              <div style="font-size:var(--fs-sm);color:var(--t-text-muted);margin-top:var(--s1);">Ga West Municipal &middot; 2 hours ago</div>
+            </div>
+            <div class="section-label">DETAIL INFO</div>
+            <div class="m-card debug-outline">
+              <div class="m-card-body" style="padding:0;">
+                <div style="display:flex;justify-content:space-between;padding:var(--s3) var(--s4);border-bottom:1px solid var(--t-border);">
+                  <span style="font-size:var(--fs-sm);color:var(--t-text-muted);">Disease</span>
+                  <span style="font-size:var(--fs-sm);font-weight:var(--fw-semi);color:var(--t-text);">Cholera</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;padding:var(--s3) var(--s4);border-bottom:1px solid var(--t-border);">
+                  <span style="font-size:var(--fs-sm);color:var(--t-text-muted);">Location</span>
+                  <span style="font-size:var(--fs-sm);font-weight:var(--fw-semi);color:var(--t-text);">Ga West Municipal</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;padding:var(--s3) var(--s4);border-bottom:1px solid var(--t-border);">
+                  <span style="font-size:var(--fs-sm);color:var(--t-text-muted);">Cases (7d)</span>
+                  <span style="font-size:var(--fs-sm);font-weight:var(--fw-semi);color:var(--t-danger);">31</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;padding:var(--s3) var(--s4);border-bottom:1px solid var(--t-border);">
+                  <span style="font-size:var(--fs-sm);color:var(--t-text-muted);">Severity</span>
+                  <span class="m-badge danger">High</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;padding:var(--s3) var(--s4);border-bottom:1px solid var(--t-border);">
+                  <span style="font-size:var(--fs-sm);color:var(--t-text-muted);">Status</span>
+                  <span class="m-badge info">Open</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;padding:var(--s3) var(--s4);">
+                  <span style="font-size:var(--fs-sm);color:var(--t-text-muted);">Trigger</span>
+                  <span style="font-size:var(--fs-sm);font-weight:var(--fw-semi);color:var(--t-text);">Threshold exceeded</span>
+                </div>
+              </div>
+            </div>
+            <div class="section-label">MINI CHART</div>
+            <div class="m-card debug-outline">
+              <div class="m-card-header"><h3>Case Trend</h3></div>
+              <div class="m-card-body" style="padding:var(--s3);">
+                <div class="m-chart-placeholder" style="height:120px;">
+                  <div class="chart-lines">
+                    <svg viewBox="0 0 350 80" preserveAspectRatio="none">
+                      <polyline fill="rgba(220,38,38,0.08)" stroke="none" points="0,80 0,60 50,55 100,50 150,40 200,30 250,20 300,15 350,10 350,80"/>
+                      <polyline fill="none" stroke="var(--t-danger)" stroke-width="2.5" points="0,60 50,55 100,50 150,40 200,30 250,20 300,15 350,10"/>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="section-label">ACTIONS</div>
+            <div style="padding:var(--s4);display:flex;gap:var(--s3);" class="debug-outline">
+              <button class="m-btn m-btn-primary" style="flex:1;justify-content:center;"><span class="material-icons-round" style="font-size:18px;">assignment</span> Investigate</button>
+              <button class="m-btn m-btn-secondary" style="flex:1;justify-content:center;"><span class="material-icons-round" style="font-size:18px;">check_circle</span> Resolve</button>
+            </div>
+            <div style="height:var(--s4);"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================
+         SCREEN 08 — Reports List
+         ============================================================ -->
+    <div class="frame-group" data-screen="08 Reports" style="left:1490px; top:1020px;">
+      <div class="frame-label">08 Reports</div>
+      <div class="frame-device">
+        <div class="screen-content" style="background:var(--t-bg);">
+          <div class="status-bar"><span class="time">9:41</span><div class="status-icons"><span class="material-icons-round">signal_cellular_alt</span><span class="material-icons-round">wifi</span><span class="material-icons-round">battery_full</span></div></div>
+          <div class="section-label">APP BAR</div>
+          <div class="m-app-bar debug-outline">
+            <div class="m-app-bar-title" style="flex:1;">Reports</div>
+            <button class="m-btn m-btn-primary" style="padding:var(--s2) var(--s3);font-size:var(--fs-xs);min-height:36px;" onclick="scrollToScreen('09 Report Case')">
+              <span class="material-icons-round" style="font-size:16px;">add</span> New
+            </button>
+          </div>
+          <div class="section-label">SEARCH BAR</div>
+          <div class="m-search-bar debug-outline">
+            <span class="material-icons-round">search</span>
+            <input placeholder="Search reports...">
+          </div>
+          <div class="section-label">FILTER CHIPS</div>
+          <div class="m-chip-row debug-outline">
+            <div class="m-chip active">All</div>
+            <div class="m-chip">Malaria</div>
+            <div class="m-chip">Cholera</div>
+            <div class="m-chip">Dengue</div>
+            <div class="m-chip">COVID-19</div>
+          </div>
+          <div class="m-scroll-body">
+            <div class="section-label">REPORT LIST</div>
+            <div class="debug-outline">
+              <div class="m-list-item">
+                <div class="m-list-icon" style="background:var(--t-primary-light);color:var(--t-primary);"><span class="material-icons-round">description</span></div>
+                <div class="m-list-content">
+                  <div class="m-list-title">Malaria — Accra Metro</div>
+                  <div class="m-list-subtitle">5 cases &middot; Dr. Mensah &middot; 1h ago</div>
+                </div>
+                <div class="m-list-trail"><span class="material-icons-round" style="font-size:18px;color:var(--t-text-muted);">chevron_right</span></div>
+              </div>
+              <div class="m-list-item">
+                <div class="m-list-icon" style="background:var(--t-danger-bg);color:var(--t-danger);"><span class="material-icons-round">description</span></div>
+                <div class="m-list-content">
+                  <div class="m-list-title">Cholera — Ga West</div>
+                  <div class="m-list-subtitle">12 cases &middot; Nurse Addo &middot; 3h ago</div>
+                </div>
+                <div class="m-list-trail"><span class="material-icons-round" style="font-size:18px;color:var(--t-text-muted);">chevron_right</span></div>
+              </div>
+              <div class="m-list-item">
+                <div class="m-list-icon" style="background:var(--t-blue-light);color:var(--t-blue);"><span class="material-icons-round">description</span></div>
+                <div class="m-list-content">
+                  <div class="m-list-title">Dengue — Tema Metro</div>
+                  <div class="m-list-subtitle">3 cases &middot; Dr. Osei &middot; 6h ago</div>
+                </div>
+                <div class="m-list-trail"><span class="material-icons-round" style="font-size:18px;color:var(--t-text-muted);">chevron_right</span></div>
+              </div>
+              <div class="m-list-item">
+                <div class="m-list-icon" style="background:var(--t-warning-bg);color:var(--t-warning);"><span class="material-icons-round">description</span></div>
+                <div class="m-list-content">
+                  <div class="m-list-title">COVID-19 — Accra Metro</div>
+                  <div class="m-list-subtitle">2 cases &middot; Dr. Asante &middot; 12h ago</div>
+                </div>
+                <div class="m-list-trail"><span class="material-icons-round" style="font-size:18px;color:var(--t-text-muted);">chevron_right</span></div>
+              </div>
+              <div class="m-list-item">
+                <div class="m-list-icon" style="background:var(--t-primary-light);color:var(--t-primary);"><span class="material-icons-round">description</span></div>
+                <div class="m-list-content">
+                  <div class="m-list-title">Malaria — Kpone Katamanso</div>
+                  <div class="m-list-subtitle">8 cases &middot; Nurse Brew &middot; 1d ago</div>
+                </div>
+                <div class="m-list-trail"><span class="material-icons-round" style="font-size:18px;color:var(--t-text-muted);">chevron_right</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="section-label">BOTTOM NAVIGATION</div>
+          <div class="m-bottom-nav debug-outline">
+            <div class="m-nav-item"><span class="material-icons-round">dashboard</span>Home</div>
+            <div class="m-nav-item"><span class="material-icons-round">analytics</span>Analytics</div>
+            <div class="m-nav-item"><span class="material-icons-round">map</span>Map</div>
+            <div class="m-nav-item"><span class="material-icons-round">warning</span>Alerts</div>
+            <div class="m-nav-item"><span class="material-icons-round">person</span>Profile</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================
+         SCREEN 09 — Report Case (Create — two-button draft/submit)
+         ============================================================ -->
+    <div class="frame-group" data-screen="09 Report Case" style="left:80px; top:1960px;">
+      <div class="frame-label">09 Report Case (Create)</div>
+      <div class="frame-device">
+        <div class="screen-content" style="background:var(--t-bg);">
+          <div class="status-bar"><span class="time">9:41</span><div class="status-icons"><span class="material-icons-round">signal_cellular_alt</span><span class="material-icons-round">wifi</span><span class="material-icons-round">battery_full</span></div></div>
+          <div class="section-label">APP BAR (BACK)</div>
+          <div class="m-app-bar debug-outline">
+            <div class="m-icon-btn" style="border:none;" onclick="scrollToScreen('13 My Submissions')"><span class="material-icons-round" style="font-size:22px;">arrow_back</span></div>
+            <div class="m-app-bar-title" style="flex:1;">Report Case</div>
+          </div>
+          <div class="m-scroll-body" style="padding:0 var(--s4);">
+            <div class="section-label" style="padding-left:0;">FORM: DISEASE INFO</div>
+            <div class="m-form-section-header debug-outline">Disease Information</div>
+            <div class="m-form-group">
+              <label class="m-form-label">Disease *</label>
+              <select class="m-form-input m-form-select"><option>Select disease...</option><option>Malaria</option><option>Cholera</option><option>Dengue</option><option>COVID-19</option></select>
+            </div>
+            <div class="m-form-group">
+              <label class="m-form-label">Location *</label>
+              <select class="m-form-input m-form-select"><option>Select location...</option><option>Accra Metro</option><option>Tema Metro</option><option>Ga West</option></select>
+            </div>
+            <div style="display:flex;gap:var(--s3);">
+              <div class="m-form-group" style="flex:1;">
+                <label class="m-form-label">Date *</label>
+                <input class="m-form-input" type="date">
+              </div>
+              <div class="m-form-group" style="flex:1;">
+                <label class="m-form-label">Time</label>
+                <input class="m-form-input" type="time">
+              </div>
+            </div>
+            <div class="section-label" style="padding-left:0;">FORM: CASE DETAILS</div>
+            <div class="m-form-section-header debug-outline">Case Details</div>
+            <div class="m-form-group">
+              <label class="m-form-label">Case Count *</label>
+              <input class="m-form-input" type="number" placeholder="0" value="1">
+            </div>
+            <div style="display:flex;gap:var(--s3);">
+              <div class="m-form-group" style="flex:1;">
+                <label class="m-form-label">Sex</label>
+                <select class="m-form-input m-form-select"><option>Unknown</option><option>Male</option><option>Female</option></select>
+              </div>
+              <div class="m-form-group" style="flex:1;">
+                <label class="m-form-label">Age Group</label>
+                <select class="m-form-input m-form-select"><option>Unknown</option><option>Under 5</option><option>5–17</option><option>18–59</option><option>60+</option></select>
+              </div>
+            </div>
+            <div class="m-form-group">
+              <label class="m-form-label">Severity</label>
+              <div class="m-segmented" style="margin-top:var(--s1);">
+                <div class="m-segment">Mild</div>
+                <div class="m-segment active">Moderate</div>
+                <div class="m-segment">Severe</div>
+              </div>
+            </div>
+            <div class="m-form-group">
+              <label class="m-form-label">Report Source</label>
+              <select class="m-form-input m-form-select"><option>Facility</option><option>Community</option><option>Laboratory</option></select>
+            </div>
+            <div class="section-label" style="padding-left:0;">FORM: NOTES</div>
+            <div class="m-form-section-header debug-outline">Additional Notes</div>
+            <div class="m-form-group">
+              <label class="m-form-label">Case Notes</label>
+              <textarea class="m-form-input" style="min-height:70px;resize:vertical;" placeholder="Optional notes..."></textarea>
+            </div>
+
+            <!-- ── Draft / Submit helper text ── -->
+            <div class="section-label" style="padding-left:0;">ACTION HELPER TEXT</div>
+            <div class="debug-outline" style="background:var(--t-primary-xlight);border:1px solid rgba(27,138,120,0.18);border-radius:var(--t-r-sm);padding:var(--s3) var(--s4);margin-bottom:var(--s4);">
+              <div style="font-size:var(--fs-xs);color:var(--t-primary);font-weight:var(--fw-semi);margin-bottom:3px;">
+                <span class="material-icons-round" style="font-size:13px;vertical-align:middle;">info</span> Draft vs Submit
+              </div>
+              <div style="font-size:11px;color:var(--t-text-secondary);line-height:1.5;">
+                <strong>Save as Draft</strong> — saves your progress; you can edit and submit later from My Submissions.<br>
+                <strong>Submit Report</strong> — finalises and locks this report for surveillance.
+              </div>
+            </div>
+
+            <!-- ── TWO ACTION BUTTONS (name="action" pattern) ── -->
+            <div class="section-label" style="padding-left:0;">TWO-BUTTON CTA</div>
+            <div class="debug-outline" style="display:flex;flex-direction:column;gap:var(--s3);margin-bottom:var(--s6);">
+              <button class="m-btn m-btn-primary m-btn-full m-btn-lg" onclick="scrollToScreen('13 My Submissions')">
+                <span class="material-icons-round" style="font-size:18px;">send</span> Submit Report
+              </button>
+              <button class="m-btn m-btn-full m-btn-lg" style="background:var(--t-surface);border:1.5px solid var(--t-border-strong);color:var(--t-text-secondary);" onclick="scrollToScreen('13 My Submissions')">
+                <span class="material-icons-round" style="font-size:18px;">save</span> Save as Draft
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================
+         SCREEN 10 — Notifications
+         ============================================================ -->
+    <div class="frame-group" data-screen="10 Notifications" style="left:550px; top:1960px;">
+      <div class="frame-label">10 Notifications</div>
+      <div class="frame-device">
+        <div class="screen-content" style="background:var(--t-bg);">
+          <div class="status-bar"><span class="time">9:41</span><div class="status-icons"><span class="material-icons-round">signal_cellular_alt</span><span class="material-icons-round">wifi</span><span class="material-icons-round">battery_full</span></div></div>
+          <div class="section-label">APP BAR (BACK)</div>
+          <div class="m-app-bar debug-outline">
+            <div class="m-icon-btn" style="border:none;"><span class="material-icons-round" style="font-size:22px;">arrow_back</span></div>
+            <div class="m-app-bar-title" style="flex:1;">Notifications</div>
+            <a style="font-size:var(--fs-xs);color:var(--t-primary);font-weight:var(--fw-semi);cursor:pointer;">Mark all read</a>
+          </div>
+          <div class="m-scroll-body">
+            <div class="section-label">UNREAD</div>
+            <div class="debug-outline" style="background:var(--t-surface);border:1px solid var(--t-border);border-radius:var(--t-r);margin:0 var(--s4) var(--s3);overflow:hidden;">
+              <div class="m-notif-item unread">
+                <div class="m-notif-dot" style="background:var(--t-danger-bg);color:var(--t-danger);"><span class="material-icons-round">warning</span></div>
+                <div class="m-notif-content">
+                  <div class="m-notif-text"><strong>New Alert:</strong> Cholera threshold exceeded in Ga West Municipal</div>
+                  <div class="m-notif-time">2 hours ago</div>
+                </div>
+              </div>
+              <div class="m-notif-item unread">
+                <div class="m-notif-dot" style="background:var(--t-info-bg);color:var(--t-info);"><span class="material-icons-round">assignment</span></div>
+                <div class="m-notif-content">
+                  <div class="m-notif-text"><strong>Task assigned:</strong> Collect samples at Ga West health centre</div>
+                  <div class="m-notif-time">3 hours ago</div>
+                </div>
+              </div>
+              <div class="m-notif-item unread">
+                <div class="m-notif-dot" style="background:var(--t-success-bg);color:var(--t-success);"><span class="material-icons-round">check_circle</span></div>
+                <div class="m-notif-content">
+                  <div class="m-notif-text"><strong>Report confirmed:</strong> Your malaria report (Accra Metro) was verified</div>
+                  <div class="m-notif-time">5 hours ago</div>
+                </div>
+              </div>
+            </div>
+            <div class="section-label">EARLIER</div>
+            <div class="debug-outline" style="background:var(--t-surface);border:1px solid var(--t-border);border-radius:var(--t-r);margin:0 var(--s4) var(--s3);overflow:hidden;">
+              <div class="m-notif-item">
+                <div class="m-notif-dot" style="background:var(--t-warning-bg);color:var(--t-warning);"><span class="material-icons-round">update</span></div>
+                <div class="m-notif-content">
+                  <div class="m-notif-text">Early warning evaluation completed for Greater Accra</div>
+                  <div class="m-notif-time">1 day ago</div>
+                </div>
+              </div>
+              <div class="m-notif-item">
+                <div class="m-notif-dot" style="background:var(--t-primary-light);color:var(--t-primary);"><span class="material-icons-round">description</span></div>
+                <div class="m-notif-content">
+                  <div class="m-notif-text">Weekly surveillance report is ready for download</div>
+                  <div class="m-notif-time">2 days ago</div>
+                </div>
+              </div>
+              <div class="m-notif-item">
+                <div class="m-notif-dot" style="background:#f1f5f9;color:#475569;"><span class="material-icons-round">info</span></div>
+                <div class="m-notif-content">
+                  <div class="m-notif-text">System maintenance scheduled for Sunday 03:00 GMT</div>
+                  <div class="m-notif-time">3 days ago</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================
+         SCREEN 11 — Profile / Settings
+         ============================================================ -->
+    <div class="frame-group" data-screen="11 Profile" style="left:1020px; top:1960px;">
+      <div class="frame-label">11 Profile &amp; Settings</div>
+      <div class="frame-device">
+        <div class="screen-content" style="background:var(--t-bg);">
+          <div class="status-bar"><span class="time">9:41</span><div class="status-icons"><span class="material-icons-round">signal_cellular_alt</span><span class="material-icons-round">wifi</span><span class="material-icons-round">battery_full</span></div></div>
+          <div class="section-label">PROFILE HEADER</div>
+          <div style="padding:var(--s5) var(--s6);display:flex;flex-direction:column;align-items:center;gap:var(--s3);background:var(--t-surface);border-bottom:1px solid var(--t-border);" class="debug-outline">
+            <div class="m-avatar-lg">KM</div>
+            <div style="text-align:center;">
+              <div style="font-size:var(--fs-md);font-weight:var(--fw-bold);color:var(--t-text);">Dr. Kwame Mensah</div>
+              <div style="font-size:var(--fs-sm);color:var(--t-text-muted);">kwame.mensah@health.gov.gh</div>
+              <div style="margin-top:var(--s2);"><span class="m-badge info">Epidemiologist</span></div>
+            </div>
+          </div>
+          <div class="m-scroll-body">
+            <div class="section-label">ACCOUNT SECTION</div>
+            <div style="background:var(--t-surface);border-top:1px solid var(--t-border);border-bottom:1px solid var(--t-border);margin-bottom:var(--s3);" class="debug-outline">
+              <div class="m-settings-row">
+                <div class="m-settings-icon" style="background:var(--t-primary-light);color:var(--t-primary);"><span class="material-icons-round">person</span></div>
+                <div class="m-settings-text"><div class="title">Edit Profile</div><div class="desc">Name, email, role</div></div>
+                <span class="material-icons-round" style="color:var(--t-text-muted);font-size:20px;">chevron_right</span>
+              </div>
+              <div class="m-settings-row">
+                <div class="m-settings-icon" style="background:var(--t-blue-light);color:var(--t-blue);"><span class="material-icons-round">lock</span></div>
+                <div class="m-settings-text"><div class="title">Security</div><div class="desc">Password, MFA</div></div>
+                <span class="material-icons-round" style="color:var(--t-text-muted);font-size:20px;">chevron_right</span>
+              </div>
+            </div>
+            <div class="section-label">PREFERENCES</div>
+            <div style="background:var(--t-surface);border-top:1px solid var(--t-border);border-bottom:1px solid var(--t-border);margin-bottom:var(--s3);" class="debug-outline">
+              <div class="m-settings-row">
+                <div class="m-settings-icon" style="background:var(--t-warning-bg);color:var(--t-warning);"><span class="material-icons-round">notifications</span></div>
+                <div class="m-settings-text" style="flex:1;"><div class="title">Push Notifications</div><div class="desc">Alert and task updates</div></div>
+                <div class="m-toggle on" onclick="this.classList.toggle('on')"></div>
+              </div>
+              <div class="m-settings-row">
+                <div class="m-settings-icon" style="background:var(--t-primary-light);color:var(--t-primary);"><span class="material-icons-round">location_on</span></div>
+                <div class="m-settings-text"><div class="title">Default Region</div><div class="desc">Greater Accra</div></div>
+                <span class="material-icons-round" style="color:var(--t-text-muted);font-size:20px;">chevron_right</span>
+              </div>
+              <div class="m-settings-row">
+                <div class="m-settings-icon" style="background:#f1f5f9;color:#475569;"><span class="material-icons-round">dark_mode</span></div>
+                <div class="m-settings-text" style="flex:1;"><div class="title">Dark Mode</div><div class="desc">System default</div></div>
+                <div class="m-toggle" onclick="this.classList.toggle('on')"></div>
+              </div>
+            </div>
+            <div class="section-label">DATA & SUPPORT</div>
+            <div style="background:var(--t-surface);border-top:1px solid var(--t-border);border-bottom:1px solid var(--t-border);margin-bottom:var(--s3);" class="debug-outline">
+              <div class="m-settings-row">
+                <div class="m-settings-icon" style="background:var(--t-info-bg);color:var(--t-info);"><span class="material-icons-round">download</span></div>
+                <div class="m-settings-text"><div class="title">Export Data</div><div class="desc">Download CSV reports</div></div>
+                <span class="material-icons-round" style="color:var(--t-text-muted);font-size:20px;">chevron_right</span>
+              </div>
+              <div class="m-settings-row">
+                <div class="m-settings-icon" style="background:var(--t-success-bg);color:var(--t-success);"><span class="material-icons-round">help</span></div>
+                <div class="m-settings-text"><div class="title">Help & Support</div><div class="desc">FAQ, contact</div></div>
+                <span class="material-icons-round" style="color:var(--t-text-muted);font-size:20px;">chevron_right</span>
+              </div>
+            </div>
+            <div class="section-label">SIGN OUT</div>
+            <div style="padding:var(--s4);" class="debug-outline">
+              <button class="m-btn m-btn-full" style="justify-content:center;border-color:var(--t-danger);color:var(--t-danger);background:transparent;">
+                <span class="material-icons-round" style="font-size:18px;">logout</span> Sign Out
+              </button>
+            </div>
+          </div>
+          <div class="section-label">BOTTOM NAVIGATION</div>
+          <div class="m-bottom-nav debug-outline">
+            <div class="m-nav-item"><span class="material-icons-round">dashboard</span>Home</div>
+            <div class="m-nav-item"><span class="material-icons-round">analytics</span>Analytics</div>
+            <div class="m-nav-item"><span class="material-icons-round">map</span>Map</div>
+            <div class="m-nav-item"><span class="material-icons-round">warning</span>Alerts</div>
+            <div class="m-nav-item active"><span class="material-icons-round">person</span>Profile</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================
+         SCREEN 12 — Search / Filter
+         ============================================================ -->
+    <div class="frame-group" data-screen="12 Search" style="left:1490px; top:1960px;">
+      <div class="frame-label">12 Search &amp; Filter</div>
+      <div class="frame-device">
+        <div class="screen-content" style="background:var(--t-bg);">
+          <div class="status-bar"><span class="time">9:41</span><div class="status-icons"><span class="material-icons-round">signal_cellular_alt</span><span class="material-icons-round">wifi</span><span class="material-icons-round">battery_full</span></div></div>
+          <div class="section-label">SEARCH HEADER</div>
+          <div style="padding:var(--s2) var(--s4) var(--s3);display:flex;align-items:center;gap:var(--s3);" class="debug-outline">
+            <div style="flex:1;position:relative;">
+              <span class="material-icons-round" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:20px;color:var(--t-text-muted);">search</span>
+              <input class="m-form-input" style="padding-left:40px;background:var(--t-bg);border-radius:var(--t-r);" placeholder="Search diseases, locations...">
+            </div>
+            <a style="font-size:var(--fs-sm);color:var(--t-primary);font-weight:var(--fw-semi);cursor:pointer;white-space:nowrap;">Cancel</a>
+          </div>
+          <div class="section-label">RECENT SEARCHES</div>
+          <div style="padding:var(--s3) var(--s4);" class="debug-outline">
+            <div style="font-size:var(--fs-xs);font-weight:var(--fw-semi);color:var(--t-text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:var(--s2);">Recent</div>
+            <div style="display:flex;flex-wrap:wrap;gap:var(--s2);">
+              <div class="m-chip">Malaria Accra</div>
+              <div class="m-chip">Cholera outbreak</div>
+              <div class="m-chip">Ga West alerts</div>
+            </div>
+          </div>
+          <div class="section-label">FILTER OPTIONS</div>
+          <div style="padding:0 var(--s4);" class="debug-outline">
+            <div style="font-size:var(--fs-xs);font-weight:var(--fw-semi);color:var(--t-text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:var(--s3);">Filter by</div>
+            <div class="m-form-group">
+              <label class="m-form-label">Date Range</label>
+              <div class="m-segmented">
+                <div class="m-segment active">7 Days</div>
+                <div class="m-segment">30 Days</div>
+                <div class="m-segment">90 Days</div>
+                <div class="m-segment">Custom</div>
+              </div>
+            </div>
+            <div class="m-form-group">
+              <label class="m-form-label">Disease</label>
+              <div style="display:flex;flex-wrap:wrap;gap:var(--s2);">
+                <div class="m-chip active">All</div>
+                <div class="m-chip">Malaria</div>
+                <div class="m-chip">Cholera</div>
+                <div class="m-chip">Dengue</div>
+                <div class="m-chip">COVID-19</div>
+                <div class="m-chip">Typhoid</div>
+              </div>
+            </div>
+            <div class="m-form-group">
+              <label class="m-form-label">Severity</label>
+              <div style="display:flex;flex-wrap:wrap;gap:var(--s2);">
+                <div class="m-chip active">All</div>
+                <div class="m-chip">Low</div>
+                <div class="m-chip">Medium</div>
+                <div class="m-chip">High</div>
+                <div class="m-chip">Critical</div>
+              </div>
+            </div>
+            <div class="m-form-group">
+              <label class="m-form-label">Location</label>
+              <select class="m-form-input m-form-select"><option>All Locations</option><option>Accra Metro</option><option>Tema Metro</option><option>Ga West</option></select>
+            </div>
+          </div>
+          <div style="padding:var(--s4);display:flex;gap:var(--s3);position:absolute;bottom:0;left:0;right:0;background:var(--t-surface);border-top:1px solid var(--t-border);">
+            <button class="m-btn m-btn-secondary" style="flex:1;justify-content:center;">Reset</button>
+            <button class="m-btn m-btn-primary" style="flex:2;justify-content:center;">Apply Filters</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================
+         SCREEN 13 — My Submissions (Drafts + Submitted tabs)
+         ============================================================ -->
+    <div class="frame-group" data-screen="13 My Submissions" style="left:1960px; top:1960px;">
+      <div class="frame-label">13 My Submissions</div>
+      <div class="frame-device">
+        <div class="screen-content" style="background:var(--t-bg);">
+          <div class="status-bar"><span class="time">9:41</span><div class="status-icons"><span class="material-icons-round">signal_cellular_alt</span><span class="material-icons-round">wifi</span><span class="material-icons-round">battery_full</span></div></div>
+          <div class="section-label">APP BAR</div>
+          <div class="m-app-bar debug-outline">
+            <div class="m-app-bar-title" style="flex:1;">My Submissions</div>
+            <button class="m-btn m-btn-primary" style="padding:var(--s2) var(--s3);font-size:var(--fs-xs);min-height:36px;" onclick="scrollToScreen('09 Report Case')">
+              <span class="material-icons-round" style="font-size:16px;">add</span> New
+            </button>
+          </div>
+
+          <!-- Tabs -->
+          <div class="section-label">STATUS TABS</div>
+          <div style="padding:0 var(--s4) var(--s3);" class="debug-outline">
+            <div class="m-segmented" id="submissions-tabs">
+              <div class="m-segment active" onclick="switchSubmissionsTab(this,'drafts')">Drafts (2)</div>
+              <div class="m-segment" onclick="switchSubmissionsTab(this,'submitted')">Submitted (4)</div>
+            </div>
+          </div>
+
+          <!-- DRAFTS TAB -->
+          <div id="submissions-content-drafts" class="m-scroll-body">
+            <div class="section-label">DRAFT ITEMS</div>
+            <div class="debug-outline">
+
+              <!-- Draft card 1 -->
+              <div style="background:var(--t-surface);border:1px solid var(--t-border);border-radius:var(--t-r);margin:0 var(--s4) var(--s3);overflow:hidden;">
+                <div style="padding:var(--s3) var(--s4);border-bottom:1px solid var(--t-border);display:flex;align-items:center;justify-content:space-between;">
+                  <div style="display:flex;align-items:center;gap:var(--s2);">
+                    <div style="width:8px;height:8px;border-radius:50%;background:#d97706;flex-shrink:0;"></div>
+                    <span style="font-size:var(--fs-sm);font-weight:var(--fw-bold);color:var(--t-text);">Malaria — Tema Metro</span>
+                  </div>
+                  <span class="m-badge warning">DRAFT</span>
+                </div>
+                <div style="padding:var(--s3) var(--s4);">
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--s1) var(--s4);margin-bottom:var(--s3);">
+                    <div><div style="font-size:10px;color:var(--t-text-muted);text-transform:uppercase;letter-spacing:0.04em;">Cases</div><div style="font-size:var(--fs-sm);font-weight:var(--fw-semi);color:var(--t-text);">4</div></div>
+                    <div><div style="font-size:10px;color:var(--t-text-muted);text-transform:uppercase;letter-spacing:0.04em;">Observed</div><div style="font-size:var(--fs-sm);font-weight:var(--fw-semi);color:var(--t-text);">28 Feb 2026</div></div>
+                    <div><div style="font-size:10px;color:var(--t-text-muted);text-transform:uppercase;letter-spacing:0.04em;">Submitted</div><div style="font-size:var(--fs-sm);color:var(--t-text-muted);">—</div></div>
+                    <div><div style="font-size:10px;color:var(--t-text-muted);text-transform:uppercase;letter-spacing:0.04em;">Source</div><div style="font-size:var(--fs-sm);font-weight:var(--fw-semi);color:var(--t-text);">Facility</div></div>
+                  </div>
+                  <button class="m-btn m-btn-full" style="background:var(--t-warning-bg);border:1px solid rgba(217,119,6,0.25);color:#92400e;font-size:var(--fs-xs);min-height:36px;" onclick="scrollToScreen('14 Edit Draft')">
+                    <span class="material-icons-round" style="font-size:15px;">edit</span> Edit Draft
+                  </button>
+                </div>
+              </div>
+
+              <!-- Draft card 2 -->
+              <div style="background:var(--t-surface);border:1px solid var(--t-border);border-radius:var(--t-r);margin:0 var(--s4) var(--s3);overflow:hidden;">
+                <div style="padding:var(--s3) var(--s4);border-bottom:1px solid var(--t-border);display:flex;align-items:center;justify-content:space-between;">
+                  <div style="display:flex;align-items:center;gap:var(--s2);">
+                    <div style="width:8px;height:8px;border-radius:50%;background:#d97706;flex-shrink:0;"></div>
+                    <span style="font-size:var(--fs-sm);font-weight:var(--fw-bold);color:var(--t-text);">Dengue — Kpone</span>
+                  </div>
+                  <span class="m-badge warning">DRAFT</span>
+                </div>
+                <div style="padding:var(--s3) var(--s4);">
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--s1) var(--s4);margin-bottom:var(--s3);">
+                    <div><div style="font-size:10px;color:var(--t-text-muted);text-transform:uppercase;letter-spacing:0.04em;">Cases</div><div style="font-size:var(--fs-sm);font-weight:var(--fw-semi);color:var(--t-text);">2</div></div>
+                    <div><div style="font-size:10px;color:var(--t-text-muted);text-transform:uppercase;letter-spacing:0.04em;">Observed</div><div style="font-size:var(--fs-sm);font-weight:var(--fw-semi);color:var(--t-text);">1 Mar 2026</div></div>
+                    <div><div style="font-size:10px;color:var(--t-text-muted);text-transform:uppercase;letter-spacing:0.04em;">Submitted</div><div style="font-size:var(--fs-sm);color:var(--t-text-muted);">—</div></div>
+                    <div><div style="font-size:10px;color:var(--t-text-muted);text-transform:uppercase;letter-spacing:0.04em;">Source</div><div style="font-size:var(--fs-sm);font-weight:var(--fw-semi);color:var(--t-text);">Community</div></div>
+                  </div>
+                  <button class="m-btn m-btn-full" style="background:var(--t-warning-bg);border:1px solid rgba(217,119,6,0.25);color:#92400e;font-size:var(--fs-xs);min-height:36px;" onclick="scrollToScreen('14 Edit Draft')">
+                    <span class="material-icons-round" style="font-size:15px;">edit</span> Edit Draft
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- SUBMITTED TAB (hidden by default) -->
+          <div id="submissions-content-submitted" class="m-scroll-body" style="display:none;">
+            <div class="section-label">SUBMITTED ITEMS</div>
+            <div class="debug-outline">
+
+              <!-- Submitted card 1 -->
+              <div style="background:var(--t-surface);border:1px solid var(--t-border);border-radius:var(--t-r);margin:0 var(--s4) var(--s3);overflow:hidden;">
+                <div style="padding:var(--s3) var(--s4);border-bottom:1px solid var(--t-border);display:flex;align-items:center;justify-content:space-between;">
+                  <div style="display:flex;align-items:center;gap:var(--s2);">
+                    <div style="width:8px;height:8px;border-radius:50%;background:var(--t-success);flex-shrink:0;"></div>
+                    <span style="font-size:var(--fs-sm);font-weight:var(--fw-bold);color:var(--t-text);">Cholera — Ga West</span>
+                  </div>
+                  <span class="m-badge success">SUBMITTED</span>
+                </div>
+                <div style="padding:var(--s3) var(--s4);">
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--s1) var(--s4);margin-bottom:var(--s3);">
+                    <div><div style="font-size:10px;color:var(--t-text-muted);text-transform:uppercase;letter-spacing:0.04em;">Cases</div><div style="font-size:var(--fs-sm);font-weight:var(--fw-semi);color:var(--t-text);">12</div></div>
+                    <div><div style="font-size:10px;color:var(--t-text-muted);text-transform:uppercase;letter-spacing:0.04em;">Observed</div><div style="font-size:var(--fs-sm);font-weight:var(--fw-semi);color:var(--t-text);">25 Feb 2026</div></div>
+                    <div><div style="font-size:10px;color:var(--t-text-muted);text-transform:uppercase;letter-spacing:0.04em;">Submitted</div><div style="font-size:var(--fs-sm);font-weight:var(--fw-semi);color:var(--t-text);">26 Feb 2026</div></div>
+                    <div><div style="font-size:10px;color:var(--t-text-muted);text-transform:uppercase;letter-spacing:0.04em;">Source</div><div style="font-size:var(--fs-sm);font-weight:var(--fw-semi);color:var(--t-text);">Facility</div></div>
+                  </div>
+                  <button class="m-btn m-btn-full" style="background:var(--t-bg);border:1px solid var(--t-border);color:var(--t-text-muted);font-size:var(--fs-xs);min-height:36px;cursor:default;">
+                    <span class="material-icons-round" style="font-size:15px;">lock</span> Read-only
+                  </button>
+                </div>
+              </div>
+
+              <!-- Submitted card 2 -->
+              <div style="background:var(--t-surface);border:1px solid var(--t-border);border-radius:var(--t-r);margin:0 var(--s4) var(--s3);overflow:hidden;">
+                <div style="padding:var(--s3) var(--s4);border-bottom:1px solid var(--t-border);display:flex;align-items:center;justify-content:space-between;">
+                  <div style="display:flex;align-items:center;gap:var(--s2);">
+                    <div style="width:8px;height:8px;border-radius:50%;background:var(--t-success);flex-shrink:0;"></div>
+                    <span style="font-size:var(--fs-sm);font-weight:var(--fw-bold);color:var(--t-text);">Malaria — Accra Metro</span>
+                  </div>
+                  <span class="m-badge success">SUBMITTED</span>
+                </div>
+                <div style="padding:var(--s3) var(--s4);">
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--s1) var(--s4);margin-bottom:var(--s3);">
+                    <div><div style="font-size:10px;color:var(--t-text-muted);text-transform:uppercase;letter-spacing:0.04em;">Cases</div><div style="font-size:var(--fs-sm);font-weight:var(--fw-semi);color:var(--t-text);">5</div></div>
+                    <div><div style="font-size:10px;color:var(--t-text-muted);text-transform:uppercase;letter-spacing:0.04em;">Observed</div><div style="font-size:var(--fs-sm);font-weight:var(--fw-semi);color:var(--t-text);">22 Feb 2026</div></div>
+                    <div><div style="font-size:10px;color:var(--t-text-muted);text-transform:uppercase;letter-spacing:0.04em;">Submitted</div><div style="font-size:var(--fs-sm);font-weight:var(--fw-semi);color:var(--t-text);">23 Feb 2026</div></div>
+                    <div><div style="font-size:10px;color:var(--t-text-muted);text-transform:uppercase;letter-spacing:0.04em;">Severity</div><div style="font-size:var(--fs-sm);font-weight:var(--fw-semi);color:var(--t-text);">Moderate</div></div>
+                  </div>
+                  <button class="m-btn m-btn-full" style="background:var(--t-bg);border:1px solid var(--t-border);color:var(--t-text-muted);font-size:var(--fs-xs);min-height:36px;cursor:default;">
+                    <span class="material-icons-round" style="font-size:15px;">lock</span> Read-only
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <div class="section-label">BOTTOM NAVIGATION</div>
+          <div class="m-bottom-nav debug-outline">
+            <div class="m-nav-item"><span class="material-icons-round">dashboard</span>Home</div>
+            <div class="m-nav-item"><span class="material-icons-round">analytics</span>Analytics</div>
+            <div class="m-nav-item"><span class="material-icons-round">map</span>Map</div>
+            <div class="m-nav-item"><span class="material-icons-round">warning</span>Alerts</div>
+            <div class="m-nav-item active"><span class="material-icons-round">person</span>Profile</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================
+         SCREEN 14 — Edit Draft (pre-filled form, same two-button CTA)
+         ============================================================ -->
+    <div class="frame-group" data-screen="14 Edit Draft" style="left:2430px; top:1960px;">
+      <div class="frame-label">14 Edit Draft (Pre-filled)</div>
+      <div class="frame-device">
+        <div class="screen-content" style="background:var(--t-bg);">
+          <div class="status-bar"><span class="time">9:41</span><div class="status-icons"><span class="material-icons-round">signal_cellular_alt</span><span class="material-icons-round">wifi</span><span class="material-icons-round">battery_full</span></div></div>
+          <div class="section-label">APP BAR (BACK)</div>
+          <div class="m-app-bar debug-outline">
+            <div class="m-icon-btn" style="border:none;" onclick="scrollToScreen('13 My Submissions')"><span class="material-icons-round" style="font-size:22px;">arrow_back</span></div>
+            <div style="flex:1;">
+              <div class="m-app-bar-title">Edit Draft</div>
+            </div>
+            <span class="m-badge warning">DRAFT</span>
+          </div>
+
+          <div class="m-scroll-body" style="padding:0 var(--s4);">
+            <div class="section-label" style="padding-left:0;">FORM: DISEASE INFO</div>
+            <div class="m-form-section-header debug-outline">Disease Information</div>
+            <!-- Pre-filled disease -->
+            <div class="m-form-group">
+              <label class="m-form-label">Disease *</label>
+              <select class="m-form-input m-form-select">
+                <option>Malaria</option><option>Cholera</option><option>Dengue</option><option>COVID-19</option>
+              </select>
+            </div>
+            <!-- Pre-filled location -->
+            <div class="m-form-group">
+              <label class="m-form-label">Location *</label>
+              <select class="m-form-input m-form-select">
+                <option>Tema Metro</option><option>Accra Metro</option><option>Ga West</option>
+              </select>
+            </div>
+            <div style="display:flex;gap:var(--s3);">
+              <div class="m-form-group" style="flex:1;">
+                <label class="m-form-label">Date *</label>
+                <input class="m-form-input" type="date" value="2026-02-28">
+              </div>
+              <div class="m-form-group" style="flex:1;">
+                <label class="m-form-label">Time</label>
+                <input class="m-form-input" type="time" value="10:30">
+              </div>
+            </div>
+            <div class="section-label" style="padding-left:0;">FORM: CASE DETAILS</div>
+            <div class="m-form-section-header debug-outline">Case Details</div>
+            <div class="m-form-group">
+              <label class="m-form-label">Case Count *</label>
+              <input class="m-form-input" type="number" value="4">
+            </div>
+            <div style="display:flex;gap:var(--s3);">
+              <div class="m-form-group" style="flex:1;">
+                <label class="m-form-label">Sex</label>
+                <select class="m-form-input m-form-select"><option>Male</option><option>Unknown</option><option>Female</option></select>
+              </div>
+              <div class="m-form-group" style="flex:1;">
+                <label class="m-form-label">Age Group</label>
+                <select class="m-form-input m-form-select"><option>18–59</option><option>Under 5</option><option>5–17</option><option>60+</option></select>
+              </div>
+            </div>
+            <div class="m-form-group">
+              <label class="m-form-label">Severity</label>
+              <div class="m-segmented" style="margin-top:var(--s1);">
+                <div class="m-segment">Mild</div>
+                <div class="m-segment active">Moderate</div>
+                <div class="m-segment">Severe</div>
+              </div>
+            </div>
+            <div class="m-form-group">
+              <label class="m-form-label">Report Source</label>
+              <select class="m-form-input m-form-select"><option>Facility</option><option>Community</option><option>Laboratory</option></select>
+            </div>
+            <div class="section-label" style="padding-left:0;">FORM: NOTES</div>
+            <div class="m-form-section-header debug-outline">Additional Notes</div>
+            <div class="m-form-group">
+              <label class="m-form-label">Case Notes</label>
+              <textarea class="m-form-input" style="min-height:65px;resize:vertical;">Patients presented with fever and chills at Tema General. Two admitted for monitoring.</textarea>
+            </div>
+
+            <!-- Draft/Submit help hint -->
+            <div class="section-label" style="padding-left:0;">ACTION HELPER TEXT</div>
+            <div class="debug-outline" style="background:var(--t-primary-xlight);border:1px solid rgba(27,138,120,0.18);border-radius:var(--t-r-sm);padding:var(--s3) var(--s4);margin-bottom:var(--s4);">
+              <div style="font-size:var(--fs-xs);color:var(--t-primary);font-weight:var(--fw-semi);margin-bottom:3px;">
+                <span class="material-icons-round" style="font-size:13px;vertical-align:middle;">info</span> Draft vs Submit
+              </div>
+              <div style="font-size:11px;color:var(--t-text-secondary);line-height:1.5;">
+                <strong>Save as Draft</strong> — keeps this report editable. Come back and finish later.<br>
+                <strong>Submit Report</strong> — locks this report. It cannot be edited once submitted.
+              </div>
+            </div>
+
+            <!-- TWO-BUTTON CTA + Cancel -->
+            <div class="section-label" style="padding-left:0;">TWO-BUTTON CTA + CANCEL</div>
+            <div class="debug-outline" style="display:flex;flex-direction:column;gap:var(--s3);margin-bottom:var(--s2);">
+              <button class="m-btn m-btn-primary m-btn-full m-btn-lg" onclick="scrollToScreen('13 My Submissions')">
+                <span class="material-icons-round" style="font-size:18px;">send</span> Submit Report
+              </button>
+              <button class="m-btn m-btn-full m-btn-lg" style="background:var(--t-surface);border:1.5px solid var(--t-border-strong);color:var(--t-text-secondary);" onclick="scrollToScreen('13 My Submissions')">
+                <span class="material-icons-round" style="font-size:18px;">save</span> Save as Draft
+              </button>
+              <button class="m-btn m-btn-full" style="background:transparent;border:none;color:var(--t-text-muted);font-size:var(--fs-sm);min-height:36px;" onclick="scrollToScreen('13 My Submissions')">
+                Cancel — return to My Submissions
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================
+         LEGEND — Design System Reference
+         ============================================================ -->
+    <div class="legend-group" style="left:80px; top:2920px;" data-screen="Legend">
+      <h2><span class="material-icons-round" style="font-size:20px;color:var(--t-primary);">palette</span> Design System Legend</h2>
+
+      <div class="legend-section">
+        <h3>Color Palette</h3>
+        <div class="swatch-grid">
+          <div class="swatch"><div class="swatch-color" style="background:#1b8a78;"></div><div class="swatch-name">Primary</div><div class="swatch-hex">#1b8a78</div></div>
+          <div class="swatch"><div class="swatch-color" style="background:#14705f;"></div><div class="swatch-name">Primary Dark</div><div class="swatch-hex">#14705f</div></div>
+          <div class="swatch"><div class="swatch-color" style="background:#21a88f;"></div><div class="swatch-name">Primary Mid</div><div class="swatch-hex">#21a88f</div></div>
+          <div class="swatch"><div class="swatch-color" style="background:#e6f7f4;"></div><div class="swatch-name">Primary Light</div><div class="swatch-hex">#e6f7f4</div></div>
+          <div class="swatch"><div class="swatch-color" style="background:#3b82f6;"></div><div class="swatch-name">Blue</div><div class="swatch-hex">#3b82f6</div></div>
+          <div class="swatch"><div class="swatch-color" style="background:#f5f7fa;"></div><div class="swatch-name">Background</div><div class="swatch-hex">#f5f7fa</div></div>
+          <div class="swatch"><div class="swatch-color" style="background:#ffffff;border:1px solid #e8ecf0;"></div><div class="swatch-name">Surface</div><div class="swatch-hex">#ffffff</div></div>
+          <div class="swatch"><div class="swatch-color" style="background:#0d1b2a;"></div><div class="swatch-name">Text</div><div class="swatch-hex">#0d1b2a</div></div>
+          <div class="swatch"><div class="swatch-color" style="background:#3d5166;"></div><div class="swatch-name">Text Secondary</div><div class="swatch-hex">#3d5166</div></div>
+          <div class="swatch"><div class="swatch-color" style="background:#7a8fa6;"></div><div class="swatch-name">Text Muted</div><div class="swatch-hex">#7a8fa6</div></div>
+          <div class="swatch"><div class="swatch-color" style="background:#16a34a;"></div><div class="swatch-name">Success</div><div class="swatch-hex">#16a34a</div></div>
+          <div class="swatch"><div class="swatch-color" style="background:#d97706;"></div><div class="swatch-name">Warning</div><div class="swatch-hex">#d97706</div></div>
+          <div class="swatch"><div class="swatch-color" style="background:#dc2626;"></div><div class="swatch-name">Danger</div><div class="swatch-hex">#dc2626</div></div>
+          <div class="swatch"><div class="swatch-color" style="background:#0284c7;"></div><div class="swatch-name">Info</div><div class="swatch-hex">#0284c7</div></div>
+          <div class="swatch"><div class="swatch-color" style="background:#7e22ce;"></div><div class="swatch-name">Critical</div><div class="swatch-hex">#7e22ce</div></div>
+          <div class="swatch"><div class="swatch-color" style="background:#e8ecf0;"></div><div class="swatch-name">Border</div><div class="swatch-hex">#e8ecf0</div></div>
+        </div>
+      </div>
+
+      <div class="legend-section">
+        <h3>Typography Scale</h3>
+        <div class="type-row"><span class="type-sample" style="font-size:34px;font-weight:800;letter-spacing:-0.02em;">Display</span><span class="type-meta">34px / 800 / -0.02em</span></div>
+        <div class="type-row"><span class="type-sample" style="font-size:28px;font-weight:800;letter-spacing:-0.02em;">Heading XL</span><span class="type-meta">28px / 800 / -0.02em</span></div>
+        <div class="type-row"><span class="type-sample" style="font-size:24px;font-weight:800;letter-spacing:-0.02em;">Heading LG</span><span class="type-meta">24px / 800 / -0.02em</span></div>
+        <div class="type-row"><span class="type-sample" style="font-size:20px;font-weight:700;">Heading MD</span><span class="type-meta">20px / 700</span></div>
+        <div class="type-row"><span class="type-sample" style="font-size:17px;font-weight:600;">Title</span><span class="type-meta">17px / 600</span></div>
+        <div class="type-row"><span class="type-sample" style="font-size:15px;font-weight:400;">Body</span><span class="type-meta">15px / 400 / 1.5</span></div>
+        <div class="type-row"><span class="type-sample" style="font-size:13px;font-weight:500;">Caption</span><span class="type-meta">13px / 500</span></div>
+        <div class="type-row"><span class="type-sample" style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;">Overline</span><span class="type-meta">11px / 600 / UPPER</span></div>
+      </div>
+
+      <div class="legend-section">
+        <h3>Spacing Scale (8-based)</h3>
+        <div class="spacing-row"><span class="spacing-label">--s1: 4px</span><div class="spacing-bar" style="width:4px;"></div></div>
+        <div class="spacing-row"><span class="spacing-label">--s2: 8px</span><div class="spacing-bar" style="width:8px;"></div></div>
+        <div class="spacing-row"><span class="spacing-label">--s3: 12px</span><div class="spacing-bar" style="width:12px;"></div></div>
+        <div class="spacing-row"><span class="spacing-label">--s4: 16px</span><div class="spacing-bar" style="width:16px;"></div></div>
+        <div class="spacing-row"><span class="spacing-label">--s5: 20px</span><div class="spacing-bar" style="width:20px;"></div></div>
+        <div class="spacing-row"><span class="spacing-label">--s6: 24px</span><div class="spacing-bar" style="width:24px;"></div></div>
+        <div class="spacing-row"><span class="spacing-label">--s7: 32px</span><div class="spacing-bar" style="width:32px;"></div></div>
+        <div class="spacing-row"><span class="spacing-label">--s8: 40px</span><div class="spacing-bar" style="width:40px;"></div></div>
+        <div class="spacing-row"><span class="spacing-label">--s9: 48px</span><div class="spacing-bar" style="width:48px;"></div></div>
+        <div class="spacing-row"><span class="spacing-label">--s10: 56px</span><div class="spacing-bar" style="width:56px;"></div></div>
+      </div>
+
+      <div class="legend-section">
+        <h3>Radius Scale</h3>
+        <div style="display:flex;gap:var(--s4);flex-wrap:wrap;">
+          <div style="text-align:center;"><div style="width:40px;height:40px;background:var(--t-primary-light);border:1px solid var(--t-primary);border-radius:4px;"></div><div style="font-size:9px;color:var(--t-text-muted);margin-top:2px;">4px</div></div>
+          <div style="text-align:center;"><div style="width:40px;height:40px;background:var(--t-primary-light);border:1px solid var(--t-primary);border-radius:8px;"></div><div style="font-size:9px;color:var(--t-text-muted);margin-top:2px;">8px</div></div>
+          <div style="text-align:center;"><div style="width:40px;height:40px;background:var(--t-primary-light);border:1px solid var(--t-primary);border-radius:12px;"></div><div style="font-size:9px;color:var(--t-text-muted);margin-top:2px;">12px</div></div>
+          <div style="text-align:center;"><div style="width:40px;height:40px;background:var(--t-primary-light);border:1px solid var(--t-primary);border-radius:16px;"></div><div style="font-size:9px;color:var(--t-text-muted);margin-top:2px;">16px</div></div>
+          <div style="text-align:center;"><div style="width:40px;height:40px;background:var(--t-primary-light);border:1px solid var(--t-primary);border-radius:20px;"></div><div style="font-size:9px;color:var(--t-text-muted);margin-top:2px;">20px</div></div>
+          <div style="text-align:center;"><div style="width:60px;height:30px;background:var(--t-primary-light);border:1px solid var(--t-primary);border-radius:100px;"></div><div style="font-size:9px;color:var(--t-text-muted);margin-top:2px;">pill</div></div>
+        </div>
+      </div>
+
+      <div class="legend-section" style="margin-bottom:0;">
+        <h3>Shadow Scale</h3>
+        <div style="display:flex;gap:var(--s4);flex-wrap:wrap;">
+          <div style="text-align:center;"><div style="width:50px;height:50px;background:#fff;border-radius:8px;box-shadow:var(--t-shadow-xs);"></div><div style="font-size:9px;color:var(--t-text-muted);margin-top:4px;">xs</div></div>
+          <div style="text-align:center;"><div style="width:50px;height:50px;background:#fff;border-radius:8px;box-shadow:var(--t-shadow-sm);"></div><div style="font-size:9px;color:var(--t-text-muted);margin-top:4px;">sm</div></div>
+          <div style="text-align:center;"><div style="width:50px;height:50px;background:#fff;border-radius:8px;box-shadow:var(--t-shadow);"></div><div style="font-size:9px;color:var(--t-text-muted);margin-top:4px;">base</div></div>
+          <div style="text-align:center;"><div style="width:50px;height:50px;background:#fff;border-radius:8px;box-shadow:var(--t-shadow-lg);"></div><div style="font-size:9px;color:var(--t-text-muted);margin-top:4px;">lg</div></div>
+          <div style="text-align:center;"><div style="width:50px;height:50px;background:#fff;border-radius:8px;box-shadow:var(--t-shadow-xl);"></div><div style="font-size:9px;color:var(--t-text-muted);margin-top:4px;">xl</div></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /design-canvas -->
+</div><!-- /canvas-viewport -->
+
+<!-- ================================================================
+     ZOOM INDICATOR
+     ================================================================ -->
+<div id="zoom-indicator">
+  <button class="material-icons-round" onclick="zoomBy(-0.1)">remove</button>
+  <span id="zoom-level">100%</span>
+  <button class="material-icons-round" onclick="zoomBy(0.1)">add</button>
+  <button class="material-icons-round" onclick="resetZoom()" style="margin-left:4px;">fit_screen</button>
+</div>
+
+<script>
+/* ================================================================
+   PAN + ZOOM — Figma-like canvas navigation
+   ================================================================ */
+const viewport = document.getElementById('canvas-viewport');
+const canvas = document.getElementById('design-canvas');
+let scale = 0.45;
+let panX = 60;
+let panY = 60;
+let isPanning = false;
+let startX, startY;
+
+function applyTransform() {
+  canvas.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+  document.getElementById('zoom-level').textContent = Math.round(scale * 100) + '%';
+}
+
+viewport.addEventListener('mousedown', e => {
+  if (e.target.closest('.frame-device') || e.target.closest('.legend-group')) return;
+  isPanning = true;
+  startX = e.clientX - panX;
+  startY = e.clientY - panY;
+  viewport.style.cursor = 'grabbing';
+});
+
+window.addEventListener('mousemove', e => {
+  if (!isPanning) return;
+  panX = e.clientX - startX;
+  panY = e.clientY - startY;
+  applyTransform();
+});
+
+window.addEventListener('mouseup', () => {
+  isPanning = false;
+  viewport.style.cursor = 'grab';
+});
+
+viewport.addEventListener('wheel', e => {
+  e.preventDefault();
+  const delta = e.deltaY > 0 ? -0.05 : 0.05;
+  const newScale = Math.max(0.15, Math.min(2, scale + delta));
+  const rect = viewport.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  panX -= mx * (newScale - scale) / scale;
+  panY -= my * (newScale - scale) / scale;
+  scale = newScale;
+  applyTransform();
+}, { passive: false });
+
+function zoomBy(d) {
+  scale = Math.max(0.15, Math.min(2, scale + d));
+  applyTransform();
+}
+function resetZoom() {
+  scale = 0.45;
+  panX = 60;
+  panY = 60;
+  applyTransform();
+}
+
+applyTransform();
+
+/* ================================================================
+   LEFT PANEL — Screen List
+   ================================================================ */
+const screenList = document.getElementById('screen-list');
+const frames = document.querySelectorAll('.frame-group');
+const icons = {
+  '01 Splash': 'rocket_launch',
+  '02 Login': 'login',
+  '03 Home / Dashboard': 'dashboard',
+  '04 Analytics': 'analytics',
+  '05 Live Map': 'map',
+  '06 Alerts': 'warning',
+  '07 Alert Detail': 'info',
+  '08 Reports': 'description',
+  '09 Report Case': 'edit_note',
+  '10 Notifications': 'notifications',
+  '11 Profile': 'person',
+  '12 Search': 'search',
+  '13 My Submissions': 'assignment',
+  '14 Edit Draft': 'drive_file_rename_outline',
+  'Legend': 'palette'
+};
+
+frames.forEach(f => {
+  const name = f.dataset.screen;
+  const item = document.createElement('div');
+  item.className = 'panel-screen-item';
+  item.innerHTML = `<span class="material-icons-round">${icons[name] || 'crop_square'}</span>${name}`;
+  item.onclick = () => scrollToScreen(name);
+  screenList.appendChild(item);
+});
+
+const legendEl = document.querySelector('.legend-group');
+if (legendEl) {
+  const item = document.createElement('div');
+  item.className = 'panel-screen-item';
+  item.innerHTML = `<span class="material-icons-round">palette</span>Legend`;
+  item.onclick = () => {
+    const r = legendEl.getBoundingClientRect();
+    const left = parseInt(legendEl.style.left);
+    const top = parseInt(legendEl.style.top);
+    const vpRect = viewport.getBoundingClientRect();
+    panX = vpRect.width / 2 - (left + 220) * scale;
+    panY = vpRect.height / 2 - (top + 300) * scale;
+    applyTransform();
+  };
+  screenList.appendChild(item);
+}
+
+function scrollToScreen(name) {
+  const frame = document.querySelector(`.frame-group[data-screen="${name}"]`);
+  if (!frame) return;
+  const left = parseInt(frame.style.left);
+  const top = parseInt(frame.style.top);
+  const vpRect = viewport.getBoundingClientRect();
+  panX = vpRect.width / 2 - (left + 195) * scale;
+  panY = vpRect.height / 2 - (top + 440) * scale;
+  applyTransform();
+}
+
+/* ================================================================
+   TOGGLES — Labels, Debug, Panel
+   ================================================================ */
+document.getElementById('toggle-labels').addEventListener('change', e => {
+  document.querySelectorAll('.frame-device .screen-content').forEach(el => {
+    el.classList.toggle('labels-hidden', !e.target.checked);
+  });
+});
+
+document.getElementById('toggle-debug').addEventListener('change', e => {
+  document.querySelectorAll('.frame-device .screen-content').forEach(el => {
+    el.classList.toggle('debug-mode', e.target.checked);
+  });
+});
+
+document.getElementById('toggle-panel-collapse').addEventListener('change', e => {
+  togglePanel();
+});
+
+function togglePanel() {
+  const panel = document.getElementById('left-panel');
+  panel.classList.toggle('collapsed');
+  viewport.classList.toggle('panel-collapsed', panel.classList.contains('collapsed'));
+}
+
+/* ================================================================
+   BOTTOM SHEET — Open / Close
+   ================================================================ */
+function openSheet(id) {
+  const sheet = document.getElementById(id);
+  const overlay = document.getElementById(id.replace('sheet', 'overlay'));
+  if (sheet) sheet.classList.add('open');
+  if (overlay) overlay.classList.add('open');
+}
+function closeSheet(id) {
+  const sheet = document.getElementById(id);
+  const overlay = document.getElementById(id.replace('sheet', 'overlay'));
+  if (sheet) sheet.classList.remove('open');
+  if (overlay) overlay.classList.remove('open');
+}
+
+/* ================================================================
+   ANALYTICS TABS — Segmented Control
+   ================================================================ */
+function switchAnalyticsTab(el, tab) {
+  document.querySelectorAll('#analytics-tabs .m-segment').forEach(s => s.classList.remove('active'));
+  el.classList.add('active');
+  ['trends','cusum','forecast'].forEach(t => {
+    const content = document.getElementById('analytics-content-' + t);
+    if (content) content.style.display = t === tab ? 'block' : 'none';
+  });
+}
+
+/* ================================================================
+   CHIP INTERACTION — Toggle active
+   ================================================================ */
+document.querySelectorAll('.m-chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    const row = chip.closest('.m-chip-row') || chip.parentElement;
+    if (row) {
+      row.querySelectorAll('.m-chip').forEach(c => c.classList.remove('active'));
+    }
+    chip.classList.add('active');
+  });
+});
+
+/* ================================================================
+   MY SUBMISSIONS TABS — Drafts / Submitted toggle
+   ================================================================ */
+function switchSubmissionsTab(el, tab) {
+  const tabs = document.querySelectorAll('#submissions-tabs .m-segment');
+  tabs.forEach(s => s.classList.remove('active'));
+  el.classList.add('active');
+  ['drafts', 'submitted'].forEach(t => {
+    const content = document.getElementById('submissions-content-' + t);
+    if (content) content.style.display = t === tab ? 'block' : 'none';
+  });
+}
+</script>
+</body>
+</html>

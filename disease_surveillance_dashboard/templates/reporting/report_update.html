@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static i18n %}
 
-{% block title %}Report Case{% endblock %}
+{% block title %}Edit Draft Report{% endblock %}
 
 {% block page_css %}
 <link rel="stylesheet" href="{% static 'css/pages/reporting.css' %}" />
@@ -9,17 +9,26 @@
 
 {% block content %}
 <div class="container mt-4">
-  <div class="mb-4">
-    <h1 class="dashboard-title">{{ page_title }}</h1>
-    <p class="dashboard-subtitle">{{ page_subtitle }}</p>
+
+  {# ── Page header ── #}
+  <div class="mb-4 d-flex align-items-start gap-3 flex-wrap">
+    <div class="flex-grow-1">
+      <h1 class="dashboard-title">{{ page_title }}</h1>
+      <p class="dashboard-subtitle">{{ page_subtitle }}</p>
+    </div>
+    {# Draft badge — always shown on this page #}
+    <span class="badge bg-warning text-dark align-self-center px-3 py-2 fs-6">
+      <i class="bi bi-pencil-square me-1" aria-hidden="true"></i>Draft
+    </span>
   </div>
 
   <div class="card report-form-card">
     <div class="card-body p-4">
 
       {# ---------------------------------------------------------------
-         IMPORTANT — two submit buttons, distinguished by name="action".
-         The view reads  request.POST.get("action")  to decide the status.
+         Same two-button pattern as the create form.
+         name="action"  value="draft"  → stays DRAFT
+         name="action"  value="submit" → becomes SUBMITTED (read-only after)
          --------------------------------------------------------------- #}
       <form method="post" novalidate>
         {% csrf_token %}
@@ -36,26 +45,26 @@
               name="action"
               value="submit"
               class="btn btn-primary btn-lg"
-              title="Validate and submit this report to the surveillance system"
+              title="Submit this report to the surveillance system — it will become read-only"
             >
               <i class="bi bi-send-fill me-1" aria-hidden="true"></i>
               Submit Report
             </button>
 
-            {# Secondary: Save as Draft #}
+            {# Secondary: Save Draft #}
             <button
               type="submit"
               name="action"
               value="draft"
               class="btn btn-secondary btn-lg"
-              title="Save your progress — you can finish and submit later"
+              title="Save changes and keep as draft"
             >
               <i class="bi bi-floppy me-1" aria-hidden="true"></i>
-              Save as Draft
+              Save Draft
             </button>
 
             {# Cancel #}
-            <a href="{% url 'dashboard:overview' %}" class="btn btn-outline-secondary btn-lg ms-auto">
+            <a href="{% url 'reporting:my_submissions' %}" class="btn btn-outline-secondary btn-lg ms-auto">
               Cancel
             </a>
 
@@ -65,5 +74,6 @@
       </form>
     </div>
   </div>
+
 </div>
 {% endblock %}

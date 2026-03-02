@@ -130,6 +130,20 @@ class Report(models.Model):
             models.Index(fields=["age_group"]),
         ]
 
+    # ------------------------------------------------------------------
+    # Convenience properties — keeps status-check logic out of views/templates
+    # ------------------------------------------------------------------
+
+    @property
+    def is_draft(self) -> bool:
+        """True when this report has DRAFT status."""
+        return self.status.status_name == "DRAFT"
+
+    @property
+    def is_submitted(self) -> bool:
+        """True when this report has SUBMITTED status."""
+        return self.status.status_name == "SUBMITTED"
+
     def __str__(self) -> str:
         """Return readable string representation."""
         observed_date = self.observed_at.date() if self.observed_at else "Unknown"

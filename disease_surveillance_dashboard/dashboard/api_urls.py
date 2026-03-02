@@ -6,6 +6,7 @@ from .api import dashboard_anomalies
 from .api import dashboard_cases_timeseries
 from .api import dashboard_data_quality
 from .api import dashboard_detection_metrics
+from .api import dashboard_district_summary
 from .api import dashboard_evaluate
 from .api import dashboard_forecast
 from .api import dashboard_map_points
@@ -32,5 +33,6 @@ urlpatterns = [
     path("situation-overview/",     dashboard_situation_overview,    name="situation-overview"),
     path("detection-metrics/",      dashboard_detection_metrics,     name="detection-metrics"),
     path("data-quality/",           dashboard_data_quality,          name="data-quality"),
+    path("district-summary/",       dashboard_district_summary,      name="district-summary"),
 ]
 

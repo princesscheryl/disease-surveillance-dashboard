@@ -36,6 +36,7 @@ function dashboardData() {
     situationOverview:  {},
     detectionMetrics:   {},
     dataQuality:        {},
+    districtSummary:    [],
 
     /* ── Chart instance references ───────────────────────── */
     casesChart:       null,
@@ -173,6 +174,7 @@ function dashboardData() {
         this.loadSituationOverview(params),
         this.loadDetectionMetrics(params),
         this.loadDataQuality(params),
+        this.loadDistrictSummary(params),
       ]);
 
       if (version !== this._loadVersion) return;
@@ -314,6 +316,26 @@ function dashboardData() {
       } catch (e) {
         console.error('Error loading data quality:', e);
         this.dataQuality = fallback;
+      }
+    },
+
+    async loadDistrictSummary(params) {
+      /* If the endpoint fails for any reason we just show an empty table
+         rather than crashing the rest of the page. */
+      try {
+        const r = await fetch(`/api/v1/dashboard/district-summary/?${params}`, {
+          credentials: 'include', headers: { 'X-CSRFToken': this.getCsrfToken() }
+        });
+        if (!r.ok) {
+          console.warn('[Dashboard] district-summary returned', r.status);
+          this.districtSummary = [];
+          return;
+        }
+        const data = await r.json();
+        this.districtSummary = Array.isArray(data) ? data : [];
+      } catch (e) {
+        console.error('Error loading district summary:', e);
+        this.districtSummary = [];
       }
     },
 

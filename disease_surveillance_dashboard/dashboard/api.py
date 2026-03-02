@@ -23,6 +23,7 @@ from disease_surveillance_dashboard.analytics.services import (
 from .services import get_cases_timeseries
 from .services import get_data_quality
 from .services import get_detection_metrics
+from .services import get_district_summary
 from .services import get_map_points
 from .services import get_recent_alerts
 from .services import get_recent_investigations
@@ -509,3 +510,41 @@ def dashboard_evaluate(request):
         status=status.HTTP_201_CREATED,
     )
 
+
+@api_view(["GET"])
+def dashboard_district_summary(request):
+    """
+    Return case counts and incidence rates (per 100k) aggregated by district.
+
+    Districts with no population data are still included — they just won't
+    have an incidence_per_100k value.  The list is sorted high-to-low by
+    incidence rate so the dashboard can display it directly.
+    """
+    access_check = check_dashboard_access(request.user)
+    if access_check:
+        return access_check
+
+    start_date  = parse_date_param(request, "start_date")
+    end_date    = parse_date_param(request, "end_date")
+    disease_id  = request.query_params.get("disease_id")
+    location_id = request.query_params.get("location_id")
+
+    if disease_id:
+        try:
+            disease_id = int(disease_id)
+        except ValueError:
+            disease_id = None
+
+    if location_id:
+        try:
+            location_id = int(location_id)
+        except ValueError:
+            location_id = None
+
+    data = get_district_summary(
+        start_date=start_date,
+        end_date=end_date,
+        disease_id=disease_id,
+        location_id=location_id,
+    )
+    return Response(data)

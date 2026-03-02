@@ -13,6 +13,8 @@ class DiseaseAdmin(admin.ModelAdmin):
 
 @admin.register(Location)
 class LocationAdmin(admin.ModelAdmin):
-    list_display = ("district_name", "area_name", "is_active")
-    search_fields = ("district_name", "area_name")
-    list_filter = ("is_active",)
+    # Show population right in the list so we can quickly spot locations
+    # that still need census data filled in (they'll show "-" for population).
+    list_display = ("district_name", "area_name", "population", "population_year", "is_active")
+    search_fields = ("district_name", "area_name", "population")
+    list_filter = ("is_active", "population_year")

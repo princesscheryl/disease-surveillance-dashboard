@@ -136,6 +136,11 @@
       <div class="so-tile">
         <span class="so-tile-label">Cases (7 days)</span>
         <div class="so-tile-value" x-text="situationOverview.current_cases_7d ?? 0"></div>
+        {# Show incidence rate if population data is available; otherwise just omit the line #}
+        <template x-if="situationOverview.incidence_rate_current != null">
+          <span style="font-size:0.72rem;color:var(--t-text-muted);margin-top:2px;display:block;"
+                x-text="situationOverview.incidence_rate_current + ' per 100k'"></span>
+        </template>
         <span class="so-tile-sub">
           vs <span x-text="situationOverview.previous_cases_7d ?? 0"></span> prior week
         </span>
@@ -310,6 +315,69 @@
       </div>
     </div>
   </div>
+
+  {# District-Level Incidence Rates ================================ #}
+  <div class="ds-section-divider">
+    <span><i class="bi bi-geo-alt-fill" aria-hidden="true"></i> District-Level Incidence Rates</span>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header d-flex align-items-center gap-2">
+          <i class="bi bi-table text-muted" aria-hidden="true"></i>
+          <h5 class="mb-0">Cases and Incidence by District</h5>
+          <span class="ms-auto" style="font-size:0.75rem;color:var(--t-text-muted);">
+            Sorted by incidence rate (high to low) · districts without population data shown at end
+          </span>
+        </div>
+        <div class="card-body p-0">
+
+          {# Empty state when no data has loaded yet #}
+          <template x-if="districtSummary.length === 0">
+            <div class="text-center py-4" style="color:var(--t-text-muted);font-size:0.85rem;">
+              No district data for the selected filters.
+            </div>
+          </template>
+
+          <template x-if="districtSummary.length > 0">
+            <div class="table-responsive">
+              <table class="table table-sm table-hover mb-0">
+                <thead>
+                  <tr>
+                    <th style="font-size:0.75rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--t-text-muted);">District</th>
+                    <th class="text-end" style="font-size:0.75rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--t-text-muted);">Cases</th>
+                    <th class="text-end" style="font-size:0.75rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--t-text-muted);">Population</th>
+                    <th class="text-end" style="font-size:0.75rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--t-text-muted);">Per 100k</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template x-for="row in districtSummary" :key="row.location_id">
+                    <tr>
+                      <td style="font-size:0.85rem;" x-text="row.district"></td>
+                      <td class="text-end" style="font-size:0.85rem;font-variant-numeric:tabular-nums;"
+                          x-text="row.cases.toLocaleString()"></td>
+                      <td class="text-end" style="font-size:0.85rem;font-variant-numeric:tabular-nums;color:var(--t-text-secondary);"
+                          x-text="row.population != null ? row.population.toLocaleString() : '—'"></td>
+                      {# Colour-code the rate cell: higher rates get a warmer tone #}
+                      <td class="text-end" style="font-size:0.85rem;font-variant-numeric:tabular-nums;"
+                          :style="row.incidence_per_100k == null ? '' :
+                                  row.incidence_per_100k >= 200 ? 'color:#ef4444;font-weight:600' :
+                                  row.incidence_per_100k >= 100 ? 'color:#f59e0b;font-weight:600' :
+                                  'color:#16a34a'"
+                          x-text="row.incidence_per_100k != null ? row.incidence_per_100k.toFixed(1) : '—'">
+                      </td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+          </template>
+
+        </div>
+      </div>
+    </div>
+  </div>{# /row district incidence #}
 
   {# Data Quality ================================================== #}
   <div class="ds-section-divider">

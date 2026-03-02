@@ -443,12 +443,39 @@ def get_situation_overview(start_date=None, end_date=None, disease_id=None, loca
     # When there is no previous baseline we cannot classify; leave as Normal
     # so the dashboard does not falsely alarm on the first week of data.
 
+    # Pull the population figures for every location that had cases in the
+    # current window.  We sum the population across those locations so we
+    # can express case counts as a rate per 100k people.  If no population
+    # data has been imported yet, both rate fields will just be None.
+    current_location_ids = list(
+        current_qs.values_list("location_id", flat=True).distinct()
+    )
+    total_population = 0
+    if current_location_ids:
+        from reference_data.models import Location  # local import avoids circular dependency
+        pop_agg = (
+            Location.objects
+            .filter(id__in=current_location_ids, population__isnull=False)
+            .aggregate(total=Sum("population"))
+        )
+        total_population = pop_agg["total"] or 0
+
+    if total_population > 0:
+        incidence_rate_current  = round((current_cases  / total_population) * 100_000, 1)
+        incidence_rate_previous = round((previous_cases / total_population) * 100_000, 1)
+    else:
+        incidence_rate_current  = None
+        incidence_rate_previous = None
+
     return {
-        "current_cases_7d":  int(current_cases),
-        "previous_cases_7d": int(previous_cases),
-        "wow_pct_change":    wow_pct_change,
-        "growth_factor":     growth_factor,
-        "signal_status":     signal_status,
+        "current_cases_7d":       int(current_cases),
+        "previous_cases_7d":      int(previous_cases),
+        "wow_pct_change":         wow_pct_change,
+        "growth_factor":          growth_factor,
+        "signal_status":          signal_status,
+        "incidence_rate_current":  incidence_rate_current,
+        "incidence_rate_previous": incidence_rate_previous,
+        "total_population":        int(total_population) if total_population else None,
     }
 
 
@@ -729,3 +756,89 @@ def get_data_quality(start_date=None, end_date=None, disease_id=None, location_i
         "message":                     None,
     }
 
+
+# ---------------------------------------------------------------------------
+# District-Level Incidence Summary
+# ---------------------------------------------------------------------------
+
+def get_district_summary(start_date=None, end_date=None, disease_id=None, location_id=None):
+    """
+    Aggregate case counts and incidence rates by district for the given filters.
+
+    We group reports by Location (i.e. district) and join in the population
+    figure so we can calculate how many cases there were per 100,000 people.
+    Districts that have no population data still appear in the results — they
+    just won't have a rate.  The list is sorted so high-incidence districts
+    bubble up to the top, with unpopulated districts at the end.
+
+    Returns:
+        list of dicts:
+            district         (str)
+            location_id      (int)
+            cases            (int)
+            population       (int | None)
+            incidence_per_100k (float | None)
+    """
+    from reference_data.models import Location  # local import avoids circular dependency
+
+    if end_date is None:
+        end_date = timezone.now()
+    elif isinstance(end_date, date) and not isinstance(end_date, datetime):
+        end_date = timezone.make_aware(datetime.combine(end_date, datetime.max.time()))
+
+    if start_date is None:
+        start_date = end_date - timedelta(days=30)
+    elif isinstance(start_date, date) and not isinstance(start_date, datetime):
+        start_date = timezone.make_aware(datetime.combine(start_date, datetime.min.time()))
+
+    filters = Q(observed_at__gte=start_date, observed_at__lte=end_date)
+    if disease_id:
+        filters &= Q(disease_id=disease_id)
+    if location_id:
+        filters &= Q(location_id=location_id)
+
+    # Sum case_count per location so we get one row per district regardless
+    # of how many individual report records exist.
+    rows = (
+        Report.objects.filter(filters)
+        .values("location_id", "location__district_name")
+        .annotate(cases=Sum("case_count"))
+        .order_by("location_id")
+    )
+
+    # Pull populations in one query and build a fast lookup dict.
+    location_ids = [r["location_id"] for r in rows]
+    pop_lookup = {}
+    if location_ids:
+        for loc in Location.objects.filter(id__in=location_ids).only("id", "population"):
+            pop_lookup[loc.id] = loc.population  # will be None if not imported yet
+
+    result = []
+    for row in rows:
+        loc_id    = row["location_id"]
+        cases     = int(row["cases"])
+        population = pop_lookup.get(loc_id)  # None if location not found or no data
+
+        # We only calculate the rate when population is a positive integer.
+        # Division by zero or by None would produce garbage, so we guard here.
+        if population and population > 0:
+            incidence = round((cases / population) * 100_000, 1)
+        else:
+            incidence = None
+
+        result.append({
+            "district":           row["location__district_name"],
+            "location_id":        loc_id,
+            "cases":              cases,
+            "population":         population,
+            "incidence_per_100k": incidence,
+        })
+
+    # Sort by incidence rate descending so the hottest districts come first.
+    # Districts with no population data go to the bottom since None sorts
+    # differently depending on Python version, so we handle it explicitly.
+    result.sort(
+        key=lambda x: (x["incidence_per_100k"] is None, -(x["incidence_per_100k"] or 0))
+    )
+
+    return result

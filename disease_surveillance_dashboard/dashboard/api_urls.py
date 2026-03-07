@@ -3,6 +3,7 @@
 from django.urls import path
 
 from .api import dashboard_anomalies
+from .api import dashboard_choropleth_data
 from .api import dashboard_cases_timeseries
 from .api import dashboard_data_quality
 from .api import dashboard_detection_metrics
@@ -34,5 +35,6 @@ urlpatterns = [
     path("detection-metrics/",      dashboard_detection_metrics,     name="detection-metrics"),
     path("data-quality/",           dashboard_data_quality,          name="data-quality"),
     path("district-summary/",       dashboard_district_summary,      name="district-summary"),
+    path("choropleth-data/",        dashboard_choropleth_data,      name="choropleth-data"),
 ]
 

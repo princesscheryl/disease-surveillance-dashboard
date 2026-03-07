@@ -48,6 +48,10 @@ function dashboardData() {
     map:             null,
     _mapInitialized: false,
 
+    /* ── Choropleth (Analytics page only) ──────────────────── */
+    choroplethMap:   null,
+    choroplethLayer: null,
+
     /* ── Load guard (stale-load cancellation) ─────────────── */
     _loadVersion: 0,
     _loading:     false,
@@ -69,6 +73,9 @@ function dashboardData() {
         await this.loadDiseases();
         await this.loadLocations();
         await this.checkEvaluatePermission();
+        /* Choropleth map lives on the Analytics page; create it before loadData
+           so loadChoroplethData() can attach the GeoJSON layer when the data arrives. */
+        this.initChoroplethMap();
         await this.loadData();
         this.initMap();
         /* Register global resize helper so the sidebar toggle can call it.
@@ -175,6 +182,7 @@ function dashboardData() {
         this.loadDetectionMetrics(params),
         this.loadDataQuality(params),
         this.loadDistrictSummary(params),
+        this.loadChoroplethData(params),
       ]);
 
       if (version !== this._loadVersion) return;
@@ -336,6 +344,77 @@ function dashboardData() {
       } catch (e) {
         console.error('Error loading district summary:', e);
         this.districtSummary = [];
+      }
+    },
+
+    async loadChoroplethData(params) {
+      /* Only run on the Analytics page where the choropleth map exists. */
+      if (!this.choroplethMap) return;
+      try {
+        const r = await fetch(`/api/v1/dashboard/choropleth-data/?${params}`, {
+          credentials: 'include', headers: { 'X-CSRFToken': this.getCsrfToken() }
+        });
+        if (!r.ok) {
+          console.warn('[Dashboard] choropleth-data returned', r.status);
+          return;
+        }
+        const geojson = await r.json();
+        if (!geojson || !geojson.features) return;
+
+        /* Remove the previous layer so we can draw the new one. */
+        if (this.choroplethLayer) {
+          this.choroplethMap.removeLayer(this.choroplethLayer);
+          this.choroplethLayer = null;
+        }
+
+        /* Color districts by how high the incidence rate is — red for hot spots,
+           green for low, gray when we have no data. */
+        const getColor = (incidence) => {
+          if (incidence == null || incidence === undefined) return '#cccccc';
+          if (incidence >= 200) return '#d73027';
+          if (incidence >= 150) return '#fc8d59';
+          if (incidence >= 100) return '#fee08b';
+          if (incidence >= 50)  return '#d9ef8b';
+          if (incidence >= 20)  return '#91cf60';
+          return '#1a9850';
+        };
+
+        const style = (feature) => {
+          const props = feature.properties || {};
+          return {
+            fillColor:   getColor(props.incidence_per_100k),
+            fillOpacity: 0.7,
+            weight:      1,
+            color:       '#666',
+          };
+        };
+
+        const onEachFeature = (feature, layer) => {
+          const props = feature.properties || {};
+          const name = props.shapeName || props.district || 'District';
+          const cases = props.cases != null ? props.cases : 0;
+          const pop   = props.population != null
+            ? props.population.toLocaleString()
+            : 'No data';
+          const rate  = props.incidence_per_100k != null
+            ? props.incidence_per_100k.toFixed(1) + ' per 100k'
+            : 'No data';
+          layer.bindPopup(
+            `<strong>${name}</strong><br>` +
+            `Cases: ${cases}<br>` +
+            `Population: ${pop}<br>` +
+            `Incidence: ${rate}`
+          );
+          layer.on({
+            mouseover: function () { this.setStyle({ fillOpacity: 0.9 }); this.bringToFront(); },
+            mouseout:  function () { this.setStyle({ fillOpacity: 0.7 }); }
+          });
+        };
+
+        this.choroplethLayer = L.geoJSON(geojson, { style, onEachFeature });
+        this.choroplethLayer.addTo(this.choroplethMap);
+      } catch (e) {
+        console.error('Error loading choropleth data:', e);
       }
     },
 
@@ -849,6 +928,24 @@ function dashboardData() {
           }));
         }
       });
+    },
+
+    /* Choropleth map for the Analytics page — district boundaries colored by
+       incidence rate.  We only create it when the #choropleth-map div exists. */
+    initChoroplethMap() {
+      if (typeof L === 'undefined') return;
+      const el = document.getElementById('choropleth-map');
+      if (!el) return;
+      if (this.choroplethMap) return;
+      try {
+        this.choroplethMap = L.map(el).setView([5.6, -0.2], 10);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '© OpenStreetMap contributors'
+        }).addTo(this.choroplethMap);
+      } catch (err) {
+        console.error('[Dashboard] Error initializing choropleth map:', err);
+        this.choroplethMap = null;
+      }
     },
 
     /* ================================================================

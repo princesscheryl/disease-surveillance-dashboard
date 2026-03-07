@@ -5,8 +5,11 @@ These endpoints provide aggregated data for the monitoring dashboard.
 All endpoints require authentication and dashboard access role.
 """
 
+import json
+import os
 from datetime import datetime
 
+from django.conf import settings
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view
@@ -548,3 +551,103 @@ def dashboard_district_summary(request):
         location_id=location_id,
     )
     return Response(data)
+
+
+@api_view(["GET"])
+def dashboard_choropleth_data(request):
+    """
+    Return GeoJSON for Greater Accra districts with case counts and
+    incidence rates attached to each feature so the frontend can draw
+    a choropleth map.
+
+    We load the static GeoJSON once, then merge in the district summary
+    from get_district_summary().  If a district in the GeoJSON has no
+    reports in the date range, we still include it with cases=0 and
+    no rate — that way the map shows all districts, not just the ones
+    with data.
+    """
+    access_check = check_dashboard_access(request.user)
+    if access_check:
+        return access_check
+
+    geojson_path = os.path.join(
+        settings.BASE_DIR,
+        "disease_surveillance_dashboard",
+        "static",
+        "geojson",
+        "greater_accra_districts.geojson",
+    )
+
+    if not os.path.isfile(geojson_path):
+        return Response(
+            {"error": "GeoJSON file not found. Run collectstatic or check static path."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    try:
+        with open(geojson_path, encoding="utf-8") as f:
+            geojson = json.load(f)
+    except (OSError, json.JSONDecodeError) as e:
+        return Response(
+            {"error": f"Could not read or parse GeoJSON: {e}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+    # Same filters as the rest of the dashboard so the map and tables stay in sync
+    start_date = parse_date_param(request, "start_date")
+    end_date = parse_date_param(request, "end_date")
+    disease_id = request.query_params.get("disease_id")
+    location_id = request.query_params.get("location_id")
+
+    if disease_id:
+        try:
+            disease_id = int(disease_id)
+        except ValueError:
+            disease_id = None
+    if location_id:
+        try:
+            location_id = int(location_id)
+        except ValueError:
+            location_id = None
+
+    summary = get_district_summary(
+        start_date=start_date,
+        end_date=end_date,
+        disease_id=disease_id,
+        location_id=location_id,
+    )
+
+    # Build a lookup by district name so we can attach data to each GeoJSON
+    # feature.  If multiple locations share a district name (e.g. sub-areas),
+    # we take the first match — get_district_summary returns one row per
+    # location, so we key by district name and keep the first we see.
+    by_district = {}
+    for row in summary:
+        name = row.get("district")
+        if name and name not in by_district:
+            by_district[name] = {
+                "cases": row.get("cases", 0),
+                "population": row.get("population"),
+                "incidence_per_100k": row.get("incidence_per_100k"),
+            }
+
+    # Walk the features and add our stats to each one.  We're matching on
+    # shapeName; if a district has no data we still add the keys so the
+    # frontend can rely on them being present.
+    for feature in geojson.get("features", []):
+        props = feature.get("properties") or {}
+        shape_name = props.get("shapeName")
+        data = by_district.get(shape_name) if shape_name else None
+
+        if data is not None:
+            props["cases"] = data["cases"]
+            props["population"] = data["population"]
+            props["incidence_per_100k"] = data["incidence_per_100k"]
+        else:
+            props["cases"] = 0
+            props["population"] = None
+            props["incidence_per_100k"] = None
+
+        feature["properties"] = props
+
+    return Response(geojson)

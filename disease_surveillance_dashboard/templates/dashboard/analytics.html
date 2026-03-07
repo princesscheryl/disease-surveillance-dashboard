@@ -5,6 +5,7 @@
 {% block topbar_title %}Analytics{% endblock %}
 
 {% block page_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}" />
 <style>
   /* ── Situation Overview KPI tiles ───────────────────────── */
@@ -110,6 +111,7 @@
 {% endblock %}
 
 {% block page_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js" crossorigin="anonymous"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js" crossorigin="anonymous"></script>
 {% endblock %}
@@ -378,6 +380,28 @@
       </div>
     </div>
   </div>{# /row district incidence #}
+
+  {# Geographic Distribution — choropleth by incidence ============== #}
+  <div class="ds-section-divider">
+    <span><i class="bi bi-map-fill" aria-hidden="true"></i> Geographic Distribution</span>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header d-flex align-items-center gap-2">
+          <i class="bi bi-geo-alt-fill text-muted" aria-hidden="true"></i>
+          <h5 class="mb-0">District Incidence (per 100k)</h5>
+          <span class="ms-auto" style="font-size:0.75rem;color:var(--t-text-muted);">
+            Greater Accra · colored by incidence rate
+          </span>
+        </div>
+        <div class="card-body p-0">
+          <div id="choropleth-map" style="height: 500px; width: 100%;"></div>
+        </div>
+      </div>
+    </div>
+  </div>{# /row choropleth #}
 
   {# Data Quality ================================================== #}
   <div class="ds-section-divider">

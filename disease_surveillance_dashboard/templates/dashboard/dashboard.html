@@ -163,7 +163,7 @@
                     <td x-text="alert.disease_name"></td>
                     <td x-text="alert.location_name"></td>
                     <td><span class="badge" :class="getSeverityClass(alert.severity_level)" x-text="alert.severity_level"></span></td>
-                    <td x-text="alert.status_name"></td>
+                    <td><span class="badge" :class="getAlertStatusClass(alert.status_name)" x-text="alert.status_name"></span></td>
                     <td x-text="formatDate(alert.created_at)"></td>
                   </tr>
                 </template>
@@ -742,6 +742,17 @@ function dashboardData() {
         'High': 'bg-danger'
       };
       return classes[severity] || 'bg-secondary';
+    },
+
+    getAlertStatusClass(statusName) {
+      const map = {
+        'New': 'bg-danger',
+        'Acknowledged': 'bg-primary',
+        'Under Investigation': 'bg-warning',
+        'Resolved': 'bg-success',
+        'False Alarm': 'bg-secondary'
+      };
+      return map[statusName] || 'bg-secondary';
     },
 
     formatDate(dateString) {

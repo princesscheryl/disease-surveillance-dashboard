@@ -34,6 +34,16 @@ from .services import get_situation_overview
 from .services import get_summary_metrics
 from .services import get_top_diseases
 from .utils import user_can_access_dashboard
+from .utils import user_has_role
+
+OFFICER_ROLES = [
+    "Public Health Officer",
+    "System Administrator",
+    "HEALTH_OFFICER",
+    "ADMIN",
+    "ANALYST",
+    "VERIFIER",
+]
 
 
 def check_dashboard_access(user):
@@ -41,6 +51,21 @@ def check_dashboard_access(user):
     if not user_can_access_dashboard(user):
         return Response(
             {"error": "You do not have permission to access the dashboard."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+    return None
+
+
+def check_officer_access(user):
+    """Helper for officer-only endpoints (report verification)."""
+    if not user or not user.is_authenticated:
+        return Response(
+            {"error": "Authentication required."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+    if not user_has_role(user, OFFICER_ROLES):
+        return Response(
+            {"error": "You do not have permission to review reports."},
             status=status.HTTP_403_FORBIDDEN,
         )
     return None
@@ -339,6 +364,202 @@ def dashboard_recent_investigations(request):
     data = get_recent_investigations(limit=limit, alert_id=alert_id)
 
     return Response(data)
+
+
+@api_view(["GET"])
+def dashboard_assignable_users(request):
+    """Return active users for the Investigate task assignment dropdown."""
+    access_check = check_dashboard_access(request.user)
+    if access_check:
+        return access_check
+
+    from django.contrib.auth import get_user_model
+
+    User = get_user_model()
+    users = User.objects.filter(is_active=True).order_by("email").values("id", "email")
+    data = list(users)
+    return Response(data)
+
+
+@api_view(["GET"])
+def dashboard_alert_statuses(request):
+    """Return alert statuses for status update dropdowns. Officer access."""
+    access_check = check_officer_access(request.user)
+    if access_check:
+        return access_check
+
+    from disease_surveillance_dashboard.alerts.models import AlertStatus
+
+    statuses = list(
+        AlertStatus.objects.values("id", "status_name").order_by("status_name")
+    )
+    return Response(statuses)
+
+
+@api_view(["POST"])
+def dashboard_alert_update_status(request, alert_id):
+    """
+    Update an alert's status. Officer and Admin roles only.
+    If notes are provided, creates an AlertNote record.
+    """
+    access_check = check_officer_access(request.user)
+    if access_check:
+        return access_check
+
+    from disease_surveillance_dashboard.alerts.models import Alert
+    from disease_surveillance_dashboard.alerts.models import AlertNote
+    from disease_surveillance_dashboard.alerts.models import AlertStatus
+
+    alert = Alert.objects.filter(pk=alert_id).select_related("status").first()
+    if not alert:
+        return Response(
+            {"error": "Alert not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    status_id = request.data.get("status_id")
+    if not status_id:
+        return Response(
+            {"error": "status_id is required."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        new_status = AlertStatus.objects.get(pk=status_id)
+    except AlertStatus.DoesNotExist:
+        return Response(
+            {"error": "Invalid status_id."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    notes = (request.data.get("notes") or "").strip()
+    alert.status = new_status
+    alert.save()
+
+    if notes:
+        AlertNote.objects.create(
+            alert=alert,
+            noted_by=request.user,
+            note_text=notes,
+        )
+
+    return Response({
+        "success": True,
+        "message": f"Alert status updated to {new_status.status_name}.",
+        "status_name": new_status.status_name,
+        "status_id": new_status.id,
+    })
+
+
+@api_view(["GET"])
+def dashboard_alert_details(request, alert_id):
+    """
+    Return full alert details for the Alert Details modal.
+    Officer and Admin only. Includes related reports, tasks, notes, and status history.
+    """
+    access_check = check_officer_access(request.user)
+    if access_check:
+        return access_check
+
+    from disease_surveillance_dashboard.alerts.models import Alert
+    from disease_surveillance_dashboard.alerts.models import AlertNote
+    from disease_surveillance_dashboard.reporting.models import Report
+    from disease_surveillance_dashboard.investigations.models import InvestigationTask
+
+    alert = (
+        Alert.objects.filter(pk=alert_id)
+        .select_related("disease", "location", "status")
+        .first()
+    )
+    if not alert:
+        return Response(
+            {"error": "Alert not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    # Related reports: same disease + location, observed in alert period
+    reports = (
+        Report.objects.filter(
+            disease=alert.disease,
+            location=alert.location,
+            observed_at__gte=alert.period_start,
+            observed_at__lte=alert.period_end,
+        )
+        .select_related("status", "reported_by")
+        .order_by("-observed_at")
+    )
+    related_reports = []
+    total_cases = 0
+    for r in reports:
+        total_cases += r.case_count
+        related_reports.append({
+            "id": r.id,
+            "case_count": r.case_count,
+            "observed_at": r.observed_at.isoformat(),
+            "reported_by_email": r.reported_by.email if r.reported_by else None,
+            "status_name": r.status.status_name if r.status else None,
+        })
+
+    # Investigation tasks for this alert
+    tasks = (
+        InvestigationTask.objects.filter(alert=alert)
+        .select_related("assigned_to")
+        .order_by("-created_at")
+    )
+    investigation_tasks = [
+        {
+            "id": t.id,
+            "assigned_to_email": t.assigned_to.email if t.assigned_to else None,
+            "task_status": t.task_status,
+            "due_at": t.due_at.isoformat() if t.due_at else None,
+        }
+        for t in tasks
+    ]
+
+    # Alert notes (newest first)
+    notes_qs = AlertNote.objects.filter(alert=alert).select_related("noted_by").order_by("-noted_at")
+    alert_notes = [
+        {
+            "note_text": n.note_text,
+            "noted_by_email": n.noted_by.email if n.noted_by else None,
+            "noted_at": n.noted_at.isoformat(),
+        }
+        for n in notes_qs
+    ]
+
+    # Status history: Created (New) + current status (exact change time not stored)
+    status_history = [
+        {"status_name": "New", "at": alert.created_at.isoformat(), "actor": None},
+    ]
+    if alert.status.status_name != "New":
+        status_history.append({
+            "status_name": alert.status.status_name,
+            "at": alert.created_at.isoformat(),
+            "actor": None,
+        })
+
+    location_name = alert.location.district_name
+    if alert.location.area_name:
+        location_name = f"{location_name} - {alert.location.area_name}"
+
+    return Response({
+        "id": alert.id,
+        "disease_name": alert.disease.disease_name,
+        "location_name": location_name,
+        "severity_level": alert.severity_level,
+        "status_name": alert.status.status_name,
+        "created_at": alert.created_at.isoformat(),
+        "period_start": alert.period_start.isoformat(),
+        "period_end": alert.period_end.isoformat(),
+        "baseline_value": float(alert.baseline_value),
+        "observed_value": float(alert.observed_value),
+        "threshold_rule": alert.threshold_rule or "",
+        "related_reports": related_reports,
+        "related_reports_total_cases": total_cases,
+        "investigation_tasks": investigation_tasks,
+        "alert_notes": alert_notes,
+        "status_history": status_history,
+    })
 
 
 @api_view(["GET"])
@@ -651,3 +872,189 @@ def dashboard_choropleth_data(request):
         feature["properties"] = props
 
     return Response(geojson)
+
+
+# ---------------------------------------------------------------------------
+# Report Verification (Officer-only)
+# ---------------------------------------------------------------------------
+
+@api_view(["GET"])
+def dashboard_review_reports(request):
+    """
+    List all reports for officer verification. Supports filters and pagination.
+    Officer and Admin roles only.
+    """
+    access_check = check_officer_access(request.user)
+    if access_check:
+        return access_check
+
+    from django.db.models import Q
+
+    from disease_surveillance_dashboard.reporting.models import Report
+    from disease_surveillance_dashboard.reporting.models import ReportStatus
+
+    queryset = (
+        Report.objects.select_related("disease", "location", "reported_by", "status")
+        .order_by("-submitted_at")
+    )
+
+    status_filter = request.query_params.get("status")
+    if status_filter:
+        if status_filter == "pending":
+            queryset = queryset.filter(
+                Q(status__status_name="SUBMITTED") | Q(status__status_name="Pending Review")
+            )
+        else:
+            queryset = queryset.filter(status__status_name=status_filter)
+
+    disease_id = request.query_params.get("disease_id")
+    if disease_id:
+        try:
+            queryset = queryset.filter(disease_id=int(disease_id))
+        except ValueError:
+            pass
+
+    location_id = request.query_params.get("location_id")
+    if location_id:
+        try:
+            queryset = queryset.filter(location_id=int(location_id))
+        except ValueError:
+            pass
+
+    start_date = parse_date_param(request, "start_date")
+    if start_date:
+        queryset = queryset.filter(observed_at__gte=start_date)
+
+    end_date = parse_date_param(request, "end_date")
+    if end_date:
+        end_dt = timezone.make_aware(
+            datetime.combine(end_date.date(), datetime.max.time())
+        )
+        queryset = queryset.filter(observed_at__lte=end_dt)
+
+    page_size = min(int(request.query_params.get("page_size", 50)), 100)
+    page = int(request.query_params.get("page", 1))
+    start = (page - 1) * page_size
+    end = start + page_size
+    total = queryset.count()
+    reports = queryset[start:end]
+
+    results = []
+    for r in reports:
+        location_name = r.location.district_name
+        if r.location.area_name:
+            location_name = f"{location_name} - {r.location.area_name}"
+        results.append({
+            "id": r.id,
+            "disease_name": r.disease.disease_name,
+            "location_name": location_name,
+            "case_count": r.case_count,
+            "reported_by_email": r.reported_by.email if r.reported_by else None,
+            "observed_at": r.observed_at.isoformat() if r.observed_at else None,
+            "submitted_at": r.submitted_at.isoformat() if r.submitted_at else None,
+            "status_name": r.status.status_name if r.status else None,
+            "status_id": r.status_id,
+        })
+
+    statuses = list(
+        ReportStatus.objects.values("id", "status_name").order_by("status_name")
+    )
+
+    return Response({
+        "results": results,
+        "count": total,
+        "page": page,
+        "page_size": page_size,
+        "statuses": statuses,
+    })
+
+
+@api_view(["GET"])
+def dashboard_report_details(request, report_id):
+    """
+    Return full report details for the officer review modal.
+    Officer and Admin roles only.
+    """
+    access_check = check_officer_access(request.user)
+    if access_check:
+        return access_check
+
+    from disease_surveillance_dashboard.reporting.models import Report
+
+    report = (
+        Report.objects.filter(pk=report_id)
+        .select_related("disease", "location", "reported_by", "status")
+        .first()
+    )
+    if not report:
+        return Response(
+            {"error": "Report not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    location_name = report.location.district_name
+    if report.location.area_name:
+        location_name = f"{location_name} - {report.location.area_name}"
+
+    return Response({
+        "id": report.id,
+        "disease_name": report.disease.disease_name,
+        "location_name": location_name,
+        "case_count": report.case_count,
+        "reported_by_email": report.reported_by.email if report.reported_by else None,
+        "observed_at": report.observed_at.isoformat() if report.observed_at else None,
+        "submitted_at": report.submitted_at.isoformat() if report.submitted_at else None,
+        "report_source": report.report_source or None,
+        "status_name": report.status.status_name if report.status else None,
+        "status_id": report.status_id,
+        "sex": report.sex or None,
+        "age_group": report.age_group or None,
+        "severity_level": report.severity_level or None,
+        "case_notes": report.case_notes or "",
+    })
+
+
+@api_view(["POST"])
+def dashboard_report_update_status(request, report_id):
+    """
+    Update a report's status (Verify, Duplicate, Invalid, Pending).
+    Officer and Admin roles only.
+    """
+    access_check = check_officer_access(request.user)
+    if access_check:
+        return access_check
+
+    from disease_surveillance_dashboard.reporting.models import Report
+    from disease_surveillance_dashboard.reporting.models import ReportStatus
+
+    report = Report.objects.filter(pk=report_id).select_related("status").first()
+    if not report:
+        return Response(
+            {"error": "Report not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    status_id = request.data.get("status_id")
+    if not status_id:
+        return Response(
+            {"error": "status_id is required."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        new_status = ReportStatus.objects.get(pk=status_id)
+    except ReportStatus.DoesNotExist:
+        return Response(
+            {"error": "Invalid status_id."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    report.status = new_status
+    report.save()
+
+    return Response({
+        "success": True,
+        "message": f"Report status updated to {new_status.status_name}.",
+        "status_name": new_status.status_name,
+        "status_id": new_status.id,
+    })

@@ -1,0 +1,470 @@
+{% extends "dashboard/_layout.html" %}
+{% load static i18n %}
+
+{% block title %}Review Reports — Disease Surveillance Dashboard{% endblock %}
+{% block topbar_title %}Review Reports{% endblock %}
+
+{% block page_css %}
+<link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}" />
+{% endblock %}
+
+{% block page_js %}
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js"></script>
+{% endblock %}
+
+{% block page_content %}
+<div x-data="reviewReportsData()" x-init="init()">
+  {% csrf_token %}
+
+  <div class="ds-page-header">
+    <h1 class="ds-page-title">Review Reports</h1>
+    <p class="ds-page-subtitle">Verify and validate submitted disease reports</p>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-2">
+          <label class="form-label small">Status</label>
+          <select class="form-select form-select-sm" x-model="filters.status" @change="loadReports()">
+            <option value="">All</option>
+            <option value="pending">Pending Review</option>
+            <option value="Verified">Verified</option>
+            <option value="Duplicate">Duplicate</option>
+            <option value="Invalid">Invalid</option>
+            <option value="DRAFT">Draft</option>
+            <option value="SUBMITTED">Submitted</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small">Disease</label>
+          <select class="form-select form-select-sm" x-model="filters.disease_id" @change="loadReports()">
+            <option value="">All</option>
+            <template x-for="d in diseases" :key="d.id">
+              <option :value="d.id" x-text="d.disease_name"></option>
+            </template>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small">Location</label>
+          <select class="form-select form-select-sm" x-model="filters.location_id" @change="loadReports()">
+            <option value="">All</option>
+            <template x-for="loc in locations" :key="loc.id">
+              <option :value="loc.id" x-text="loc.district_name"></option>
+            </template>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small">Start Date</label>
+          <input type="date" class="form-control form-control-sm" x-model="filters.start_date" @change="loadReports()">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small">End Date</label>
+          <input type="date" class="form-control form-control-sm" x-model="filters.end_date" @change="loadReports()">
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+          <button type="button" class="btn btn-secondary btn-sm" @click="loadReports()">
+            <i class="bi bi-arrow-clockwise" aria-hidden="true"></i> Refresh
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="alert alert-success alert-dismissible fade show py-2 small" x-show="successMessage" x-transition>
+    <span x-text="successMessage"></span>
+    <button type="button" class="btn-close btn-close-sm" @click="successMessage = ''"></button>
+  </div>
+  <div class="alert alert-danger py-2 small" x-show="errorMessage" x-text="errorMessage"></div>
+
+  <div class="card">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Disease</th>
+              <th>Location</th>
+              <th>Cases</th>
+              <th>Reported By</th>
+              <th>Observed</th>
+              <th>Submitted</th>
+              <th>Status</th>
+              <th class="text-end">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="r in reports" :key="r.id">
+              <tr>
+                <td class="text-muted" x-text="r.id"></td>
+                <td x-text="r.disease_name"></td>
+                <td x-text="r.location_name"></td>
+                <td x-text="r.case_count"></td>
+                <td x-text="r.reported_by_email || '—'"></td>
+                <td x-text="formatDate(r.observed_at)"></td>
+                <td x-text="formatDate(r.submitted_at)"></td>
+                <td>
+                  <span class="badge" :class="getStatusClass(r.status_name)" x-text="r.status_name"></span>
+                </td>
+                <td class="text-end">
+                  <button type="button" class="btn btn-sm btn-primary me-1" @click="openDetails(r)" title="View full report details">
+                    <i class="bi bi-eye" aria-hidden="true"></i>
+                  </button>
+                  <button type="button" class="btn btn-sm btn-success me-1" @click="confirmStatus(r, 'Verified')" title="Confirm this report is accurate and not a duplicate">
+                    <i class="bi bi-check-circle" aria-hidden="true"></i>
+                  </button>
+                  <button type="button" class="btn btn-sm btn-warning text-dark me-1" @click="confirmStatus(r, 'Duplicate')" title="Mark as duplicate of another report">
+                    <i class="bi bi-copy" aria-hidden="true"></i>
+                  </button>
+                  <button type="button" class="btn btn-sm btn-danger me-1" @click="confirmStatus(r, 'Invalid')" title="Mark as invalid or erroneous">
+                    <i class="bi bi-x-circle" aria-hidden="true"></i>
+                  </button>
+                  <button type="button" class="btn btn-sm btn-secondary" @click="setStatus(r, 'Pending Review')" title="Mark for review later">
+                    <i class="bi bi-clock" aria-hidden="true"></i>
+                  </button>
+                </td>
+              </tr>
+            </template>
+            <tr x-show="loading">
+              <td colspan="9" class="text-center py-4">
+                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                Loading...
+              </td>
+            </tr>
+            <tr x-show="!loading && reports.length === 0">
+              <td colspan="9" class="text-center text-muted py-4">
+                <i class="bi bi-inbox d-block mb-1" style="font-size:1.5rem;opacity:0.3;"></i>
+                No reports found
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card-footer d-flex justify-content-between align-items-center">
+      <span class="small text-muted" x-text="'Showing ' + reports.length + ' of ' + totalCount + ' reports'"></span>
+      <div class="btn-group btn-group-sm">
+        <button type="button" class="btn btn-outline-secondary" :disabled="page <= 1" @click="page--; loadReports()">Previous</button>
+        <button type="button" class="btn btn-outline-secondary" :disabled="page * pageSize >= totalCount" @click="page++; loadReports()">Next</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="reportDetailsModal" tabindex="-1" aria-labelledby="reportDetailsModalLabel" aria-hidden="true"
+       x-ref="detailsModal"
+       @hidden.bs.modal="detailReport = null; detailsError = ''"
+       @keydown.escape.window="closeDetailsModal()">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="reportDetailsModalLabel">
+            <span x-show="!detailReport">Report Details</span>
+            <span x-show="detailReport">Report Details – ID #<span x-text="detailReport ? detailReport.id : ''"></span></span>
+          </h5>
+          <button type="button" class="btn-close" aria-label="Close" @click="closeDetailsModal()"></button>
+        </div>
+        <div class="modal-body">
+          <div x-show="detailsLoading" class="text-center py-5">
+            <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+            Loading report details...
+          </div>
+          <div x-show="detailsError && !detailsLoading" class="alert alert-danger py-2" x-text="detailsError"></div>
+          <template x-if="detailReport && !detailsLoading">
+            <div>
+              <div class="mb-3">
+                <h6 class="text-muted small text-uppercase mb-2">Report summary</h6>
+                <div class="row g-2 small">
+                  <div class="col-md-4"><strong>Disease:</strong> <span x-text="detailReport.disease_name"></span></div>
+                  <div class="col-md-4"><strong>Location:</strong> <span x-text="detailReport.location_name"></span></div>
+                  <div class="col-md-4"><strong>Cases:</strong> <span x-text="detailReport.case_count"></span></div>
+                  <div class="col-md-4"><strong>Reported by:</strong> <span x-text="detailReport.reported_by_email || '—'"></span></div>
+                  <div class="col-md-4"><strong>Observed:</strong> <span x-text="formatDateTime(detailReport.observed_at)"></span></div>
+                  <div class="col-md-4"><strong>Submitted:</strong> <span x-text="formatDateTime(detailReport.submitted_at)"></span></div>
+                  <div class="col-md-4" x-show="detailReport.report_source"><strong>Report source:</strong> <span x-text="detailReport.report_source"></span></div>
+                  <div class="col-md-4"><strong>Status:</strong> <span class="badge" :class="getStatusClass(detailReport.status_name)" x-text="detailReport.status_name"></span></div>
+                </div>
+              </div>
+              <div class="mb-3" x-show="detailReport.sex || detailReport.age_group || detailReport.severity_level">
+                <h6 class="text-muted small text-uppercase mb-2">Epidemiological data</h6>
+                <div class="row g-2 small">
+                  <div class="col-md-4" x-show="detailReport.sex"><strong>Sex:</strong> <span x-text="detailReport.sex"></span></div>
+                  <div class="col-md-4" x-show="detailReport.age_group"><strong>Age group:</strong> <span x-text="detailReport.age_group"></span></div>
+                  <div class="col-md-4" x-show="detailReport.severity_level"><strong>Severity:</strong> <span x-text="detailReport.severity_level"></span></div>
+                </div>
+              </div>
+              <div class="mb-0" x-show="detailReport.case_notes">
+                <h6 class="text-muted small text-uppercase mb-2">Additional information</h6>
+                <div class="small bg-light rounded p-2" style="white-space: pre-wrap;" x-text="detailReport.case_notes"></div>
+              </div>
+            </div>
+          </template>
+        </div>
+        <div class="modal-footer" x-show="detailReport && !detailsLoading">
+          <button type="button" class="btn btn-success" @click="setStatusFromModal('Verified')">
+            <i class="bi bi-check-circle me-1" aria-hidden="true"></i>Verify
+          </button>
+          <button type="button" class="btn btn-warning text-dark" @click="setStatusFromModal('Duplicate')">
+            <i class="bi bi-copy me-1" aria-hidden="true"></i>Mark as Duplicate
+          </button>
+          <button type="button" class="btn btn-danger" @click="setStatusFromModal('Invalid')">
+            <i class="bi bi-x-circle me-1" aria-hidden="true"></i>Mark as Invalid
+          </button>
+          <button type="button" class="btn btn-secondary" @click="closeDetailsModal()">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="confirmStatusModal" tabindex="-1" x-ref="confirmModal">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Confirm Status Change</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p x-show="confirmTarget">
+            Are you sure you want to mark report #<span x-text="confirmTarget ? confirmTarget.id : ''"></span> as <strong x-text="confirmStatusName"></strong>?
+          </p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" @click="applyConfirmStatus()" data-bs-dismiss="modal">Confirm</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function reviewReportsData() {
+  return {
+    reports: [],
+    diseases: [],
+    locations: [],
+    statuses: [],
+    filters: {
+      status: '',
+      disease_id: '',
+      location_id: '',
+      start_date: '',
+      end_date: ''
+    },
+    page: 1,
+    pageSize: 50,
+    totalCount: 0,
+    loading: false,
+    successMessage: '',
+    errorMessage: '',
+    confirmTarget: null,
+    confirmStatusName: '',
+    detailReport: null,
+    detailsLoading: false,
+    detailsError: '',
+
+    async init() {
+      await Promise.all([this.loadDiseases(), this.loadLocations()]);
+      await this.loadReports();
+    },
+
+    getCsrfToken() {
+      const fromCookie = (name) => {
+        let v = null;
+        if (document.cookie) {
+          document.cookie.split(';').forEach(c => {
+            const [n, val] = c.trim().split('=');
+            if (n === name) v = decodeURIComponent(val);
+          });
+        }
+        return v;
+      };
+      return fromCookie('csrftoken') || (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value || '';
+    },
+
+    async loadDiseases() {
+      try {
+        const r = await fetch('/api/v1/diseases/', { credentials: 'same-origin', headers: { 'X-CSRFToken': this.getCsrfToken() } });
+        const d = await r.json();
+        this.diseases = Array.isArray(d) ? d : (d.results || []);
+      } catch (e) { console.error(e); }
+    },
+
+    async loadLocations() {
+      try {
+        const r = await fetch('/api/v1/locations/', { credentials: 'same-origin', headers: { 'X-CSRFToken': this.getCsrfToken() } });
+        const d = await r.json();
+        this.locations = Array.isArray(d) ? d : (d.results || []);
+      } catch (e) { console.error(e); }
+    },
+
+    buildParams() {
+      const p = new URLSearchParams();
+      p.append('page', this.page);
+      p.append('page_size', this.pageSize);
+      if (this.filters.status) p.append('status', this.filters.status);
+      if (this.filters.disease_id) p.append('disease_id', this.filters.disease_id);
+      if (this.filters.location_id) p.append('location_id', this.filters.location_id);
+      if (this.filters.start_date) p.append('start_date', this.filters.start_date);
+      if (this.filters.end_date) p.append('end_date', this.filters.end_date);
+      return p.toString();
+    },
+
+    async loadReports() {
+      this.loading = true;
+      this.errorMessage = '';
+      try {
+        const r = await fetch('/api/v1/dashboard/review-reports/?' + this.buildParams(), {
+          credentials: 'same-origin',
+          headers: { 'X-CSRFToken': this.getCsrfToken() }
+        });
+        const d = await r.json();
+        if (!r.ok) {
+          this.errorMessage = d.error || 'Failed to load reports';
+          this.reports = [];
+          return;
+        }
+        this.reports = d.results || [];
+        this.totalCount = d.count || 0;
+        if (d.statuses && d.statuses.length) this.statuses = d.statuses;
+      } catch (e) {
+        this.errorMessage = 'Network error loading reports';
+        this.reports = [];
+      }
+      this.loading = false;
+    },
+
+    getStatusClass(name) {
+      const m = { 'Pending Review': 'bg-warning text-dark', 'SUBMITTED': 'bg-warning text-dark', 'Verified': 'bg-success', 'Duplicate': 'bg-secondary', 'Invalid': 'bg-danger', 'DRAFT': 'bg-warning text-dark' };
+      return m[name] || 'bg-secondary';
+    },
+
+    formatDate(s) {
+      if (!s) return '—';
+      return new Date(s).toLocaleDateString();
+    },
+
+    formatDateTime(s) {
+      if (!s) return '—';
+      return new Date(s).toLocaleString();
+    },
+
+    async openDetails(report) {
+      this.detailReport = null;
+      this.detailsError = '';
+      this.detailsLoading = true;
+      const modalEl = this.$refs.detailsModal;
+      if (modalEl && typeof bootstrap !== 'undefined') {
+        const modal = new bootstrap.Modal(modalEl);
+        modal.show();
+      }
+      try {
+        const r = await fetch('/api/v1/dashboard/reports/' + report.id + '/details/', {
+          credentials: 'same-origin',
+          headers: { 'X-CSRFToken': this.getCsrfToken() }
+        });
+        const d = await r.json();
+        if (!r.ok) {
+          this.detailsError = d.error || 'Failed to load report details';
+          this.detailReport = null;
+        } else {
+          this.detailReport = d;
+          this.detailsError = '';
+        }
+      } catch (e) {
+        this.detailsError = 'Network error loading report details';
+        this.detailReport = null;
+      }
+      this.detailsLoading = false;
+    },
+
+    closeDetailsModal() {
+      this.detailReport = null;
+      this.detailsError = '';
+      const modalEl = this.$refs.detailsModal;
+      if (modalEl && typeof bootstrap !== 'undefined') {
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        if (modal) modal.hide();
+      }
+    },
+
+    async setStatusFromModal(statusName) {
+      if (!this.detailReport) return;
+      const report = { id: this.detailReport.id };
+      this.errorMessage = '';
+      const statusId = this.statusIdByName(statusName);
+      if (!statusId) {
+        this.errorMessage = 'Status "' + statusName + '" not found. Run migrations.';
+        return;
+      }
+      try {
+        const r = await fetch('/api/v1/dashboard/reports/' + report.id + '/update-status/', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCsrfToken() },
+          body: JSON.stringify({ status_id: statusId })
+        });
+        const d = await r.json();
+        if (!r.ok) {
+          this.errorMessage = d.error || 'Failed to update status';
+          return;
+        }
+        this.successMessage = d.message || 'Status updated.';
+        setTimeout(() => { this.successMessage = ''; }, 4000);
+        this.closeDetailsModal();
+        await this.loadReports();
+      } catch (e) {
+        this.errorMessage = 'Network error updating status';
+      }
+    },
+
+    confirmStatus(report, statusName) {
+      this.confirmTarget = report;
+      this.confirmStatusName = statusName;
+      const modal = new bootstrap.Modal(this.$refs.confirmModal);
+      modal.show();
+    },
+
+    async applyConfirmStatus() {
+      if (!this.confirmTarget) return;
+      await this.setStatus(this.confirmTarget, this.confirmStatusName);
+      this.confirmTarget = null;
+      this.confirmStatusName = '';
+    },
+
+    async setStatus(report, statusName) {
+      this.errorMessage = '';
+      const statusId = this.statusIdByName(statusName);
+      if (!statusId) {
+        this.errorMessage = 'Status "' + statusName + '" not found. Run migrations.';
+        return;
+      }
+      try {
+        const r = await fetch('/api/v1/dashboard/reports/' + report.id + '/update-status/', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCsrfToken() },
+          body: JSON.stringify({ status_id: statusId })
+        });
+        const d = await r.json();
+        if (!r.ok) {
+          this.errorMessage = d.error || 'Failed to update status';
+          return;
+        }
+        this.successMessage = d.message || 'Status updated.';
+        setTimeout(() => { this.successMessage = ''; }, 4000);
+        await this.loadReports();
+      } catch (e) {
+        this.errorMessage = 'Network error updating status';
+      }
+    },
+
+    statusIdByName(name) {
+      if (!this.statuses) return null;
+      const s = this.statuses.find(x => x.status_name === name);
+      return s ? s.id : null;
+    }
+  };
+}
+</script>
+{% endblock %}

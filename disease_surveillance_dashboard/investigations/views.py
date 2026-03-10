@@ -18,20 +18,31 @@ class InvestigationTaskViewSet(viewsets.ModelViewSet):
         """Apply filters from query parameters."""
         queryset = super().get_queryset()
 
-        # Filter by task_status
+        # Show only OPEN and IN_PROGRESS when status=active
+        status_param = self.request.query_params.get("status")
+        if status_param == "active":
+            queryset = queryset.filter(
+                task_status__in=[
+                    InvestigationTask.TaskStatus.OPEN,
+                    InvestigationTask.TaskStatus.IN_PROGRESS,
+                ]
+            )
+
         task_status = self.request.query_params.get("task_status")
         if task_status:
             queryset = queryset.filter(task_status=task_status)
 
-        # Filter by assigned_to
         assigned_to = self.request.query_params.get("assigned_to")
         if assigned_to:
             queryset = queryset.filter(assigned_to_id=assigned_to)
 
-        # Filter by alert
         alert = self.request.query_params.get("alert")
         if alert:
             queryset = queryset.filter(alert_id=alert)
 
         return queryset
+
+    def perform_create(self, serializer):
+        """Set assigned_by to the current user when creating a task."""
+        serializer.save(assigned_by=self.request.user)
 

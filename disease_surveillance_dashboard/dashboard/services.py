@@ -74,7 +74,7 @@ def get_summary_metrics(start_date=None, end_date=None, disease_id=None, locatio
         observed_at__gte=end_date - timedelta(days=7),
     ).count()
 
-    # Active alerts (status in New/Acknowledged/Investigating)
+    # Active alerts (status in New/Acknowledged/Under Investigation)
     alert_filters = Q()
     if disease_id:
         alert_filters &= Q(disease_id=disease_id)
@@ -82,7 +82,7 @@ def get_summary_metrics(start_date=None, end_date=None, disease_id=None, locatio
         alert_filters &= Q(location_id=location_id)
 
     active_statuses = AlertStatus.objects.filter(
-        status_name__in=["New", "Acknowledged", "Investigating"],
+        status_name__in=["New", "Acknowledged", "Under Investigation"],
     )
     active_alerts = Alert.objects.filter(
         alert_filters,
@@ -325,6 +325,7 @@ def get_recent_alerts(limit=10, disease_id=None, location_id=None):
             "location_name": location_name,
             "severity_level": alert.severity_level,
             "status_name": alert.status.status_name,
+            "status_id": alert.status_id,
             "created_at": alert.created_at.isoformat(),
         })
 

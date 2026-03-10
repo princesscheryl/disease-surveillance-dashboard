@@ -25,11 +25,11 @@
   <div class="card report-form-card">
     <div class="card-body p-4">
 
-      {# ---------------------------------------------------------------
-         Same two-button pattern as the create form.
-         name="action"  value="draft"  → stays DRAFT
-         name="action"  value="submit" → becomes SUBMITTED (read-only after)
-         --------------------------------------------------------------- #}
+      {% comment %}
+        Same two-button pattern as the create form.
+        name="action" value="draft" → stays DRAFT
+        name="action" value="submit" → becomes SUBMITTED (read-only after)
+      {% endcomment %}
       <form method="post" novalidate>
         {% csrf_token %}
 

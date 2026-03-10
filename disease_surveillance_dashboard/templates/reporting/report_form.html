@@ -17,10 +17,10 @@
   <div class="card report-form-card">
     <div class="card-body p-4">
 
-      {# ---------------------------------------------------------------
-         IMPORTANT — two submit buttons, distinguished by name="action".
-         The view reads  request.POST.get("action")  to decide the status.
-         --------------------------------------------------------------- #}
+      {% comment %}
+        IMPORTANT — two submit buttons, distinguished by name="action".
+        The view reads request.POST.get("action") to decide the status.
+      {% endcomment %}
       <form method="post" novalidate>
         {% csrf_token %}
 

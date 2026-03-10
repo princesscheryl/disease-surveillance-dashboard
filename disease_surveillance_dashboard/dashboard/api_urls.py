@@ -2,6 +2,13 @@
 
 from django.urls import path
 
+from .api import dashboard_alert_details
+from .api import dashboard_alert_statuses
+from .api import dashboard_alert_update_status
+from .api import dashboard_assignable_users
+from .api import dashboard_report_details
+from .api import dashboard_report_update_status
+from .api import dashboard_review_reports
 from .api import dashboard_anomalies
 from .api import dashboard_choropleth_data
 from .api import dashboard_cases_timeseries
@@ -29,6 +36,13 @@ urlpatterns = [
     path("map-points/",             dashboard_map_points,            name="map-points"),
     path("recent-alerts/",          dashboard_recent_alerts,         name="recent-alerts"),
     path("recent-investigations/",  dashboard_recent_investigations, name="recent-investigations"),
+    path("assignable-users/",       dashboard_assignable_users,      name="assignable-users"),
+    path("alert-statuses/",        dashboard_alert_statuses,         name="alert-statuses"),
+    path("alerts/<int:alert_id>/details/", dashboard_alert_details, name="alert-details"),
+    path("alerts/<int:alert_id>/update-status/", dashboard_alert_update_status, name="alert-update-status"),
+    path("review-reports/",         dashboard_review_reports,        name="review-reports"),
+    path("reports/<int:report_id>/details/", dashboard_report_details, name="report-details"),
+    path("reports/<int:report_id>/update-status/", dashboard_report_update_status, name="report-update-status"),
     path("evaluate/",               dashboard_evaluate,              name="evaluate"),
     # New epidemiological analytics endpoints
     path("situation-overview/",     dashboard_situation_overview,    name="situation-overview"),

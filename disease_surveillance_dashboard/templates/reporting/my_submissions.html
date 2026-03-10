@@ -47,14 +47,22 @@
               <td class="text-muted" style="font-size:.8rem;">{{ report.submitted_at|date:"d M Y H:i" }}</td>
               <td>
                 {% if report.is_draft %}
-                  {# DRAFT badge — amber, clickable edit shortcut #}
                   <span class="badge bg-warning text-dark">
                     <i class="bi bi-pencil-square me-1" aria-hidden="true"></i>Draft
                   </span>
-                {% else %}
-                  {# SUBMITTED badge — green, locked #}
+                {% elif report.status.status_name == "Verified" %}
                   <span class="badge bg-success">
-                    <i class="bi bi-check-circle me-1" aria-hidden="true"></i>Submitted
+                    <i class="bi bi-check-circle me-1" aria-hidden="true"></i>Verified
+                  </span>
+                {% elif report.status.status_name == "Duplicate" %}
+                  <span class="badge bg-secondary">Duplicate</span>
+                {% elif report.status.status_name == "Invalid" %}
+                  <span class="badge bg-danger">Invalid</span>
+                {% elif report.status.status_name == "Pending Review" %}
+                  <span class="badge bg-warning text-dark">Pending Review</span>
+                {% else %}
+                  <span class="badge bg-info text-dark">
+                    <i class="bi bi-clock me-1" aria-hidden="true"></i>{{ report.status.status_name }}
                   </span>
                 {% endif %}
               </td>

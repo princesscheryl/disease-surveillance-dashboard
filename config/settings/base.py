@@ -192,6 +192,7 @@ TEMPLATES = [
                 "django.template.context_processors.tz",
                 "django.contrib.messages.context_processors.messages",
                 "disease_surveillance_dashboard.users.context_processors.allauth_settings",
+                "disease_surveillance_dashboard.dashboard.context_processors.user_role",
             ],
         },
     },
@@ -300,6 +301,13 @@ CELERY_TASK_TIME_LIMIT = 5 * 60
 CELERY_TASK_SOFT_TIME_LIMIT = 60
 # https://docs.celeryq.dev/en/stable/userguide/configuration.html#beat-scheduler
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
+# Run outbreak alert generation every 30 minutes.
+CELERY_BEAT_SCHEDULE = {
+    "generate-outbreak-alerts-every-30min": {
+        "task": "generate-outbreak-alerts-every-30min",
+        "schedule": 30 * 60,  # seconds
+    },
+}
 # https://docs.celeryq.dev/en/stable/userguide/configuration.html#worker-send-task-events
 CELERY_WORKER_SEND_TASK_EVENTS = True
 # https://docs.celeryq.dev/en/stable/userguide/configuration.html#std-setting-task_send_sent_event

@@ -11,6 +11,21 @@
 {% endcomment %}
 <script>
 
+function getCookie(name) {
+  let cookieValue = null;
+  if (document.cookie && document.cookie !== '') {
+    const cookies = document.cookie.split(';');
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i].trim();
+      if (cookie.substring(0, name.length + 1) === (name + '=')) {
+        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+        break;
+      }
+    }
+  }
+  return cookieValue;
+}
+
 function dashboardData() {
   return {
     /* ── Existing data state ──────────────────────────────── */
@@ -30,7 +45,31 @@ function dashboardData() {
       diseaseId:  '',
       locationId: ''
     },
-    canEvaluate: false,
+    assignableUsers: [],
+    investigateModalOpen: false,
+    investigateSelectedAlert: null,
+    createTaskForm: { assigned_to: '', due_at: '', notes: '' },
+    createTaskError: '',
+    createTaskSubmitting: false,
+    createTaskSuccessMessage: '',
+
+    /* Alert status update state */
+    alertStatuses: [],
+    alertStatusUpdating: null,
+    alertStatusSuccessMessage: '',
+    statusUpdateModalOpen: false,
+    statusUpdateAlert: null,
+    statusUpdateTargetStatus: '',
+    statusUpdateNotes: '',
+    statusUpdateSubmitting: false,
+    statusUpdateError: '',
+
+    /* Alert details modal (View Details) */
+    alertDetailsModalOpen: false,
+    alertDetailsSelected: null,
+    alertDetailsData: null,
+    alertDetailsLoading: false,
+    alertDetailsError: null,
 
     /* ── New data state ───────────────────────────────────── */
     situationOverview:  {},
@@ -62,17 +101,41 @@ function dashboardData() {
        skipped so a single bad instance cannot spam the console. */
     _chartCrashed: {},
 
+    /* ── Page detection ───────────────────────────────────── */
+    /* Live Map has #map but no #choropleth-map; Analytics has #choropleth-map.
+       Alerts page has #createInvestigationModal for task creation. */
+    isMapPage:      false,
+    isAnalyticsPage: false,
+    isAlertsPage:    false,
+
     /* ================================================================
        INIT
     ================================================================ */
     async init() {
-      if (typeof echarts === 'undefined') {
+      /* Detect which dashboard page we're on. */
+      const mapEl = document.getElementById('map');
+      const choroplethEl = document.getElementById('choropleth-map');
+      const alertsMarker = document.querySelector('.alerts-page-marker');
+      this.isMapPage = !!mapEl && !choroplethEl;
+      this.isAnalyticsPage = !!choroplethEl;
+      this.isAlertsPage = !!alertsMarker;
+
+      /* ECharts warning only on Analytics page (the only page that needs charts). */
+      if (this.isAnalyticsPage && typeof echarts === 'undefined') {
         console.error('[Dashboard] ECharts not loaded — charts will not render');
       }
       try {
         await this.loadDiseases();
         await this.loadLocations();
-        await this.checkEvaluatePermission();
+        if (this.isAlertsPage) {
+          await this.loadAssignableUsers();
+          await this.loadAlertStatuses();
+          const params = this.buildQueryParams ? this.buildQueryParams() : '';
+          await this.loadRecentAlerts(params);
+          await this.loadInvestigationTasksFromApi();
+          this._loading = false;
+          return;
+        }
         /* Choropleth map lives on the Analytics page; create it before loadData
            so loadChoroplethData() can attach the GeoJSON layer when the data arrives. */
         this.initChoroplethMap();
@@ -132,8 +195,321 @@ function dashboardData() {
       } catch (e) { console.error('Error loading locations:', e); }
     },
 
-    async checkEvaluatePermission() {
-      this.canEvaluate = true;
+    async loadAssignableUsers() {
+      try {
+        const r = await fetch('/api/v1/dashboard/assignable-users/', {
+          credentials: 'include',
+          headers: { 'X-CSRFToken': this.getCsrfToken() }
+        });
+        if (r.ok) {
+          const data = await r.json();
+          this.assignableUsers = Array.isArray(data) ? data : [];
+        }
+      } catch (e) { console.error('Error loading assignable users:', e); }
+    },
+
+    async loadAlertStatuses() {
+      try {
+        const r = await fetch('/api/v1/dashboard/alert-statuses/', {
+          credentials: 'include',
+          headers: { 'X-CSRFToken': this.getCsrfToken() }
+        });
+        if (r.ok) {
+          const data = await r.json();
+          this.alertStatuses = Array.isArray(data) ? data : [];
+        }
+      } catch (e) { console.error('Error loading alert statuses:', e); }
+    },
+
+    getStatusIdByName(name) {
+      const s = (this.alertStatuses || []).find(x => (x.status_name || '').toLowerCase() === (name || '').toLowerCase());
+      return s ? s.id : null;
+    },
+
+    getAlertStatusClass(statusName) {
+      const map = {
+        'New': 'bg-danger',
+        'Acknowledged': 'bg-primary',
+        'Under Investigation': 'bg-warning',
+        'Resolved': 'bg-success',
+        'False Alarm': 'bg-secondary'
+      };
+      return map[statusName] || 'bg-secondary';
+    },
+
+    getReportStatusClass(statusName) {
+      const name = (statusName || '').toLowerCase();
+      if (name.includes('pending') || name.includes('review')) return 'bg-warning';
+      if (name.includes('verified')) return 'bg-success';
+      if (name.includes('duplicate') || name.includes('invalid')) return 'bg-secondary';
+      return 'bg-secondary';
+    },
+
+    async updateAlertStatusDirect(alert, statusName) {
+      if (!alert || !statusName) return;
+      const statusId = this.getStatusIdByName(statusName);
+      if (!statusId) {
+        console.error('Unknown status:', statusName);
+        return;
+      }
+      this.alertStatusUpdating = alert.id;
+      try {
+        const r = await fetch(`/api/v1/dashboard/alerts/${alert.id}/update-status/`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': this.getCsrfToken()
+          },
+          body: JSON.stringify({ status_id: statusId })
+        });
+        const data = r.ok ? await r.json().catch(() => ({})) : await r.json().catch(() => ({}));
+        if (r.ok && data.success) {
+          this.alertStatusSuccessMessage = `Alert status updated to ${data.status_name}.`;
+          setTimeout(() => { this.alertStatusSuccessMessage = ''; }, 4000);
+          const params = this.buildQueryParams ? this.buildQueryParams() : '';
+          await this.loadRecentAlerts(params);
+          if (this.alertDetailsModalOpen && this.alertDetailsData && this.alertDetailsData.id === alert.id) {
+            const detailsRes = await fetch(`/api/v1/dashboard/alerts/${alert.id}/details/`, {
+              credentials: 'include',
+              headers: { 'X-CSRFToken': this.getCsrfToken() }
+            });
+            if (detailsRes.ok) this.alertDetailsData = await detailsRes.json();
+          }
+        } else {
+          this.alertStatusSuccessMessage = data.error || 'Failed to update status.';
+          setTimeout(() => { this.alertStatusSuccessMessage = ''; }, 4000);
+        }
+      } catch (err) {
+        console.error('Error updating alert status:', err);
+        this.alertStatusSuccessMessage = 'Network or server error. Please try again.';
+        setTimeout(() => { this.alertStatusSuccessMessage = ''; }, 4000);
+      }
+      this.alertStatusUpdating = null;
+    },
+
+    openStatusUpdateModal(alert, targetStatus) {
+      this.statusUpdateAlert = alert;
+      this.statusUpdateTargetStatus = targetStatus;
+      this.statusUpdateNotes = '';
+      this.statusUpdateError = '';
+      this.statusUpdateSubmitting = false;
+      this.statusUpdateModalOpen = true;
+      this.$nextTick(() => {
+        const el = this.$refs && this.$refs.statusUpdateModal;
+        if (el && typeof bootstrap !== 'undefined') {
+          const modal = new bootstrap.Modal(el);
+          modal.show();
+        }
+      });
+    },
+
+    closeStatusUpdateModal() {
+      this.statusUpdateModalOpen = false;
+      this.statusUpdateAlert = null;
+      this.statusUpdateTargetStatus = '';
+      this.statusUpdateNotes = '';
+      this.statusUpdateError = '';
+      const el = this.$refs && this.$refs.statusUpdateModal;
+      if (el && typeof bootstrap !== 'undefined') {
+        const modal = bootstrap.Modal.getInstance(el);
+        if (modal) modal.hide();
+      }
+    },
+
+    async openAlertDetailsModal(alert) {
+      this.alertDetailsSelected = alert;
+      this.alertDetailsData = null;
+      this.alertDetailsLoading = true;
+      this.alertDetailsError = null;
+      this.alertDetailsModalOpen = true;
+      this.$nextTick(() => {
+        const el = this.$refs && this.$refs.alertDetailsModal;
+        if (el && typeof bootstrap !== 'undefined') {
+          const modal = new bootstrap.Modal(el);
+          modal.show();
+        }
+      });
+      try {
+        const r = await fetch(`/api/v1/dashboard/alerts/${alert.id}/details/`, {
+          credentials: 'include',
+          headers: { 'X-CSRFToken': this.getCsrfToken() }
+        });
+        if (!r.ok) throw new Error('Failed to load alert details');
+        const data = await r.json();
+        this.alertDetailsData = data;
+      } catch (err) {
+        console.error('Error loading alert details:', err);
+        this.alertDetailsError = err.message || 'Failed to load alert details';
+      }
+      this.alertDetailsLoading = false;
+    },
+
+    closeAlertDetailsModal() {
+      this.alertDetailsModalOpen = false;
+      this.alertDetailsSelected = null;
+      this.alertDetailsData = null;
+      this.alertDetailsError = null;
+      const el = this.$refs && this.$refs.alertDetailsModal;
+      if (el && typeof bootstrap !== 'undefined') {
+        const modal = bootstrap.Modal.getInstance(el);
+        if (modal) modal.hide();
+      }
+    },
+
+    getStatusSlug(statusName) {
+      if (!statusName) return 'new';
+      return String(statusName).toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    },
+
+    formatDateTime(isoString) {
+      if (!isoString) return '—';
+      const d = new Date(isoString);
+      return d.toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' });
+    },
+
+    async submitStatusUpdate() {
+      if (!this.statusUpdateAlert || !this.statusUpdateTargetStatus) return;
+      const statusId = this.getStatusIdByName(this.statusUpdateTargetStatus);
+      if (!statusId) {
+        this.statusUpdateError = 'Invalid status.';
+        return;
+      }
+      this.statusUpdateError = '';
+      this.statusUpdateSubmitting = true;
+      try {
+        const payload = {
+          status_id: statusId,
+          notes: (this.statusUpdateNotes || '').trim() || undefined
+        };
+        const r = await fetch(`/api/v1/dashboard/alerts/${this.statusUpdateAlert.id}/update-status/`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': this.getCsrfToken()
+          },
+          body: JSON.stringify(payload)
+        });
+        const data = r.ok ? await r.json().catch(() => ({})) : await r.json().catch(() => ({}));
+        if (r.ok && data.success) {
+          const updatedAlertId = this.statusUpdateAlert.id;
+          this.closeStatusUpdateModal();
+          this.alertStatusSuccessMessage = `Alert status updated to ${data.status_name}.`;
+          setTimeout(() => { this.alertStatusSuccessMessage = ''; }, 4000);
+          const params = this.buildQueryParams ? this.buildQueryParams() : '';
+          await this.loadRecentAlerts(params);
+          if (this.alertDetailsModalOpen && this.alertDetailsData && this.alertDetailsData.id === updatedAlertId) {
+            const detailsRes = await fetch(`/api/v1/dashboard/alerts/${updatedAlertId}/details/`, {
+              credentials: 'include',
+              headers: { 'X-CSRFToken': this.getCsrfToken() }
+            });
+            if (detailsRes.ok) this.alertDetailsData = await detailsRes.json();
+          }
+        } else {
+          this.statusUpdateError = data.error || 'Failed to update status.';
+        }
+      } catch (err) {
+        console.error('Error updating alert status:', err);
+        this.statusUpdateError = 'Network or server error. Please try again.';
+      }
+      this.statusUpdateSubmitting = false;
+    },
+
+    async loadInvestigationTasksFromApi() {
+      try {
+        const r = await fetch('/api/v1/investigations/tasks/?status=active', {
+          credentials: 'include',
+          headers: { 'X-CSRFToken': this.getCsrfToken() }
+        });
+        if (!r.ok) { this.recentInvestigations = []; return; }
+        const data = await r.json();
+        this.recentInvestigations = Array.isArray(data) ? data : (Array.isArray(data.results) ? data.results : []);
+      } catch (e) {
+        console.error('Error loading investigation tasks:', e);
+        this.recentInvestigations = [];
+      }
+    },
+
+    canInvestigate(alert) {
+      const name = alert && alert.status_name ? alert.status_name : '';
+      return name === 'New' || name === 'Under Investigation';
+    },
+
+    openInvestigateModal(alert) {
+      this.investigateSelectedAlert = alert;
+      this.createTaskForm = {
+        assigned_to: '',
+        due_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        notes: ''
+      };
+      this.createTaskError = '';
+      this.createTaskSubmitting = false;
+      this.investigateModalOpen = true;
+      this.$nextTick(() => {
+        const el = this.$refs && this.$refs.createInvestigationModal;
+        if (el && typeof bootstrap !== 'undefined') {
+          const modal = new bootstrap.Modal(el);
+          modal.show();
+        }
+      });
+    },
+
+    closeInvestigateModal() {
+      this.investigateModalOpen = false;
+      this.investigateSelectedAlert = null;
+      this.createTaskError = '';
+      const el = this.$refs && this.$refs.createInvestigationModal;
+      if (el && typeof bootstrap !== 'undefined') {
+        const modal = bootstrap.Modal.getInstance(el);
+        if (modal) modal.hide();
+      }
+    },
+
+    async submitCreateTask() {
+      if (!this.investigateSelectedAlert) return;
+      const assignedTo = this.createTaskForm.assigned_to && String(this.createTaskForm.assigned_to).trim();
+      const dueAt = this.createTaskForm.due_at && String(this.createTaskForm.due_at).trim();
+      if (!assignedTo || !dueAt) {
+        this.createTaskError = 'Assigned To and Due Date are required.';
+        return;
+      }
+      this.createTaskError = '';
+      this.createTaskSubmitting = true;
+      try {
+        const payload = {
+          alert: this.investigateSelectedAlert.id,
+          assigned_to: parseInt(assignedTo, 10),
+          due_at: new Date(dueAt + 'T12:00:00').toISOString(),
+          task_status: 'OPEN',
+          outcome: this.createTaskForm.notes ? String(this.createTaskForm.notes).trim() : null
+        };
+        const r = await fetch('/api/v1/investigations/tasks/', {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': this.getCsrfToken()
+          },
+          body: JSON.stringify(payload)
+        });
+        const data = r.ok ? await r.json().catch(() => ({})) : await r.json().catch(() => ({}));
+        if (r.ok) {
+          this.closeInvestigateModal();
+          this.createTaskSuccessMessage = 'Investigation task created.';
+          setTimeout(() => { this.createTaskSuccessMessage = ''; }, 4000);
+          await this.loadInvestigationTasksFromApi();
+          if (this.buildQueryParams) await this.loadRecentAlerts(this.buildQueryParams());
+          this.createTaskSubmitting = false;
+          return;
+        }
+        const err = data && (data.detail || (typeof data.assigned_to === 'string' ? data.assigned_to : (Array.isArray(data.assigned_to) ? data.assigned_to[0] : null)) || (Array.isArray(data.due_at) ? data.due_at[0] : data.due_at) || (Array.isArray(data.alert) ? data.alert[0] : data.alert));
+        this.createTaskError = err || (Array.isArray(data) ? data.map(e => e.detail || e).join(', ') : 'Failed to create task.');
+      } catch (err) {
+        console.error('Error creating investigation task:', err);
+        this.createTaskError = 'Network or server error. Please try again.';
+      }
+      this.createTaskSubmitting = false;
     },
 
     /* ================================================================
@@ -149,11 +525,11 @@ function dashboardData() {
     },
 
     getCsrfToken() {
-      for (const cookie of document.cookie.split(';')) {
-        const [name, value] = cookie.trim().split('=');
-        if (name === 'csrftoken') return value;
-      }
-      return '';
+      const fromCookie = getCookie('csrftoken');
+      if (fromCookie) return fromCookie;
+
+      const token = document.querySelector('[name=csrfmiddlewaretoken]');
+      return token ? token.value : '';
     },
 
     /* ================================================================
@@ -163,33 +539,39 @@ function dashboardData() {
        early rather than overwriting state with out-of-date results.
     ================================================================ */
     async loadData() {
+      if (this.isAlertsPage) return;
       const version = ++this._loadVersion;
       this._loading = true;
       const params = this.buildQueryParams();
 
-      await Promise.all([
-        /* Existing endpoints */
+      /* On the Live Map we only need map points and filters; skip charts, forecast, and anomaly. */
+      const promises = [
         this.loadSummary(params),
         this.loadTimeseries(params),
-        this.loadAnomalies(params),
-        this.loadForecast(params),
         this.loadTopDiseases(params),
         this.loadMapPoints(params),
         this.loadRecentAlerts(params),
-        this.loadRecentInvestigations(),
-        /* New endpoints */
-        this.loadSituationOverview(params),
-        this.loadDetectionMetrics(params),
-        this.loadDataQuality(params),
-        this.loadDistrictSummary(params),
-        this.loadChoroplethData(params),
-      ]);
+        this.isAlertsPage ? this.loadInvestigationTasksFromApi() : this.loadRecentInvestigations(),
+      ];
+      if (!this.isMapPage) {
+        promises.push(
+          this.loadAnomalies(params),
+          this.loadForecast(params),
+          this.loadSituationOverview(params),
+          this.loadDetectionMetrics(params),
+          this.loadDataQuality(params),
+          this.loadDistrictSummary(params),
+          this.loadChoroplethData(params),
+        );
+      }
+
+      await Promise.all(promises);
 
       if (version !== this._loadVersion) return;
       await this.$nextTick();
       if (version !== this._loadVersion) return;
 
-      this.updateCharts();
+      if (!this.isMapPage) this.updateCharts();
       this.updateMap();
       if (version === this._loadVersion) { this._loading = false; }
     },
@@ -537,6 +919,7 @@ function dashboardData() {
        series can never reach the ECharts renderer unchecked.
     ================================================================ */
     updateCharts() {
+      if (this.isAlertsPage) return;
       if (typeof echarts === 'undefined') {
         console.error('[Dashboard] ECharts not available');
         return;
@@ -907,26 +1290,50 @@ function dashboardData() {
 
     updateMap() {
       if (!this.map) return;
+      /* Clear existing point layers (pins or circles) so we can redraw from current data. */
       this.map.eachLayer(layer => {
-        if (layer instanceof L.Marker) this.map.removeLayer(layer);
+        if (layer instanceof L.Marker || layer instanceof L.CircleMarker) {
+          this.map.removeLayer(layer);
+        }
       });
       this.mapPoints.forEach(point => {
+        /* Skip points without valid coordinates so we don't break the map. */
+        const lat = point.latitude;
+        const lon = point.longitude;
+        if (lat == null || lon == null) return;
+
+        /* Make circles bigger when there are more cases; cap at 30px so they stay readable. */
+        const cases = Math.max(0, point.cases || 0);
+        const radius = Math.min(8 + cases * 0.5, 30);
+
+        /* Red for active alerts, green for regular cases (matches page legend). */
+        const fillColor = point.has_alert ? '#dc3545' : '#28a745';
+        const circle = L.circleMarker([lat, lon], {
+          radius,
+          fillColor,
+          color:       '#fff',
+          fillOpacity:  0.7,
+          weight:       2,
+        }).addTo(this.map);
+
+        /* Popup: district, area, cases, and a clear alert badge or "No Alert". */
+        const alertBadge = point.has_alert
+          ? `<span style="background:#dc3545;color:#fff;padding:2px 6px;border-radius:4px;font-size:11px;">
+             Active Alert</span>
+             ${point.alert_severity ? '<br>Severity: ' + point.alert_severity : ''}
+             ${point.alert_status ? ' · ' + point.alert_status : ''}`
+          : '<span style="background:#6c757d;color:#fff;padding:2px 6px;border-radius:4px;font-size:11px;">No Alert</span>';
         const popup = `<strong>${point.district_name}</strong>
           ${point.area_name ? '<br>' + point.area_name : ''}<br>
-          Cases: ${point.cases}<br>
-          ${point.has_alert
-            ? `<span style="background:#ef4444;color:#fff;padding:1px 6px;border-radius:4px;font-size:11px;">
-               Alert: ${point.alert_severity} (${point.alert_status})</span>`
-            : ''}`;
-        const marker = L.marker([point.latitude, point.longitude])
-          .addTo(this.map).bindPopup(popup);
-        if (point.has_alert) {
-          marker.setIcon(L.icon({
-            iconUrl:    'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
-            iconSize:   [25, 41],
-            iconAnchor: [12, 41]
-          }));
-        }
+          Cases: ${cases}<br>
+          ${alertBadge}`;
+        circle.bindPopup(popup);
+
+        /* Highlight on hover so the circle is easier to see. */
+        circle.on({
+          mouseover: function () { this.setStyle({ fillOpacity: 1, weight: 3 }); this.bringToFront(); },
+          mouseout:  function () { this.setStyle({ fillOpacity: 0.7, weight: 2 }); }
+        });
       });
     },
 
@@ -942,34 +1349,43 @@ function dashboardData() {
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
           attribution: '© OpenStreetMap contributors'
         }).addTo(this.choroplethMap);
+
+        /* Add a legend so users know what the colors mean. */
+        const legend = L.control({ position: 'bottomright' });
+        legend.onAdd = function () {
+          const div = document.createElement('div');
+          div.className = 'choropleth-legend';
+          div.style.cssText = [
+            'padding: 10px;',
+            'background: rgba(255,255,255,0.9);',
+            'border: 1px solid #ccc;',
+            'border-radius: 4px;',
+            'font-size: 12px;',
+            'line-height: 1.4;',
+            'color: #333;',
+          ].join(' ');
+          const items = [
+            { color: '#d73027', label: '200+' },
+            { color: '#fc8d59', label: '150-199' },
+            { color: '#fee08b', label: '100-149' },
+            { color: '#d9ef8b', label: '50-99' },
+            { color: '#91cf60', label: '20-49' },
+            { color: '#1a9850', label: '<20' },
+            { color: '#cccccc', label: 'No data' },
+          ];
+          let html = '<strong style="display:block;margin-bottom:6px;">Incidence per 100k</strong>';
+          items.forEach(function (item) {
+            html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">';
+            html += '<span style="width:20px;height:20px;flex-shrink:0;background:' + item.color + ';border:1px solid #999;"></span>';
+            html += '<span>' + item.label + '</span></div>';
+          });
+          div.innerHTML = html;
+          return div;
+        };
+        legend.addTo(this.choroplethMap);
       } catch (err) {
         console.error('[Dashboard] Error initializing choropleth map:', err);
         this.choroplethMap = null;
-      }
-    },
-
-    /* ================================================================
-       EARLY WARNING EVALUATION (unchanged)
-    ================================================================ */
-    async evaluateWarning() {
-      const trendMetricId = prompt('Enter trend metric ID to evaluate:');
-      if (!trendMetricId) return;
-      try {
-        const r = await fetch('/api/v1/dashboard/evaluate/', {
-          method: 'POST', credentials: 'include',
-          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCsrfToken() },
-          body: JSON.stringify({ trend_metric_id: parseInt(trendMetricId) })
-        });
-        const data = await r.json();
-        if (r.ok) {
-          alert(data.message + (data.alert_id ? ` (Alert ID: ${data.alert_id})` : ''));
-          await this.loadRecentAlerts(this.buildQueryParams());
-        } else {
-          alert('Error: ' + (data.error || 'Unknown error'));
-        }
-      } catch (err) {
-        console.error('Error evaluating warning:', err);
-        alert('Error evaluating early warning');
       }
     },
 

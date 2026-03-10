@@ -31,8 +31,18 @@ def user_has_role(user, role_names):
     return any(role_name in role_names for role_name in user_role_names)
 
 
-# Dashboard access allowed roles
-DASHBOARD_ALLOWED_ROLES = ["ADMIN", "HEALTH_OFFICER", "ANALYST", "VERIFIER"]
+# Dashboard access allowed roles. API endpoints accept any user with one of these.
+# Includes new role names and legacy names for backward compatibility.
+DASHBOARD_ALLOWED_ROLES = [
+    "Community Health Worker",
+    "Public Health Officer",
+    "System Administrator",
+    "CHW",
+    "HEALTH_OFFICER",
+    "ADMIN",
+    "ANALYST",
+    "VERIFIER",
+]
 
 
 def user_can_access_dashboard(user):

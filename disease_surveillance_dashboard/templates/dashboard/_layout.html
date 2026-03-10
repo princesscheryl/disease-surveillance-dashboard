@@ -1,10 +1,10 @@
 {% load static i18n %}{% get_current_language as LANGUAGE_CODE %}<!DOCTYPE html>
-{#
+{% comment %}
   templates/dashboard/_layout.html
   Self-contained dashboard shell. Does NOT extend base.html.
   Blocks available to child pages:
     title, topbar_title, page_css, page_js, page_content, inline_javascript
-#}
+{% endcomment %}
 <html lang="{{ LANGUAGE_CODE }}">
 <head>
   <meta charset="utf-8" />
@@ -62,10 +62,9 @@
     html.sidebar-collapsed-preload .ds-main    { margin-left: var(--t-sidebar-w-collapsed); }
   </style>
 
-  <!-- Bootstrap JS -->
+  <!-- Bootstrap JS (bundle includes Popper.js for dropdowns, tooltips, popovers) -->
   <script defer
-          src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.2.3/js/bootstrap.min.js"
-          integrity="sha512-1/RvZTcCDEUjY/CypiMz+iqqtaoQfAITmNSJY17Myp4Ms5mdxPS5UV7iOfdZoxcGhzFbOm6sntTKJppjvuhg4g=="
+          src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"
           crossorigin="anonymous"
           referrerpolicy="no-referrer"></script>
   <script defer src="{% static 'js/project.js' %}"></script>
@@ -96,9 +95,10 @@
       </div>
     </a>
 
-    <!-- Nav links -->
+    <!-- Nav links (role-based visibility) -->
     <nav class="ds-sidebar-nav">
 
+      {% if user_role == "Public Health Officer" or user_role == "System Administrator" or user_role == "HEALTH_OFFICER" or user_role == "ADMIN" or user_role == "ANALYST" or user_role == "VERIFIER" %}
       <div class="ds-nav-section">
         <div class="ds-nav-section-label">Monitoring</div>
 
@@ -142,8 +142,84 @@
           <span>Reports</span>
         </a>
 
-      </div>
+        <a href="{% url 'dashboard:review_reports' %}"
+           title="Review Reports"
+           class="ds-nav-link{% if request.resolver_match.url_name == 'review_reports' %} active{% endif %}"
+           {% if request.resolver_match.url_name == 'review_reports' %}aria-current="page"{% endif %}>
+          <i class="bi bi-clipboard2-check ds-nav-icon" aria-hidden="true"></i>
+          <span>Review Reports</span>
+        </a>
 
+      </div>
+      {% elif user_role == "Community Health Worker" or user_role == "CHW" %}
+      <div class="ds-nav-section">
+        <div class="ds-nav-section-label">Reports</div>
+
+        <a href="{% url 'dashboard:reports' %}"
+           title="Reports"
+           class="ds-nav-link{% if request.resolver_match.url_name == 'reports' %} active{% endif %}"
+           {% if request.resolver_match.url_name == 'reports' %}aria-current="page"{% endif %}>
+          <i class="bi bi-table ds-nav-icon" aria-hidden="true"></i>
+          <span>Reports</span>
+        </a>
+
+      </div>
+      {% elif user_role %}
+      <div class="ds-nav-section">
+        <div class="ds-nav-section-label">Monitoring</div>
+
+        <a href="{% url 'dashboard:overview' %}"
+           title="Overview"
+           class="ds-nav-link{% if request.resolver_match.url_name == 'overview' or request.resolver_match.url_name == 'dashboard' %} active{% endif %}"
+           {% if request.resolver_match.url_name == 'overview' or request.resolver_match.url_name == 'dashboard' %}aria-current="page"{% endif %}>
+          <i class="bi bi-grid-1x2-fill ds-nav-icon" aria-hidden="true"></i>
+          <span>Overview</span>
+        </a>
+
+        <a href="{% url 'dashboard:analytics' %}"
+           title="Analytics"
+           class="ds-nav-link{% if request.resolver_match.url_name == 'analytics' %} active{% endif %}"
+           {% if request.resolver_match.url_name == 'analytics' %}aria-current="page"{% endif %}>
+          <i class="bi bi-graph-up-arrow ds-nav-icon" aria-hidden="true"></i>
+          <span>Analytics</span>
+        </a>
+
+        <a href="{% url 'dashboard:live_map' %}"
+           title="Live Map"
+           class="ds-nav-link{% if request.resolver_match.url_name == 'live_map' %} active{% endif %}"
+           {% if request.resolver_match.url_name == 'live_map' %}aria-current="page"{% endif %}>
+          <i class="bi bi-geo-alt-fill ds-nav-icon" aria-hidden="true"></i>
+          <span>Live Map</span>
+        </a>
+
+        <a href="{% url 'dashboard:alerts' %}"
+           title="Alerts &amp; Investigations"
+           class="ds-nav-link{% if request.resolver_match.url_name == 'alerts' %} active{% endif %}"
+           {% if request.resolver_match.url_name == 'alerts' %}aria-current="page"{% endif %}>
+          <i class="bi bi-exclamation-triangle-fill ds-nav-icon" aria-hidden="true"></i>
+          <span>Alerts &amp; Investigations</span>
+        </a>
+
+        <a href="{% url 'dashboard:reports' %}"
+           title="Reports"
+           class="ds-nav-link{% if request.resolver_match.url_name == 'reports' %} active{% endif %}"
+           {% if request.resolver_match.url_name == 'reports' %}aria-current="page"{% endif %}>
+          <i class="bi bi-table ds-nav-icon" aria-hidden="true"></i>
+          <span>Reports</span>
+        </a>
+
+        <a href="{% url 'dashboard:review_reports' %}"
+           title="Review Reports"
+           class="ds-nav-link{% if request.resolver_match.url_name == 'review_reports' %} active{% endif %}"
+           {% if request.resolver_match.url_name == 'review_reports' %}aria-current="page"{% endif %}>
+          <i class="bi bi-clipboard2-check ds-nav-icon" aria-hidden="true"></i>
+          <span>Review Reports</span>
+        </a>
+
+      </div>
+      {% endif %}
+
+      {% if user_role %}
       <div class="ds-nav-section">
         <div class="ds-nav-section-label">Data Entry</div>
 
@@ -153,7 +229,28 @@
           <i class="bi bi-plus-circle-fill ds-nav-icon" aria-hidden="true"></i>
           <span>Report Case</span>
         </a>
+
+        <a href="{% url 'reporting:my_submissions' %}"
+           title="My Submissions"
+           class="ds-nav-link">
+          <i class="bi bi-folder2-open ds-nav-icon" aria-hidden="true"></i>
+          <span>My Submissions</span>
+        </a>
       </div>
+      {% endif %}
+
+      {% if user_role == "System Administrator" or user_role == "ADMIN" %}
+      <div class="ds-nav-section">
+        <div class="ds-nav-section-label">Administration</div>
+
+        <a href="{% url 'admin:index' %}"
+           title="User Management"
+           class="ds-nav-link">
+          <i class="bi bi-people-fill ds-nav-icon" aria-hidden="true"></i>
+          <span>User Management</span>
+        </a>
+      </div>
+      {% endif %}
 
     </nav>
 

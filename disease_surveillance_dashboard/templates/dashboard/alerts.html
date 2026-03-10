@@ -6,6 +6,22 @@
 
 {% block page_css %}
 <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}" />
+<style>
+  /* Status timeline */
+  .alert-details-timeline { position: relative; padding: 10px 0; }
+  .alert-details-timeline .timeline-item { position: relative; padding-left: 28px; padding-bottom: 1rem; border-left: 2px solid #dee2e6; margin-left: 4px; }
+  .alert-details-timeline .timeline-item:last-child { border-left-color: transparent; padding-bottom: 0; }
+  .alert-details-timeline .timeline-dot { position: absolute; left: -7px; top: 2px; width: 10px; height: 10px; border-radius: 50%; }
+  .alert-details-timeline .timeline-dot.status-new { background: #dc3545; }
+  .alert-details-timeline .timeline-dot.status-acknowledged { background: #0d6efd; }
+  .alert-details-timeline .timeline-dot.status-under-investigation { background: #fd7e14; }
+  .alert-details-timeline .timeline-dot.status-resolved { background: #28a745; }
+  .alert-details-timeline .timeline-dot.status-false-alarm { background: #6c757d; }
+  .alert-details-timeline .timeline-content .text-muted { font-size: 0.875rem; }
+  #alertDetailsModal .modal-body { max-height: 80vh; overflow-y: auto; }
+  #alertDetailsModal .alert-details-section { border-bottom: 1px solid #dee2e6; padding-bottom: 1rem; margin-bottom: 1rem; }
+  #alertDetailsModal .alert-details-section:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+</style>
 {% endblock %}
 
 {% block page_js %}
@@ -14,6 +30,8 @@
 
 {% block page_content %}
 <div x-data="dashboardData()" x-init="init()">
+  <div class="alerts-page-marker" style="display:none;" aria-hidden="true"></div>
+  {% csrf_token %}
 
   <div class="ds-page-header">
     <h1 class="ds-page-title">Alerts &amp; Investigations</h1>
@@ -26,18 +44,17 @@
 
     {# Alerts table #}
     <div class="col-12 col-lg-6">
+      <div class="alert alert-success alert-dismissible fade show py-2 small mb-2"
+           x-show="alertStatusSuccessMessage"
+           x-transition
+           role="alert">
+        <span x-text="alertStatusSuccessMessage"></span>
+        <button type="button" class="btn-close btn-close-sm" aria-label="Close" @click="alertStatusSuccessMessage = ''"></button>
+      </div>
       <div class="card h-100">
-        <div class="card-header d-flex justify-content-between align-items-center">
-          <div class="d-flex align-items-center gap-2">
-            <i class="bi bi-exclamation-triangle-fill text-muted" aria-hidden="true"></i>
-            <h5 class="mb-0">Recent Alerts</h5>
-          </div>
-          <button class="btn btn-sm btn-primary d-flex align-items-center gap-1"
-                  @click="evaluateWarning()"
-                  x-show="canEvaluate">
-            <i class="bi bi-lightning-fill" aria-hidden="true"></i>
-            Evaluate
-          </button>
+        <div class="card-header d-flex align-items-center gap-2">
+          <i class="bi bi-exclamation-triangle-fill text-muted" aria-hidden="true"></i>
+          <h5 class="mb-0">Recent Alerts</h5>
         </div>
         <div class="card-body p-0">
           <div class="table-responsive">
@@ -49,6 +66,7 @@
                   <th>Severity</th>
                   <th>Status</th>
                   <th>Date</th>
+                  <th class="text-end">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -61,12 +79,79 @@
                             :class="getSeverityClass(alert.severity_level)"
                             x-text="alert.severity_level"></span>
                     </td>
-                    <td x-text="alert.status_name"></td>
+                    <td>
+                      <span class="badge"
+                            :class="getAlertStatusClass(alert.status_name)"
+                            x-text="alert.status_name"></span>
+                    </td>
                     <td x-text="formatDate(alert.created_at)"></td>
+                    <td class="text-end">
+                      <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle"
+                                type="button"
+                                :id="'alertActionsDropdown-' + alert.id"
+                                data-bs-toggle="dropdown"
+                                aria-expanded="false"
+                                :disabled="alertStatusUpdating === alert.id"
+                                style="width: fit-content;">
+                          <span x-show="alertStatusUpdating !== alert.id">Actions</span>
+                          <span x-show="alertStatusUpdating === alert.id">Updating...</span>
+                          <i class="bi bi-chevron-down ms-1" aria-hidden="true"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow">
+                          <li>
+                            <a class="dropdown-item" href="#" title="View full alert details and related reports" @click.prevent="openAlertDetailsModal(alert)">
+                              <i class="bi bi-eye me-2" aria-hidden="true"></i>View Details
+                            </a>
+                          </li>
+                          <li><hr class="dropdown-divider"></li>
+                          <li x-show="alert.status_name === 'New'">
+                            <a class="dropdown-item" href="#" title="Mark as seen - prevents auto-escalation" @click.prevent="updateAlertStatusDirect(alert, 'Acknowledged')">
+                              <i class="bi bi-check me-2" aria-hidden="true"></i>Acknowledge
+                            </a>
+                          </li>
+                          <li x-show="alert.status_name === 'New'">
+                            <a class="dropdown-item" href="#" title="Dismiss as not a real outbreak" @click.prevent="openStatusUpdateModal(alert, 'False Alarm')">
+                              <i class="bi bi-x-circle me-2" aria-hidden="true"></i>Mark as False Alarm
+                            </a>
+                          </li>
+                          <li x-show="alert.status_name === 'Acknowledged'">
+                            <a class="dropdown-item" href="#" title="Begin field investigation" @click.prevent="updateAlertStatusDirect(alert, 'Under Investigation')">
+                              <i class="bi bi-search me-2" aria-hidden="true"></i>Start Investigation
+                            </a>
+                          </li>
+                          <li x-show="alert.status_name === 'Acknowledged'">
+                            <a class="dropdown-item" href="#" title="Dismiss as not a real outbreak" @click.prevent="openStatusUpdateModal(alert, 'False Alarm')">
+                              <i class="bi bi-x-circle me-2" aria-hidden="true"></i>Mark as False Alarm
+                            </a>
+                          </li>
+                          <li x-show="alert.status_name === 'Under Investigation'">
+<a class="dropdown-item" href="#" title="Mark outbreak as handled" @click.prevent="openStatusUpdateModal(alert, 'Resolved')">
+                                <i class="bi bi-check-circle me-2" aria-hidden="true"></i>Mark Resolved
+                              </a>
+                          </li>
+                          <li x-show="alert.status_name === 'Under Investigation'">
+                            <a class="dropdown-item" href="#" title="Dismiss as not a real outbreak" @click.prevent="openStatusUpdateModal(alert, 'False Alarm')">
+                              <i class="bi bi-x-circle me-2" aria-hidden="true"></i>Mark as False Alarm
+                            </a>
+                          </li>
+                          <li x-show="alert.status_name === 'Resolved' || alert.status_name === 'False Alarm'">
+                            <a class="dropdown-item" href="#" title="Reopen resolved or dismissed alert" @click.prevent="updateAlertStatusDirect(alert, 'New')">
+                              <i class="bi bi-arrow-counterclockwise me-2" aria-hidden="true"></i>Reopen Alert
+                            </a>
+                          </li>
+                          <li>
+                            <a class="dropdown-item" href="#" title="Assign investigation to a team member" @click.prevent="openInvestigateModal(alert)">
+                              <i class="bi bi-clipboard me-2" aria-hidden="true"></i>Create Investigation Task
+                            </a>
+                          </li>
+                        </ul>
+                      </div>
+                    </td>
                   </tr>
                 </template>
                 <tr x-show="recentAlerts.length === 0">
-                  <td colspan="5" class="text-center text-muted py-4">
+                  <td colspan="6" class="text-center text-muted py-4">
                     <i class="bi bi-check-circle d-block mb-1" style="font-size:1.5rem;opacity:0.3;"></i>
                     No active alerts
                   </td>
@@ -80,6 +165,13 @@
 
     {# Investigations table #}
     <div class="col-12 col-lg-6">
+      <div class="alert alert-success alert-dismissible fade show py-2 small mb-0"
+           x-show="createTaskSuccessMessage"
+           x-transition
+           role="alert">
+        <span x-text="createTaskSuccessMessage"></span>
+        <button type="button" class="btn-close btn-close-sm" aria-label="Close" @click="createTaskSuccessMessage = ''"></button>
+      </div>
       <div class="card h-100">
         <div class="card-header d-flex align-items-center gap-2">
           <i class="bi bi-clipboard2-check-fill text-muted" aria-hidden="true"></i>
@@ -99,8 +191,8 @@
               <tbody>
                 <template x-for="task in recentInvestigations" :key="task.id">
                   <tr>
-                    <td x-text="task.alert_id"></td>
-                    <td x-text="task.assigned_to_name || 'Unassigned'"></td>
+                    <td x-text="task.alert_id || task.alert"></td>
+                    <td x-text="task.assigned_to_email || task.assigned_to_name || 'Unassigned'"></td>
                     <td>
                       <span class="badge bg-secondary" x-text="task.task_status"></span>
                     </td>
@@ -120,6 +212,274 @@
       </div>
     </div>
 
+  </div>
+
+  {# Alert details modal (full details from API) #}
+  <div class="modal fade"
+       id="alertDetailsModal"
+       tabindex="-1"
+       aria-labelledby="alertDetailsModalLabel"
+       aria-hidden="true"
+       x-ref="alertDetailsModal"
+       x-show="alertDetailsModalOpen"
+       @hidden.bs.modal="alertDetailsModalOpen = false; alertDetailsSelected = null; alertDetailsData = null; alertDetailsError = null"
+       @keydown.escape.window="closeAlertDetailsModal()">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="alertDetailsModalLabel">
+            <span x-show="alertDetailsData">Alert Details — #<span x-text="alertDetailsData?.id"></span> | <span x-text="alertDetailsData?.disease_name"></span> – <span x-text="alertDetailsData?.location_name"></span></span>
+            <span x-show="!alertDetailsData">Alert Details</span>
+          </h5>
+          <button type="button" class="btn-close" aria-label="Close" @click="closeAlertDetailsModal()"></button>
+        </div>
+        <div class="modal-body">
+          <div x-show="alertDetailsLoading" class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading</span></div>
+            <p class="mt-2 text-muted mb-0">Loading alert details...</p>
+          </div>
+          <div x-show="alertDetailsError" class="alert alert-danger">
+            <span x-text="alertDetailsError"></span>
+          </div>
+          <div x-show="alertDetailsData && !alertDetailsLoading">
+            {# All sections only rendered when data is loaded; use optional chaining for safety #}
+            <template x-if="alertDetailsData">
+              <div>
+                {# Section 1: Overview #}
+                <div class="alert-details-section">
+                  <h6 class="text-muted text-uppercase small mb-2">Overview</h6>
+                  <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+                    <span class="badge" :class="getSeverityClass(alertDetailsData?.severity_level)" x-text="alertDetailsData?.severity_level"></span>
+                    <span class="badge" :class="getAlertStatusClass(alertDetailsData?.status_name)" x-text="alertDetailsData?.status_name"></span>
+                  </div>
+                  <p class="mb-1 small"><strong>Created:</strong> <span x-text="formatDateTime(alertDetailsData?.created_at)"></span></p>
+                  <p class="mb-0 small"><strong>Period:</strong> <span x-text="formatDate(alertDetailsData?.period_start)"></span> to <span x-text="formatDate(alertDetailsData?.period_end)"></span></p>
+                </div>
+                {# Section 2: Detection metrics #}
+                <div class="alert-details-section">
+                  <h6 class="text-muted text-uppercase small mb-2">Detection metrics</h6>
+                  <p class="small mb-2"><strong>Detection method:</strong> <span x-text="alertDetailsData?.threshold_rule || '—'"></span></p>
+                  <p class="small mb-2"><strong>Baseline (expected):</strong> <span x-text="alertDetailsData?.baseline_value"></span> cases</p>
+                  <p class="small mb-2"><strong>Observed (actual):</strong> <span x-text="alertDetailsData?.observed_value"></span> cases</p>
+                  <p class="small mb-0">
+                    <strong>Comparison:</strong>
+                    <span x-show="alertDetailsData?.baseline_value > 0">Observed is <span x-text="alertDetailsData ? Math.round((alertDetailsData.observed_value / alertDetailsData.baseline_value) * 100) : ''"></span>% of baseline</span>
+                    <span x-show="alertDetailsData?.baseline_value == 0">Baseline was zero — this represents new cases</span>
+                  </p>
+                </div>
+                {# Section 3: Related reports #}
+                <div class="alert-details-section">
+                  <h6 class="text-muted text-uppercase small mb-2">Related reports (<span x-text="(alertDetailsData?.related_reports?.length ?? 0)"></span>)</h6>
+                  <template x-if="!(alertDetailsData?.related_reports && alertDetailsData.related_reports.length)">
+                    <p class="text-muted small mb-0">No reports found for this period.</p>
+                  </template>
+                  <template x-if="alertDetailsData?.related_reports && alertDetailsData.related_reports.length > 0">
+                    <div>
+                      <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-2">
+                          <thead><tr><th>ID</th><th>Cases</th><th>Observed date</th><th>Reported by</th><th>Status</th></tr></thead>
+                          <tbody>
+                            <template x-for="report in (alertDetailsData?.related_reports || [])" :key="report.id">
+                              <tr>
+                                <td><a :href="'{% url 'dashboard:review_reports' %}?report_id=' + report.id" x-text="report.id"></a></td>
+                                <td x-text="report.case_count"></td>
+                                <td x-text="formatDate(report.observed_at)"></td>
+                                <td x-text="report.reported_by_email || '—'"></td>
+                                <td><span class="badge" :class="getReportStatusClass(report.status_name)" x-text="report.status_name || '—'"></span></td>
+                              </tr>
+                            </template>
+                          </tbody>
+                        </table>
+                      </div>
+                      <p class="small mb-0" x-text="'Total: ' + (alertDetailsData?.related_reports_total_cases ?? 0) + ' cases from ' + (alertDetailsData?.related_reports?.length ?? 0) + ' reports'"></p>
+                    </div>
+                  </template>
+                </div>
+                {# Section 4: Status timeline #}
+                <div class="alert-details-section">
+                  <h6 class="text-muted text-uppercase small mb-2">Status history</h6>
+                  <div class="alert-details-timeline">
+                    <template x-for="(item, index) in (alertDetailsData?.status_history || [])" :key="index">
+                      <div class="timeline-item">
+                        <div class="timeline-dot" :class="'status-' + getStatusSlug(item.status_name)"></div>
+                        <div class="timeline-content">
+                          <strong x-text="item.status_name"></strong>
+                          <div class="text-muted" x-text="formatDateTime(item.at) + (item.actor ? ' • ' + item.actor : '')"></div>
+                        </div>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+                {# Section 5: Investigation tasks #}
+                <div class="alert-details-section">
+                  <h6 class="text-muted text-uppercase small mb-2">Investigation tasks (<span x-text="(alertDetailsData?.investigation_tasks?.length ?? 0)"></span>)</h6>
+                  <template x-if="!(alertDetailsData?.investigation_tasks && alertDetailsData.investigation_tasks.length)">
+                    <p class="text-muted small mb-0">No investigation tasks assigned.</p>
+                  </template>
+                  <template x-if="alertDetailsData?.investigation_tasks && alertDetailsData.investigation_tasks.length > 0">
+                    <ul class="list-unstyled mb-0">
+                      <template x-for="task in (alertDetailsData?.investigation_tasks || [])" :key="task.id">
+                        <li class="small mb-2">
+                          <strong x-text="task.assigned_to_email || 'Unassigned'"></strong>
+                          — <span class="badge bg-secondary" x-text="task.task_status"></span>
+                          <span x-show="task.due_at"> — Due <span x-text="formatDate(task.due_at)"></span></span>
+                        </li>
+                      </template>
+                    </ul>
+                  </template>
+                </div>
+                {# Section 6: Notes #}
+                <div class="alert-details-section">
+                  <h6 class="text-muted text-uppercase small mb-2">Notes (<span x-text="(alertDetailsData?.alert_notes?.length ?? 0)"></span>)</h6>
+                  <template x-if="!(alertDetailsData?.alert_notes && alertDetailsData.alert_notes.length)">
+                    <p class="text-muted small mb-0">No notes added.</p>
+                  </template>
+                  <template x-if="alertDetailsData?.alert_notes && alertDetailsData.alert_notes.length > 0">
+                    <ul class="list-unstyled mb-0">
+                      <template x-for="(note, idx) in (alertDetailsData?.alert_notes || [])" :key="idx">
+                        <li class="small mb-2">
+                          <span class="text-muted" x-text="formatDateTime(note.noted_at) + ' ' + (note.noted_by_email || '') + ': '"></span>
+                          <span x-text="note.note_text"></span>
+                        </li>
+                      </template>
+                    </ul>
+                  </template>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <div x-show="alertDetailsData && !alertDetailsLoading" class="d-flex flex-wrap gap-1 justify-content-start flex-grow-1">
+            <button type="button" class="btn btn-sm btn-primary" x-show="alertDetailsData?.status_name === 'New'" :disabled="alertStatusUpdating === alertDetailsData?.id" @click="updateAlertStatusDirect(alertDetailsData, 'Acknowledged')">Acknowledge</button>
+            <button type="button" class="btn btn-sm btn-warning" x-show="alertDetailsData?.status_name === 'Acknowledged'" :disabled="alertStatusUpdating === alertDetailsData?.id" @click="updateAlertStatusDirect(alertDetailsData, 'Under Investigation')">Start investigation</button>
+            <button type="button" class="btn btn-sm btn-secondary" x-show="alertDetailsData?.status_name === 'Acknowledged' || alertDetailsData?.status_name === 'New'" :disabled="alertStatusUpdating === alertDetailsData?.id" @click="openStatusUpdateModal(alertDetailsData, 'False Alarm')">Mark as False Alarm</button>
+            <button type="button" class="btn btn-sm btn-success" x-show="alertDetailsData?.status_name === 'Under Investigation'" :disabled="alertStatusUpdating === alertDetailsData?.id" @click="openStatusUpdateModal(alertDetailsData, 'Resolved')">Mark resolved</button>
+            <button type="button" class="btn btn-sm btn-secondary" x-show="alertDetailsData?.status_name === 'Under Investigation'" :disabled="alertStatusUpdating === alertDetailsData?.id" @click="openStatusUpdateModal(alertDetailsData, 'False Alarm')">Mark as False Alarm</button>
+            <button type="button" class="btn btn-sm btn-warning" x-show="alertDetailsData?.status_name === 'Resolved' || alertDetailsData?.status_name === 'False Alarm'" :disabled="alertStatusUpdating === alertDetailsData?.id" @click="updateAlertStatusDirect(alertDetailsData, 'New')">Reopen</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" x-show="alertDetailsData" @click="openInvestigateModal(alertDetailsData); closeAlertDetailsModal()">Create task</button>
+          </div>
+          <button type="button" class="btn btn-secondary" @click="closeAlertDetailsModal()">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# Status update confirmation modal (Resolved / False Alarm) #}
+  <div class="modal fade"
+       id="statusUpdateModal"
+       tabindex="-1"
+       aria-labelledby="statusUpdateModalLabel"
+       aria-hidden="true"
+       x-ref="statusUpdateModal"
+       x-show="statusUpdateModalOpen"
+       @hidden.bs.modal="statusUpdateModalOpen = false; statusUpdateAlert = null; statusUpdateTargetStatus = ''; statusUpdateNotes = ''"
+       @keydown.escape.window="closeStatusUpdateModal()">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="statusUpdateModalLabel">Confirm Status Update</h5>
+          <button type="button" class="btn-close" aria-label="Close" @click="closeStatusUpdateModal()"></button>
+        </div>
+        <div class="modal-body">
+          <template x-if="statusUpdateAlert">
+            <div>
+              <p class="mb-3">Are you sure you want to mark this alert as <strong x-text="statusUpdateTargetStatus"></strong>?</p>
+              <p class="text-muted small mb-2">Alert: <span x-text="statusUpdateAlert.disease_name"></span> — <span x-text="statusUpdateAlert.location_name"></span></p>
+              <div class="mb-3">
+                <label :for="'statusUpdateNotes-' + (statusUpdateTargetStatus === 'Resolved' ? 'resolved' : 'falsealarm')" class="form-label">
+                  <span x-text="statusUpdateTargetStatus === 'Resolved' ? 'Resolution notes' : 'Reason for false alarm'"></span> <span class="text-muted">(optional)</span>
+                </label>
+                <textarea :id="'statusUpdateNotes-' + (statusUpdateTargetStatus === 'Resolved' ? 'resolved' : 'falsealarm')"
+                          class="form-control"
+                          rows="3"
+                          placeholder="Add notes..."
+                          x-model="statusUpdateNotes"></textarea>
+              </div>
+              <p x-show="statusUpdateError" class="text-danger small mb-0" x-text="statusUpdateError"></p>
+            </div>
+          </template>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" @click="closeStatusUpdateModal()">Cancel</button>
+          <button type="button"
+                  class="btn btn-primary"
+                  :disabled="statusUpdateSubmitting"
+                  @click="submitStatusUpdate()">
+            <span x-show="!statusUpdateSubmitting">Confirm</span>
+            <span x-show="statusUpdateSubmitting">Updating...</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# Create Investigation Task modal #}
+  <div class="modal fade"
+       id="createInvestigationModal"
+       tabindex="-1"
+       aria-labelledby="createInvestigationModalLabel"
+       aria-hidden="true"
+       x-ref="createInvestigationModal"
+       x-show="investigateModalOpen"
+       @hidden.bs.modal="investigateModalOpen = false; investigateSelectedAlert = null"
+       @keydown.escape.window="closeInvestigateModal()">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="createInvestigationModalLabel">Create Investigation Task</h5>
+          <button type="button" class="btn-close" aria-label="Close" @click="closeInvestigateModal()"></button>
+        </div>
+        <div class="modal-body">
+          <template x-if="investigateSelectedAlert">
+            <div>
+              <p class="text-muted small mb-3">Alert: <span x-text="investigateSelectedAlert.disease_name"></span> — <span x-text="investigateSelectedAlert.location_name"></span> (<span x-text="investigateSelectedAlert.severity_level"></span>)</p>
+              <form @submit.prevent="submitCreateTask()">
+                <div class="mb-3">
+                  <label for="createTaskAssignedTo" class="form-label">Assigned To <span class="text-danger">*</span></label>
+                  <select id="createTaskAssignedTo"
+                          class="form-select"
+                          x-model="createTaskForm.assigned_to"
+                          required>
+                    <option value="">Select user...</option>
+                    <template x-for="u in assignableUsers" :key="u.id">
+                      <option :value="u.id" x-text="u.email"></option>
+                    </template>
+                  </select>
+                </div>
+                <div class="mb-3">
+                  <label for="createTaskDueAt" class="form-label">Due Date <span class="text-danger">*</span></label>
+                  <input type="date"
+                         id="createTaskDueAt"
+                         class="form-control"
+                         x-model="createTaskForm.due_at"
+                         required>
+                </div>
+                <div class="mb-3">
+                  <label for="createTaskNotes" class="form-label">Notes</label>
+                  <textarea id="createTaskNotes"
+                            class="form-control"
+                            rows="3"
+                            placeholder="Investigation details..."
+                            x-model="createTaskForm.notes"></textarea>
+                </div>
+                <p x-show="createTaskError" class="text-danger small mb-0" x-text="createTaskError"></p>
+              </form>
+            </div>
+          </template>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" @click="closeInvestigateModal()">Cancel</button>
+          <button type="button"
+                  class="btn btn-primary"
+                  :disabled="createTaskSubmitting"
+                  @click="submitCreateTask()">
+            <span x-show="!createTaskSubmitting">Create Task</span>
+            <span x-show="createTaskSubmitting">Creating...</span>
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 {% endblock %}

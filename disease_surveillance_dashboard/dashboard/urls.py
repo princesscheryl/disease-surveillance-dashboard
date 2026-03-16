@@ -19,6 +19,9 @@ from .views import (
     OverviewView,
     ReportsView,
     ReviewReportsView,
+    export_alerts,
+    export_reports,
+    export_review_reports,
 )
 
 app_name = "dashboard"
@@ -32,6 +35,9 @@ urlpatterns = [
     path("analytics/", AnalyticsView.as_view(), name="analytics"),
     path("map/",       LiveMapView.as_view(),   name="live_map"),
     path("alerts/",         AlertsView.as_view(),         name="alerts"),
+    path("alerts/export/",   export_alerts,               name="alerts_export"),
     path("reports/review/", ReviewReportsView.as_view(), name="review_reports"),
+    path("reports/review/export/", export_review_reports, name="review_reports_export"),
     path("reports/",        ReportsView.as_view(),       name="reports"),
+    path("reports/export/",  export_reports,              name="reports_export"),
 ]

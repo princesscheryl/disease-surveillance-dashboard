@@ -16,9 +16,13 @@ DRF ViewSets (unchanged, mobile / API consumers)
 from datetime import datetime
 from datetime import time as dt_time
 
+import csv
+
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import Http404
+from django.http import HttpResponse
 from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect
@@ -292,3 +296,42 @@ class MySubmissionsView(LoginRequiredMixin, ListView):
             .select_related("disease", "location", "status")
             .order_by("-submitted_at")
         )
+
+
+@login_required
+def export_my_submissions(request):
+    response = HttpResponse(content_type="text/csv")
+    response["Content-Disposition"] = 'attachment; filename="my_reports.csv"'
+    writer = csv.writer(response)
+    writer.writerow(
+        [
+            "Report ID",
+            "Disease",
+            "Location",
+            "Cases",
+            "Observed Date",
+            "Created Date",
+            "Status",
+        ]
+    )
+    reports = (
+        Report.objects.filter(reported_by=request.user)
+        .select_related("disease", "location", "status")
+        .order_by("-submitted_at")
+    )
+    for report in reports:
+        location_name = report.location.district_name
+        if report.location.area_name:
+            location_name = f"{location_name} - {report.location.area_name}"
+        writer.writerow(
+            [
+                report.id,
+                report.disease.disease_name,
+                location_name,
+                report.case_count,
+                report.observed_at.strftime("%Y-%m-%d"),
+                report.submitted_at.strftime("%Y-%m-%d"),
+                report.status.status_name if report.status else "",
+            ]
+        )
+    return response

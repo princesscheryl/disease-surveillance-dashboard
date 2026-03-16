@@ -5,6 +5,7 @@ from django.urls import path
 from .views import MySubmissionsView
 from .views import ReportCreateView
 from .views import ReportUpdateView
+from .views import export_my_submissions
 
 app_name = "reporting"
 
@@ -17,4 +18,5 @@ urlpatterns = [
 
     # List the current user's own submissions
     path("my-submissions/", MySubmissionsView.as_view(), name="my_submissions"),
+    path("my-submissions/export/", export_my_submissions, name="my_submissions_export"),
 ]

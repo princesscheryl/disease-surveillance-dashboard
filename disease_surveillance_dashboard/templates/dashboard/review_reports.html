@@ -16,9 +16,15 @@
 <div x-data="reviewReportsData()" x-init="init()">
   {% csrf_token %}
 
-  <div class="ds-page-header">
-    <h1 class="ds-page-title">Review Reports</h1>
-    <p class="ds-page-subtitle">Verify and validate submitted disease reports</p>
+  <div class="ds-page-header d-flex align-items-start justify-content-between flex-wrap gap-2">
+    <div>
+      <h1 class="ds-page-title">Review Reports</h1>
+      <p class="ds-page-subtitle">Verify and validate submitted disease reports</p>
+    </div>
+    <a href="{% url 'dashboard:review_reports_export' %}" class="btn btn-secondary d-flex align-items-center gap-2">
+      <i class="bi bi-download" aria-hidden="true"></i>
+      Export Reports
+    </a>
   </div>
 
   <div class="card mb-3">

@@ -40,17 +40,17 @@ class DashboardAPITestCase(APITestCase):
         )
         UserRole.objects.create(user=self.user, role=self.role)
 
-        # Create user without dashboard access
+        # Create user without dashboard access (role not in DASHBOARD_ALLOWED_ROLES)
         self.chw_user = User.objects.create_user(
             email="chw@example.com",
             password="testpass123",
             full_name="CHW User",
         )
-        chw_role = Role.objects.create(
-            role_name="CHW",
-            description="Community Health Worker",
+        no_dash_role = Role.objects.create(
+            role_name="REPORTER",
+            description="Reporter only; no dashboard access",
         )
-        UserRole.objects.create(user=self.chw_user, role=chw_role)
+        UserRole.objects.create(user=self.chw_user, role=no_dash_role)
 
         # Create test data
         self.disease = Disease.objects.create(disease_name="Malaria")
@@ -64,8 +64,14 @@ class DashboardAPITestCase(APITestCase):
             latitude=None,
             longitude=None,
         )
-        self.report_status = ReportStatus.objects.create(status_name="VERIFIED")
-        self.alert_status = AlertStatus.objects.create(status_name="New")
+        self.report_status, _ = ReportStatus.objects.get_or_create(
+            status_name="VERIFIED",
+            defaults={"description": "Verified report"},
+        )
+        self.alert_status, _ = AlertStatus.objects.get_or_create(
+            status_name="New",
+            defaults={"description": "New alert"},
+        )
 
         # Create reports with case_count
         now = timezone.now()

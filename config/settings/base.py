@@ -328,7 +328,10 @@ ACCOUNT_EMAIL_VERIFICATION = "mandatory"
 # https://docs.allauth.org/en/latest/account/configuration.html
 ACCOUNT_ADAPTER = "disease_surveillance_dashboard.users.adapters.AccountAdapter"
 # https://docs.allauth.org/en/latest/account/forms.html
-ACCOUNT_FORMS = {"signup": "disease_surveillance_dashboard.users.forms.UserSignupForm"}
+ACCOUNT_FORMS = {
+    "signup": "disease_surveillance_dashboard.users.forms.UserSignupForm",
+    "login": "disease_surveillance_dashboard.users.forms.UserLoginForm",
+}
 # https://docs.allauth.org/en/latest/socialaccount/configuration.html
 SOCIALACCOUNT_ADAPTER = "disease_surveillance_dashboard.users.adapters.SocialAccountAdapter"
 # https://docs.allauth.org/en/latest/socialaccount/configuration.html

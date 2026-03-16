@@ -32,7 +32,8 @@ class DashboardAPITestCase(APITestCase):
         self.user = User.objects.create_user(
             email="analyst@example.com",
             password="testpass123",
-            full_name="Test Analyst",
+            first_name="Test",
+            last_name="Analyst",
         )
         self.role = Role.objects.create(
             role_name="ANALYST",
@@ -44,7 +45,8 @@ class DashboardAPITestCase(APITestCase):
         self.chw_user = User.objects.create_user(
             email="chw@example.com",
             password="testpass123",
-            full_name="CHW User",
+            first_name="CHW",
+            last_name="User",
         )
         chw_role = Role.objects.create(
             role_name="CHW",

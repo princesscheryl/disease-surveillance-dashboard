@@ -47,7 +47,8 @@ class UserRoleModelTestCase(TestCase):
         """Set up test data."""
         self.user = User.objects.create(
             email="testuser@example.com",
-            full_name="Test User",
+            first_name="Test",
+            last_name="User",
         )
         self.role = Role.objects.create(
             role_name="VERIFIER",

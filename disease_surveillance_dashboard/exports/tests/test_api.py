@@ -18,7 +18,8 @@ class ExportAPITestCase(APITestCase):
         self.user = User.objects.create_user(
             email="exporter@example.com",
             password="testpass123",
-            full_name="Test Exporter",
+            first_name="Test",
+            last_name="Exporter",
         )
         self.client.force_authenticate(user=self.user)
         self.api_url = "/api/v1/exports/"
@@ -86,7 +87,8 @@ class AuditLogAPITestCase(APITestCase):
         self.user = User.objects.create_user(
             email="auditor@example.com",
             password="testpass123",
-            full_name="Test Auditor",
+            first_name="Test",
+            last_name="Auditor",
         )
         self.client.force_authenticate(user=self.user)
         self.api_url = "/api/v1/audit-logs/"

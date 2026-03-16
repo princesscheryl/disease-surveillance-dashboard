@@ -4,7 +4,10 @@ from disease_surveillance_dashboard.users.models import User
 
 
 class UserSerializer(serializers.ModelSerializer[User]):
-    name = serializers.CharField(source="full_name", required=False, allow_blank=True)
+    name = serializers.SerializerMethodField()
+
+    def get_name(self, obj):
+        return obj.name
 
     class Meta:
         model = User

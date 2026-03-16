@@ -5,6 +5,7 @@ import typing
 from allauth.account.adapter import DefaultAccountAdapter
 from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
 from django.conf import settings
+from django.contrib import messages
 
 if typing.TYPE_CHECKING:
     from allauth.socialaccount.models import SocialLogin
@@ -16,6 +17,20 @@ if typing.TYPE_CHECKING:
 class AccountAdapter(DefaultAccountAdapter):
     def is_open_for_signup(self, request: HttpRequest) -> bool:
         return getattr(settings, "ACCOUNT_ALLOW_REGISTRATION", True)
+
+    def save_user(self, request, user, form, commit=True):
+        user = super().save_user(request, user, form, commit=False)
+        user.is_active = False
+        if commit:
+            user.save()
+        return user
+
+    def respond_email_verification_sent(self, request, user):
+        messages.info(
+            request,
+            "Please verify your email address. After verification, your account will be reviewed by an administrator before you can log in.",
+        )
+        return super().respond_email_verification_sent(request, user)
 
 
 class SocialAccountAdapter(DefaultSocialAccountAdapter):
@@ -32,17 +47,13 @@ class SocialAccountAdapter(DefaultSocialAccountAdapter):
         sociallogin: SocialLogin,
         data: dict[str, typing.Any],
     ) -> User:
-        """
-        Populates user information from social provider info.
-
-        See: https://docs.allauth.org/en/latest/socialaccount/advanced.html#creating-and-populating-user-instances
-        """
         user = super().populate_user(request, sociallogin, data)
-        if not user.name:
+        if not user.first_name and not user.last_name:
             if name := data.get("name"):
-                user.name = name
+                parts = name.strip().split(None, 1)
+                user.first_name = parts[0] if parts else ""
+                user.last_name = parts[1] if len(parts) > 1 else ""
             elif first_name := data.get("first_name"):
-                user.name = first_name
-                if last_name := data.get("last_name"):
-                    user.name += f" {last_name}"
+                user.first_name = first_name
+                user.last_name = data.get("last_name") or ""
         return user

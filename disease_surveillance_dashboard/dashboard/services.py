@@ -360,7 +360,7 @@ def get_recent_investigations(limit=10, alert_id=None):
         result.append({
             "id": task.id,  # Use default pk field, not task_id
             "alert_id": task.alert.id,
-            "assigned_to_name": task.assigned_to.full_name if task.assigned_to else None,
+            "assigned_to_name": task.assigned_to.name if task.assigned_to else None,
             "task_status": task.task_status,
             "due_at": task.due_at.isoformat() if task.due_at else None,
         })

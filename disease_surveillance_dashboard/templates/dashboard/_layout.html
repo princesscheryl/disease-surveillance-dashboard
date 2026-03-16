@@ -305,7 +305,7 @@
             {{ request.user.get_full_name|first|upper|default:request.user.email|first|upper }}
           </div>
           <span class="d-none d-md-inline">
-            {{ request.user.full_name|default:request.user.email }}
+            {{ request.user.name|default:request.user.email }}
           </span>
         </a>
       {% endif %}

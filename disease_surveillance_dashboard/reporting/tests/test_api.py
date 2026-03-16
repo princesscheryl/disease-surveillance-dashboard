@@ -49,7 +49,8 @@ class ReportAPITestCase(APITestCase):
         self.user = User.objects.create_user(
             email="reporter@example.com",
             password="testpass123",
-            full_name="Test Reporter",
+            first_name="Test",
+            last_name="Reporter",
         )
         self.client.force_authenticate(user=self.user)
 

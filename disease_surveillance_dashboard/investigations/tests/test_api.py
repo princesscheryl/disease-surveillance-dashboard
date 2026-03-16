@@ -25,12 +25,14 @@ class InvestigationTaskAPITestCase(APITestCase):
         self.user = User.objects.create_user(
             email="investigator@example.com",
             password="testpass123",
-            full_name="Test Investigator",
+            first_name="Test",
+            last_name="Investigator",
         )
         self.assigner = User.objects.create_user(
             email="assigner@example.com",
             password="testpass123",
-            full_name="Test Assigner",
+            first_name="Test",
+            last_name="Assigner",
         )
         self.client.force_authenticate(user=self.user)
 

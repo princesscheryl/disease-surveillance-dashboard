@@ -24,7 +24,7 @@ class UserRoleViewSet(ModelViewSet):
     queryset = UserRole.objects.select_related("user", "role")
     serializer_class = UserRoleSerializer
     filterset_fields = ["user", "role"]
-    search_fields = ["user__email", "user__full_name", "role__role_name"]
+    search_fields = ["user__email", "user__first_name", "user__last_name", "role__role_name"]
 
     @action(detail=False, methods=["get"])
     def user_roles(self, request):

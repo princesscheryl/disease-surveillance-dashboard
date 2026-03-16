@@ -24,7 +24,8 @@ class ReportCreateViewTestCase(TestCase):
         self.user = User.objects.create_user(
             email="reporter@example.com",
             password="testpass123",
-            full_name="Test Reporter",
+            first_name="Test",
+            last_name="Reporter",
         )
         self.disease = Disease.objects.create(disease_name="Malaria", is_active=True)
         self.location = Location.objects.create(district_name="Accra Metro", is_active=True)

@@ -20,6 +20,6 @@ class UserRoleAdmin(admin.ModelAdmin):
 
     list_display = ["user", "role", "assigned_at"]
     list_filter = ["role"]
-    search_fields = ["user__email", "user__full_name"]
+    search_fields = ["user__email", "user__first_name", "user__last_name"]
     ordering = ["-assigned_at"]
     readonly_fields = ["assigned_at"]

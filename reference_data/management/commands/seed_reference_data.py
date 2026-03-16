@@ -6,6 +6,7 @@ Idempotent: uses get_or_create; safe to run multiple times.
 
 from django.core.management.base import BaseCommand
 
+from reference_data.constants import GREATER_ACCRA_DISTRICT_NAMES
 from reference_data.models import Disease
 from reference_data.models import Location
 
@@ -22,32 +23,6 @@ DISEASES = [
     "Tuberculosis",
     "Yellow Fever",
 ]
-
-GREATER_ACCRA_DISTRICTS = [
-    "Accra Metropolitan",
-    "Tema Metropolitan",
-    "Ga East Municipal",
-    "Ga West Municipal",
-    "Ga South Municipal",
-    "La Dade-Kotopon Municipal",
-    "Ledzokuku Municipal",
-    "Adenta Municipal",
-    "Ashaiman Municipal",
-    "Kpone Katamanso Municipal",
-    "Ningo-Prampram District",
-    "Shai-Osudoku District",
-    "Weija-Gbawe Municipal",
-    "Ablekuma North Municipal",
-    "Ablekuma Central Municipal",
-    "Ablekuma West Municipal",
-    "Ayawaso West Municipal",
-    "Ayawaso East Municipal",
-    "Ayawaso North Municipal",
-    "Ayawaso Central Municipal",
-    "Okaikwei North Municipal",
-    "Korle-Klottey Municipal",
-]
-
 
 class Command(BaseCommand):
     help = "Seed Disease and Location (district) reference data for Greater Accra. Idempotent."
@@ -80,7 +55,7 @@ class Command(BaseCommand):
                     self.stdout.write(f"  Created Disease: {name}")
 
         created_locations = 0
-        for district_name in GREATER_ACCRA_DISTRICTS:
+        for district_name in GREATER_ACCRA_DISTRICT_NAMES:
             # Location required fields: district_name only (area_name, lat/long are optional)
             # Match district-level entries (area_name is null) for idempotency
             exists = Location.objects.filter(

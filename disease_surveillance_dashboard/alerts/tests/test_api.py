@@ -35,13 +35,17 @@ class AlertStatusAPITestCase(APITestCase):
 
     def test_alert_status_create(self):
         """Test creating a new alert status."""
+        initial_count = AlertStatus.objects.count()
         data = {
-            "status_name": "New",
+            "status_name": "Test Status Created via API",
             "description": "Newly created alert",
         }
         response = self.client.post(self.api_url, data, format="json")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(AlertStatus.objects.count(), 1)
+        self.assertEqual(AlertStatus.objects.count(), initial_count + 1)
+        self.assertTrue(
+            AlertStatus.objects.filter(status_name="Test Status Created via API").exists()
+        )
 
 
 class AlertAPITestCase(APITestCase):
@@ -57,9 +61,9 @@ class AlertAPITestCase(APITestCase):
 
         self.disease = Disease.objects.create(disease_name="Malaria")
         self.location = Location.objects.create(district_name="Accra Metro")
-        self.alert_status = AlertStatus.objects.create(
+        self.alert_status, _ = AlertStatus.objects.get_or_create(
             status_name="New",
-            description="New alert",
+            defaults={"description": "New alert"},
         )
         self.api_url = "/api/v1/alerts/alerts/"
 
@@ -111,7 +115,10 @@ class AlertNoteAPITestCase(APITestCase):
 
         self.disease = Disease.objects.create(disease_name="Cholera")
         self.location = Location.objects.create(district_name="Tema")
-        self.alert_status = AlertStatus.objects.create(status_name="Investigating")
+        self.alert_status, _ = AlertStatus.objects.get_or_create(
+            status_name="Investigating",
+            defaults={"description": "Under investigation"},
+        )
         self.alert = Alert.objects.create(
             disease=self.disease,
             location=self.location,
@@ -150,7 +157,10 @@ class AlertEscalationAPITestCase(APITestCase):
 
         self.disease = Disease.objects.create(disease_name="Dengue")
         self.location = Location.objects.create(district_name="Kumasi")
-        self.alert_status = AlertStatus.objects.create(status_name="New")
+        self.alert_status, _ = AlertStatus.objects.get_or_create(
+            status_name="New",
+            defaults={"description": "New alert"},
+        )
         self.alert = Alert.objects.create(
             disease=self.disease,
             location=self.location,
@@ -198,9 +208,9 @@ class AlertEvaluationAPITestCase(APITestCase):
 
         self.disease = Disease.objects.create(disease_name="Malaria")
         self.location = Location.objects.create(district_name="Accra Metro")
-        self.alert_status = AlertStatus.objects.create(
+        self.alert_status, _ = AlertStatus.objects.get_or_create(
             status_name="New",
-            description="New alert",
+            defaults={"description": "New alert"},
         )
         self.api_url = "/api/v1/alerts/alerts/evaluate/"
 

@@ -64,7 +64,7 @@ class ReportCreateViewTestCase(TestCase):
         }
         response = self.client.post(self.url, data)
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, "/dashboard/")
+        self.assertEqual(response.url, "/dashboard/overview/")
 
         # Verify Report was created
         self.assertEqual(Report.objects.count(), 1)

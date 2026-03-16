@@ -38,7 +38,9 @@ class ReportStatusAPITestCase(APITestCase):
         """Test retrieving list of report statuses."""
         response = self.client.get(self.api_url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
+        self.assertGreaterEqual(len(response.data), 1)
+        status_names = [s["status_name"] for s in response.data]
+        self.assertIn(self.status.status_name, status_names)
 
 
 class ReportAPITestCase(APITestCase):

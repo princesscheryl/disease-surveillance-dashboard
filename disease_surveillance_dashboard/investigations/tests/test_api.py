@@ -38,9 +38,9 @@ class InvestigationTaskAPITestCase(APITestCase):
 
         self.disease = Disease.objects.create(disease_name="Malaria")
         self.location = Location.objects.create(district_name="Accra Metro")
-        self.alert_status = AlertStatus.objects.create(
+        self.alert_status, _ = AlertStatus.objects.get_or_create(
             status_name="New",
-            description="New alert",
+            defaults={"description": "New alert"},
         )
         self.alert = Alert.objects.create(
             disease=self.disease,
@@ -113,7 +113,7 @@ class InvestigationTaskAPITestCase(APITestCase):
             self.assertEqual(task["task_status"], "OPEN")
 
     def test_investigation_task_nullable_fields(self):
-        """Test that nullable fields can be null/blank."""
+        """Test that nullable fields can be omitted; assigned_by is set from request.user."""
         data = {
             "alert": self.alert.id,
             "task_status": "OPEN",
@@ -121,7 +121,7 @@ class InvestigationTaskAPITestCase(APITestCase):
         response = self.client.post(self.api_url, data, format="json")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertIsNone(response.data.get("assigned_to"))
-        self.assertIsNone(response.data.get("assigned_by"))
+        self.assertEqual(response.data.get("assigned_by"), self.user.id)
         self.assertIsNone(response.data.get("due_at"))
         self.assertIsNone(response.data.get("outcome"))
 

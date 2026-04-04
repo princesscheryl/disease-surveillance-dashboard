@@ -1,5 +1,8 @@
 from rest_framework import viewsets
 
+from disease_surveillance_dashboard.exports.models import record_audit_event
+from disease_surveillance_dashboard.users.models import create_task_assigned_notification
+
 from .models import InvestigationTask
 from .serializers import InvestigationTaskSerializer
 
@@ -43,6 +46,56 @@ class InvestigationTaskViewSet(viewsets.ModelViewSet):
         return queryset
 
     def perform_create(self, serializer):
-        """Set assigned_by to the current user when creating a task."""
-        serializer.save(assigned_by=self.request.user)
+        task = serializer.save(assigned_by=self.request.user)
+        if task.assigned_to_id:
+            alert = task.alert
+            disease_name = alert.disease.disease_name if alert.disease_id else ""
+            create_task_assigned_notification(
+                task.assigned_to,
+                alert_id=task.alert_id,
+                disease_name=disease_name,
+                assigner_email=self.request.user.email,
+            )
+        record_audit_event(
+            actor=self.request.user,
+            action_type="INVESTIGATION_TASK_CREATED",
+            entity_type="InvestigationTask",
+            entity_id=str(task.id),
+            details={
+                "alert_id": task.alert_id,
+                "assigned_to_id": task.assigned_to_id,
+            },
+        )
+
+    def perform_update(self, serializer):
+        prev = self.get_object()
+        prev_assignee_id = prev.assigned_to_id
+        prev_status = prev.task_status
+        task = serializer.save()
+        if task.assigned_to_id and task.assigned_to_id != prev_assignee_id:
+            alert = task.alert
+            disease_name = alert.disease.disease_name if alert.disease_id else ""
+            create_task_assigned_notification(
+                task.assigned_to,
+                alert_id=task.alert_id,
+                disease_name=disease_name,
+                assigner_email=self.request.user.email,
+            )
+        if (
+            task.assigned_to_id != prev_assignee_id
+            or task.task_status != prev_status
+        ):
+            record_audit_event(
+                actor=self.request.user,
+                action_type="INVESTIGATION_TASK_UPDATED",
+                entity_type="InvestigationTask",
+                entity_id=str(task.id),
+                details={
+                    "alert_id": task.alert_id,
+                    "assigned_to_id": task.assigned_to_id,
+                    "task_status": task.task_status,
+                    "previous_assigned_to_id": prev_assignee_id,
+                    "previous_task_status": prev_status,
+                },
+            )
 

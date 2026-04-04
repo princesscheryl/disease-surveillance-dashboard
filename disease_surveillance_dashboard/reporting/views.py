@@ -36,6 +36,8 @@ from .forms import ReportUpdateForm
 from .models import DuplicateFlag
 from .models import Report
 from .models import ReportStatus
+from disease_surveillance_dashboard.exports.models import record_audit_event
+
 from .serializers import DuplicateFlagSerializer
 from .serializers import ReportSerializer
 from .serializers import ReportStatusSerializer
@@ -63,6 +65,22 @@ class ReportViewSet(viewsets.ModelViewSet):
     serializer_class = ReportSerializer
     filterset_fields = ["disease", "location", "status", "reported_by", "report_source"]
     search_fields = ["case_notes"]
+
+    def perform_update(self, serializer):
+        prev = self.get_object()
+        prev_count = prev.case_count
+        report = serializer.save()
+        if report.case_count != prev_count:
+            record_audit_event(
+                actor=self.request.user,
+                action_type="REPORT_CASE_COUNT_CHANGED",
+                entity_type="Report",
+                entity_id=str(report.id),
+                details={
+                    "previous_case_count": prev_count,
+                    "new_case_count": report.case_count,
+                },
+            )
 
 
 class DuplicateFlagViewSet(viewsets.ModelViewSet):
@@ -253,11 +271,25 @@ class ReportUpdateView(LoginRequiredMixin, FormView):
         is_submitting = action == "submit"
 
         fields = _build_report_kwargs(form.cleaned_data)
+        previous_case_count = report.case_count
         for field, value in fields.items():
             setattr(report, field, value)
 
         report.status = _get_status("SUBMITTED" if is_submitting else "DRAFT")
         report.save()
+
+        if report.case_count != previous_case_count:
+            record_audit_event(
+                actor=self.request.user,
+                action_type="REPORT_CASE_COUNT_CHANGED",
+                entity_type="Report",
+                entity_id=str(report.id),
+                details={
+                    "previous_case_count": previous_case_count,
+                    "new_case_count": report.case_count,
+                    "source": "web_draft_edit",
+                },
+            )
 
         if is_submitting:
             messages.success(
@@ -319,6 +351,7 @@ def export_my_submissions(request):
         .select_related("disease", "location", "status")
         .order_by("-submitted_at")
     )
+    row_count = 0
     for report in reports:
         location_name = report.location.district_name
         if report.location.area_name:
@@ -334,4 +367,12 @@ def export_my_submissions(request):
                 report.status.status_name if report.status else "",
             ]
         )
+        row_count += 1
+    record_audit_event(
+        actor=request.user,
+        action_type="DATA_EXPORT",
+        entity_type="MySubmissionsCSV",
+        entity_id="bulk",
+        details={"row_count": row_count},
+    )
     return response

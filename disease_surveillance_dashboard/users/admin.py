@@ -6,6 +6,7 @@ from django.utils.translation import gettext_lazy as _
 
 from .forms import UserAdminChangeForm
 from .forms import UserAdminCreationForm
+from .models import InAppNotification
 from .models import User
 
 if settings.DJANGO_ADMIN_FORCE_ALLAUTH:
@@ -86,3 +87,12 @@ class UserAdmin(auth_admin.UserAdmin):
         queryset.update(is_active=True)
 
     actions = [activate_users]
+
+
+@admin.register(InAppNotification)
+class InAppNotificationAdmin(admin.ModelAdmin):
+    list_display = ["title", "recipient", "kind", "read_at", "created_at"]
+    list_filter = ["kind", "read_at"]
+    search_fields = ["title", "body", "recipient__email"]
+    readonly_fields = ["created_at"]
+    ordering = ["-created_at"]

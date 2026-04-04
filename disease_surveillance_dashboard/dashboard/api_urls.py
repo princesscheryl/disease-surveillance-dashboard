@@ -6,6 +6,9 @@ from .api import dashboard_alert_details
 from .api import dashboard_alert_statuses
 from .api import dashboard_alert_update_status
 from .api import dashboard_assignable_users
+from .api import dashboard_audit_log
+from .api import dashboard_notifications_list
+from .api import dashboard_notifications_mark_read
 from .api import dashboard_report_details
 from .api import dashboard_report_update_status
 from .api import dashboard_review_reports
@@ -37,6 +40,9 @@ urlpatterns = [
     path("recent-alerts/",          dashboard_recent_alerts,         name="recent-alerts"),
     path("recent-investigations/",  dashboard_recent_investigations, name="recent-investigations"),
     path("assignable-users/",       dashboard_assignable_users,      name="assignable-users"),
+    path("notifications/",         dashboard_notifications_list,      name="notifications-list"),
+    path("notifications/mark-read/", dashboard_notifications_mark_read, name="notifications-mark-read"),
+    path("audit-log/",             dashboard_audit_log,             name="audit-log"),
     path("alert-statuses/",        dashboard_alert_statuses,         name="alert-statuses"),
     path("alerts/<int:alert_id>/details/", dashboard_alert_details, name="alert-details"),
     path("alerts/<int:alert_id>/update-status/", dashboard_alert_update_status, name="alert-update-status"),

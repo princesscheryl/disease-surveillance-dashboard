@@ -3,6 +3,9 @@ from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from disease_surveillance_dashboard.exports.models import record_audit_event
+from disease_surveillance_dashboard.users.models import create_escalation_notifications
+
 from .models import Alert
 from .models import AlertEscalation
 from .models import AlertNote
@@ -119,4 +122,20 @@ class AlertEscalationViewSet(viewsets.ModelViewSet):
         "escalated_to_role",
     ]
     search_fields = ["escalation_reason"]
+
+    def perform_create(self, serializer):
+        esc = serializer.save()
+        record_audit_event(
+            actor=self.request.user,
+            action_type="ALERT_ESCALATED",
+            entity_type="Alert",
+            entity_id=str(esc.alert_id),
+            details={
+                "escalation_id": esc.id,
+                "from_role": esc.escalated_from_role.role_name,
+                "to_role": esc.escalated_to_role.role_name,
+                "reason": (esc.escalation_reason or "")[:500],
+            },
+        )
+        create_escalation_notifications(esc)
 

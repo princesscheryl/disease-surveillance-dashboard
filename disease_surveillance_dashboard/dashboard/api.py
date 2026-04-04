@@ -18,6 +18,9 @@ from rest_framework.response import Response
 from disease_surveillance_dashboard.alerts.services import (
     evaluate_trend_and_generate_alert,
 )
+from disease_surveillance_dashboard.exports.models import AuditLog
+from disease_surveillance_dashboard.exports.models import record_audit_event
+from disease_surveillance_dashboard.users.models import InAppNotification
 from disease_surveillance_dashboard.analytics.services import (
     compute_arima_forecast,
     compute_isolation_forest_anomalies,
@@ -433,8 +436,21 @@ def dashboard_alert_update_status(request, alert_id):
         )
 
     notes = (request.data.get("notes") or "").strip()
+    old_status_name = alert.status.status_name
     alert.status = new_status
     alert.save()
+
+    record_audit_event(
+        actor=request.user,
+        action_type="ALERT_STATUS_CHANGED",
+        entity_type="Alert",
+        entity_id=str(alert.id),
+        details={
+            "from_status": old_status_name,
+            "to_status": new_status.status_name,
+            "notes": notes or None,
+        },
+    )
 
     if notes:
         AlertNote.objects.create(
@@ -1049,12 +1065,110 @@ def dashboard_report_update_status(request, report_id):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
+    old_status_name = report.status.status_name if report.status_id else None
     report.status = new_status
     report.save()
+
+    record_audit_event(
+        actor=request.user,
+        action_type="REPORT_STATUS_CHANGED",
+        entity_type="Report",
+        entity_id=str(report.id),
+        details={
+            "from_status": old_status_name,
+            "to_status": new_status.status_name,
+        },
+    )
 
     return Response({
         "success": True,
         "message": f"Report status updated to {new_status.status_name}.",
         "status_name": new_status.status_name,
         "status_id": new_status.id,
+    })
+
+
+@api_view(["GET"])
+def dashboard_notifications_list(request):
+    access_check = check_dashboard_access(request.user)
+    if access_check:
+        return access_check
+
+    qs = (
+        InAppNotification.objects.filter(recipient=request.user)
+        .order_by("-created_at")[:100]
+    )
+    data = [
+        {
+            "id": n.id,
+            "kind": n.kind,
+            "title": n.title,
+            "body": n.body,
+            "link_path": n.link_path,
+            "read_at": n.read_at.isoformat() if n.read_at else None,
+            "created_at": n.created_at.isoformat(),
+        }
+        for n in qs
+    ]
+    return Response({"results": data})
+
+
+@api_view(["POST"])
+def dashboard_notifications_mark_read(request):
+    access_check = check_dashboard_access(request.user)
+    if access_check:
+        return access_check
+
+    raw_id = request.data.get("id")
+    now = timezone.now()
+    if raw_id is not None and raw_id != "":
+        try:
+            nid = int(raw_id)
+        except (TypeError, ValueError):
+            return Response(
+                {"error": "Invalid id."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        updated = InAppNotification.objects.filter(
+            recipient=request.user,
+            pk=nid,
+            read_at__isnull=True,
+        ).update(read_at=now)
+        return Response({"updated": updated})
+    updated = InAppNotification.objects.filter(
+        recipient=request.user,
+        read_at__isnull=True,
+    ).update(read_at=now)
+    return Response({"updated": updated})
+
+
+@api_view(["GET"])
+def dashboard_audit_log(request):
+    access_check = check_officer_access(request.user)
+    if access_check:
+        return access_check
+
+    page_size = min(int(request.query_params.get("page_size", 50)), 100)
+    page = max(int(request.query_params.get("page", 1)), 1)
+    start = (page - 1) * page_size
+
+    qs = AuditLog.objects.select_related("actor_user").order_by("-timestamp")
+    total = qs.count()
+    rows = qs[start : start + page_size]
+    results = []
+    for entry in rows:
+        results.append({
+            "id": entry.id,
+            "action_type": entry.action_type,
+            "entity_type": entry.entity_type,
+            "entity_id": entry.entity_id,
+            "actor_email": entry.actor_user.email if entry.actor_user else None,
+            "timestamp": entry.timestamp.isoformat(),
+            "details": entry.details,
+        })
+    return Response({
+        "results": results,
+        "count": total,
+        "page": page,
+        "page_size": page_size,
     })

@@ -109,3 +109,13 @@ class AuditLog(models.Model):
         )
         return f"{self.action_type} on {self.entity_type} by {actor_str}"
 
+
+def record_audit_event(*, actor, action_type, entity_type, entity_id, details=None):
+    return AuditLog.objects.create(
+        actor_user=actor if getattr(actor, "is_authenticated", False) else None,
+        action_type=action_type,
+        entity_type=entity_type,
+        entity_id=str(entity_id),
+        details=details or {},
+    )
+

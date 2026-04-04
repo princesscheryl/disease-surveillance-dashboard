@@ -17,6 +17,7 @@ from django.views.generic import TemplateView
 from .decorators import require_role
 
 from disease_surveillance_dashboard.alerts.models import Alert
+from disease_surveillance_dashboard.exports.models import record_audit_event
 from disease_surveillance_dashboard.reporting.models import Report
 
 # Role names for access control. Include legacy names (ADMIN, HEALTH_OFFICER, etc.)
@@ -75,6 +76,16 @@ class AlertsView(DashboardBaseMixin, TemplateView):
 
 
 @method_decorator(require_role(*ALL_DASHBOARD_ROLES), name="dispatch")
+class NotificationsView(DashboardBaseMixin, TemplateView):
+    template_name = "dashboard/notifications.html"
+
+
+@method_decorator(require_role(*OFFICER_OR_ADMIN_ROLES), name="dispatch")
+class AuditLogView(DashboardBaseMixin, TemplateView):
+    template_name = "dashboard/audit_log.html"
+
+
+@method_decorator(require_role(*ALL_DASHBOARD_ROLES), name="dispatch")
 class ReportsView(DashboardBaseMixin, TemplateView):
     """Report list placeholder with future export button."""
     template_name = "dashboard/reports.html"
@@ -117,6 +128,7 @@ def export_reports(request):
         .select_related("disease", "location", "status", "reported_by")
         .order_by("-submitted_at")
     )
+    row_count = 0
     for report in reports:
         location_name = report.location.district_name
         if report.location.area_name:
@@ -132,6 +144,14 @@ def export_reports(request):
                 report.status.status_name if report.status else "",
             ]
         )
+        row_count += 1
+    record_audit_event(
+        actor=request.user,
+        action_type="DATA_EXPORT",
+        entity_type="ReportsCSV",
+        entity_id="bulk",
+        details={"row_count": row_count},
+    )
     return response
 
 
@@ -157,6 +177,7 @@ def export_review_reports(request):
         .select_related("disease", "location", "status", "reported_by")
         .order_by("-submitted_at")
     )
+    row_count = 0
     for report in reports:
         location_name = report.location.district_name
         if report.location.area_name:
@@ -174,6 +195,14 @@ def export_review_reports(request):
                 status_name,
             ]
         )
+        row_count += 1
+    record_audit_event(
+        actor=request.user,
+        action_type="DATA_EXPORT",
+        entity_type="ReviewReportsCSV",
+        entity_id="bulk",
+        details={"row_count": row_count},
+    )
     return response
 
 
@@ -199,6 +228,7 @@ def export_alerts(request):
         .select_related("disease", "location", "status")
         .order_by("-created_at")
     )
+    row_count = 0
     for alert in alerts:
         location_name = alert.location.district_name
         if alert.location.area_name:
@@ -215,4 +245,12 @@ def export_alerts(request):
                 alert.observed_value,
             ]
         )
+        row_count += 1
+    record_audit_event(
+        actor=request.user,
+        action_type="DATA_EXPORT",
+        entity_type="AlertsCSV",
+        entity_id="bulk",
+        details={"row_count": row_count},
+    )
     return response

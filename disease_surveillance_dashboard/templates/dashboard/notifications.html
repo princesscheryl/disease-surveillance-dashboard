@@ -1,0 +1,109 @@
+{% extends "dashboard/_layout.html" %}
+{% load static i18n %}
+
+{% block title %}Notifications — Disease Surveillance Dashboard{% endblock %}
+{% block topbar_title %}Notifications{% endblock %}
+
+{% block page_css %}
+<link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}" />
+{% endblock %}
+
+{% block page_js %}
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js"></script>
+{% endblock %}
+
+{% block page_content %}
+<div class="ds-page-header d-flex align-items-start justify-content-between flex-wrap gap-2">
+  <div>
+    <h1 class="ds-page-title">Notifications</h1>
+    <p class="ds-page-subtitle">Tasks, escalations, and other in-app messages</p>
+  </div>
+  <button type="button" class="btn btn-outline-secondary btn-sm" id="markAllReadBtn">Mark all read</button>
+</div>
+
+<div x-data="notificationList()" x-init="init()" class="card">
+  <div class="card-body">
+    <p x-show="loading" class="text-muted mb-0">Loading…</p>
+    <p x-show="!loading && !items.length" class="text-muted mb-0">No notifications.</p>
+    <ul class="list-group list-group-flush" x-show="!loading && items.length">
+      <template x-for="n in items" :key="n.id">
+        <li class="list-group-item d-flex flex-column flex-md-row align-items-md-start gap-2"
+            :class="{ 'bg-light': !n.read_at }">
+          <div class="flex-grow-1">
+            <div class="fw-semibold" x-text="n.title"></div>
+            <div class="small text-muted" x-text="n.body"></div>
+            <div class="small text-muted mt-1" x-text="formatDate(n.created_at)"></div>
+          </div>
+          <div class="d-flex flex-wrap gap-1">
+            <a :href="n.link_path || '/dashboard/alerts/'" class="btn btn-sm btn-outline-primary">Open</a>
+            <button type="button" class="btn btn-sm btn-outline-secondary"
+                    x-show="!n.read_at"
+                    @click="markOne(n)">Mark read</button>
+          </div>
+        </li>
+      </template>
+    </ul>
+  </div>
+</div>
+
+{% csrf_token %}
+<script>
+function getCookie(name) {
+  var v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
+  return v ? decodeURIComponent(v[2]) : '';
+}
+function notificationList() {
+  return {
+    items: [],
+    loading: true,
+    init() {
+      var self = this;
+      document.getElementById('markAllReadBtn').addEventListener('click', function () { self.markAll(); });
+      this.load();
+    },
+    csrf() {
+      return getCookie('csrftoken') || (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value || '';
+    },
+    async load() {
+      this.loading = true;
+      try {
+        var r = await fetch('/api/v1/dashboard/notifications/', { credentials: 'same-origin' });
+        var data = await r.json();
+        this.items = data.results || [];
+      } catch (e) {
+        this.items = [];
+      }
+      this.loading = false;
+    },
+    formatDate(iso) {
+      if (!iso) return '';
+      try { return new Date(iso).toLocaleString(); } catch (e) { return iso; }
+    },
+    async markAll() {
+      await fetch('/api/v1/dashboard/notifications/mark-read/', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': this.csrf(),
+        },
+        body: '{}',
+      });
+      await this.load();
+    },
+    async markOne(n) {
+      await fetch('/api/v1/dashboard/notifications/mark-read/', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': this.csrf(),
+        },
+        body: JSON.stringify({ id: n.id }),
+      });
+      n.read_at = new Date().toISOString();
+    },
+  };
+}
+</script>
+{% endblock %}

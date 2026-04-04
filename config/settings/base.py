@@ -4,6 +4,7 @@ import ssl
 from pathlib import Path
 
 import environ
+from celery.schedules import crontab
 
 BASE_DIR = Path(__file__).resolve(strict=True).parent.parent.parent
 # disease_surveillance_dashboard/
@@ -193,6 +194,7 @@ TEMPLATES = [
                 "django.contrib.messages.context_processors.messages",
                 "disease_surveillance_dashboard.users.context_processors.allauth_settings",
                 "disease_surveillance_dashboard.dashboard.context_processors.user_role",
+                "disease_surveillance_dashboard.dashboard.context_processors.unhandled_alert_count",
             ],
         },
     },
@@ -228,6 +230,30 @@ EMAIL_BACKEND = env(
 )
 # https://docs.djangoproject.com/en/dev/ref/settings/#email-timeout
 EMAIL_TIMEOUT = 5
+DEFAULT_FROM_EMAIL = env(
+    "DJANGO_DEFAULT_FROM_EMAIL",
+    default="webmaster@localhost",
+)
+ALERT_IMMEDIATE_EXTRA_EMAILS = env.list("DJANGO_ALERT_IMMEDIATE_EXTRA_EMAILS", default=[])
+ALERT_IMMEDIATE_NOTIFY_ROLE_NAMES = env.list(
+    "DJANGO_ALERT_IMMEDIATE_NOTIFY_ROLE_NAMES",
+    default=[
+        "ADMIN",
+        "HEALTH_OFFICER",
+        "ANALYST",
+        "VERIFIER",
+        "PUBLIC_HEALTH_DIRECTOR",
+        "Public Health Officer",
+    ],
+)
+ALERT_DAILY_DIGEST_ROLE_NAMES = env.list(
+    "DJANGO_ALERT_DAILY_DIGEST_ROLE_NAMES",
+    default=[
+        "PUBLIC_HEALTH_DIRECTOR",
+        "Public Health Officer",
+        "HEALTH_OFFICER",
+    ],
+)
 
 # ADMIN
 # ------------------------------------------------------------------------------
@@ -306,6 +332,10 @@ CELERY_BEAT_SCHEDULE = {
     "generate-outbreak-alerts-every-30min": {
         "task": "generate-outbreak-alerts-every-30min",
         "schedule": 30 * 60,  # seconds
+    },
+    "send-pho-alert-digest-daily": {
+        "task": "send-pho-alert-digest-daily",
+        "schedule": crontab(hour=7, minute=0),
     },
 }
 # https://docs.celeryq.dev/en/stable/userguide/configuration.html#worker-send-task-events

@@ -6,3 +6,6 @@ class AlertsConfig(AppConfig):
     name = "disease_surveillance_dashboard.alerts"
     verbose_name = "Alerts"
 
+    def ready(self):
+        import disease_surveillance_dashboard.alerts.signals  # noqa: F401
+

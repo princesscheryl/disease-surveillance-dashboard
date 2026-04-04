@@ -2,8 +2,10 @@ from django.contrib import admin
 
 from .models import Alert
 from .models import AlertEscalation
+from .models import AlertImmediateEmailLog
 from .models import AlertNote
 from .models import AlertStatus
+from .models import PhoAlertDigestSend
 
 
 @admin.register(AlertStatus)
@@ -58,6 +60,20 @@ class AlertNoteAdmin(admin.ModelAdmin):
     search_fields = ["note_text", "alert__disease__disease_name"]
     ordering = ["-noted_at"]
     readonly_fields = ["noted_at"]
+
+
+@admin.register(AlertImmediateEmailLog)
+class AlertImmediateEmailLogAdmin(admin.ModelAdmin):
+    list_display = ["alert", "sent_at"]
+    readonly_fields = ["alert", "sent_at"]
+    ordering = ["-sent_at"]
+
+
+@admin.register(PhoAlertDigestSend)
+class PhoAlertDigestSendAdmin(admin.ModelAdmin):
+    list_display = ["digest_for_date", "sent_at"]
+    readonly_fields = ["digest_for_date", "sent_at"]
+    ordering = ["-digest_for_date"]
 
 
 @admin.register(AlertEscalation)

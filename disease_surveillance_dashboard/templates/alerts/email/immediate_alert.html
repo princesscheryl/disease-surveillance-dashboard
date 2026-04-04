@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<body>
+<p>A new disease surveillance alert requires attention.</p>
+<ul>
+  <li><strong>Disease:</strong> {{ disease_name }}</li>
+  <li><strong>District / location:</strong> {{ district_label }}</li>
+  <li><strong>Severity:</strong> {{ severity }}</li>
+  <li><strong>Status:</strong> {{ status_name }}</li>
+  <li><strong>Period start:</strong> {{ period_label }}</li>
+  <li><strong>Recorded:</strong> {{ created_label }}</li>
+</ul>
+<p><a href="{{ dashboard_url }}">Open Alerts &amp; Investigations</a></p>
+</body>
+</html>

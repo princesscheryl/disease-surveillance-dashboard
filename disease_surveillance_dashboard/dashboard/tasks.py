@@ -1,8 +1,7 @@
 """
-Celery task for automatic outbreak alert generation.
-
-Runs CUSUM detection over the last 30 days per disease/location and creates
-Alert records when the CUSUM series exceeds the threshold (5.0).
+celery task for automatic outbreak alert generation
+runs cusum detection over the last 30 days per disease/location and then it creates
+alert records when the cusum series exceeds the threshold of 5.0.
 """
 
 import logging
@@ -22,11 +21,10 @@ CUSUM_THRESHOLD = 5.0
 @shared_task(name="generate-outbreak-alerts-every-30min")
 def generate_outbreak_alerts(dry_run=False):
     """
-    Run CUSUM detection for all active disease/location pairs and create
-    Alert records for each trigger point (date where CUSUM >= 5.0).
-
-    Skip combinations with fewer than 10 reports so the baseline has enough data.
-    Returns the number of alerts created.
+    Run cusum detection for all active disease/location pairs and create
+    alert records for each trigger point (date where CUSUM >= 5.0)and
+    skip combinations with fewer than 10 reports so the baseline has enough data.
+    returns the number of alerts created.
     """
     from disease_surveillance_dashboard.alerts.models import Alert
     from disease_surveillance_dashboard.alerts.models import AlertStatus

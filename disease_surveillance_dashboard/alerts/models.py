@@ -155,3 +155,28 @@ class AlertEscalation(models.Model):
         """Return string representation."""
         return f"Escalation for alert {self.alert.id} from {self.escalated_from_role} to {self.escalated_to_role}"
 
+
+class AlertImmediateEmailLog(models.Model):
+    alert = models.OneToOneField(
+        Alert,
+        on_delete=models.CASCADE,
+        related_name="immediate_email_log",
+        verbose_name=_("Alert"),
+    )
+    sent_at = models.DateTimeField(_("Sent At"), auto_now_add=True)
+
+    class Meta:
+        db_table = "alert_immediate_email_log"
+        verbose_name = _("Alert immediate email log")
+        verbose_name_plural = _("Alert immediate email logs")
+
+
+class PhoAlertDigestSend(models.Model):
+    digest_for_date = models.DateField(_("Digest date"), unique=True, db_index=True)
+    sent_at = models.DateTimeField(_("Sent At"), auto_now_add=True)
+
+    class Meta:
+        db_table = "pho_alert_digest_sends"
+        verbose_name = _("PHO alert digest send")
+        verbose_name_plural = _("PHO alert digest sends")
+

@@ -131,7 +131,12 @@
            class="ds-nav-link{% if request.resolver_match.url_name == 'alerts' %} active{% endif %}"
            {% if request.resolver_match.url_name == 'alerts' %}aria-current="page"{% endif %}>
           <i class="bi bi-exclamation-triangle-fill ds-nav-icon" aria-hidden="true"></i>
-          <span>Alerts &amp; Investigations</span>
+          <span class="d-inline-flex align-items-center gap-1 flex-wrap">
+            <span>Alerts &amp; Investigations</span>
+            {% if unhandled_alert_count %}
+            <span class="badge rounded-pill bg-danger" aria-label="{{ unhandled_alert_count }} open alert{{ unhandled_alert_count|pluralize }}">{{ unhandled_alert_badge_display }}</span>
+            {% endif %}
+          </span>
         </a>
 
         <a href="{% url 'dashboard:reports' %}"
@@ -197,7 +202,12 @@
            class="ds-nav-link{% if request.resolver_match.url_name == 'alerts' %} active{% endif %}"
            {% if request.resolver_match.url_name == 'alerts' %}aria-current="page"{% endif %}>
           <i class="bi bi-exclamation-triangle-fill ds-nav-icon" aria-hidden="true"></i>
-          <span>Alerts &amp; Investigations</span>
+          <span class="d-inline-flex align-items-center gap-1 flex-wrap">
+            <span>Alerts &amp; Investigations</span>
+            {% if unhandled_alert_count %}
+            <span class="badge rounded-pill bg-danger" aria-label="{{ unhandled_alert_count }} open alert{{ unhandled_alert_count|pluralize }}">{{ unhandled_alert_badge_display }}</span>
+            {% endif %}
+          </span>
         </a>
 
         <a href="{% url 'dashboard:reports' %}"

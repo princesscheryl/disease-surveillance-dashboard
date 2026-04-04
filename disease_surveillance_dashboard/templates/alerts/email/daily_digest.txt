@@ -1,0 +1,9 @@
+Daily surveillance alert summary ({{ digest_date }}).
+Open alerts: {{ total }}
+
+{% for row in alert_rows %}
+- #{{ row.id }} | {{ row.disease_name }} | {{ row.district_label }} | {{ row.severity }} | {{ row.status_name }} | period {{ row.period_label }}
+{% endfor %}
+
+Dashboard:
+{{ dashboard_url }}

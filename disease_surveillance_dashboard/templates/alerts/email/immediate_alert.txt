@@ -1,0 +1,11 @@
+A new disease surveillance alert requires attention.
+
+Disease: {{ disease_name }}
+District / location: {{ district_label }}
+Severity: {{ severity }}
+Status: {{ status_name }}
+Period start: {{ period_label }}
+Recorded: {{ created_label }}
+
+Open the dashboard (Alerts & Investigations):
+{{ dashboard_url }}

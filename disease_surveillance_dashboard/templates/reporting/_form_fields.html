@@ -48,14 +48,35 @@
 {# ── Case Details ── #}
 <div class="report-form-section">
   <div class="form-group-label">Case Details</div>
-  <div class="row g-3">
-    <div class="col-md-6">
+
+  <div class="row g-3 mb-3">
+    <div class="col-md-4">
+      <label for="{{ form.report_type.id_for_label }}" class="form-label">{{ form.report_type.label }}</label>
+      {{ form.report_type }}
+      <div class="form-text text-muted">
+        Use <strong>Immediate</strong> for cholera, VHF, AFP, meningitis — required within 24–48 hrs.
+      </div>
+      {% if form.report_type.errors %}
+        <div class="text-danger small mt-1">{{ form.report_type.errors }}</div>
+      {% endif %}
+    </div>
+    <div class="col-md-4">
       <label for="{{ form.case_count.id_for_label }}" class="form-label">{{ form.case_count.label }}</label>
       {{ form.case_count }}
       {% if form.case_count.errors %}
         <div class="text-danger small mt-1">{{ form.case_count.errors }}</div>
       {% endif %}
     </div>
+    <div class="col-md-4">
+      <label for="{{ form.death_count.id_for_label }}" class="form-label">{{ form.death_count.label }}</label>
+      {{ form.death_count }}
+      {% if form.death_count.errors %}
+        <div class="text-danger small mt-1">{{ form.death_count.errors }}</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="row g-3">
     <div class="col-md-6">
       <label for="{{ form.report_source.id_for_label }}" class="form-label">{{ form.report_source.label }}</label>
       {{ form.report_source }}
@@ -70,21 +91,14 @@
 <div class="report-form-section">
   <div class="form-group-label">Epidemiological Classification</div>
   <div class="row g-3">
-    <div class="col-md-4">
-      <label for="{{ form.sex.id_for_label }}" class="form-label">{{ form.sex.label }}</label>
-      {{ form.sex }}
-      {% if form.sex.errors %}
-        <div class="text-danger small mt-1">{{ form.sex.errors }}</div>
+    <div class="col-md-6">
+      <label for="{{ form.case_classification.id_for_label }}" class="form-label">{{ form.case_classification.label }}</label>
+      {{ form.case_classification }}
+      {% if form.case_classification.errors %}
+        <div class="text-danger small mt-1">{{ form.case_classification.errors }}</div>
       {% endif %}
     </div>
-    <div class="col-md-4">
-      <label for="{{ form.age_group.id_for_label }}" class="form-label">{{ form.age_group.label }}</label>
-      {{ form.age_group }}
-      {% if form.age_group.errors %}
-        <div class="text-danger small mt-1">{{ form.age_group.errors }}</div>
-      {% endif %}
-    </div>
-    <div class="col-md-4">
+    <div class="col-md-6">
       <label for="{{ form.severity_level.id_for_label }}" class="form-label">{{ form.severity_level.label }}</label>
       {{ form.severity_level }}
       {% if form.severity_level.errors %}
@@ -94,14 +108,93 @@
   </div>
 </div>
 
+{# ── Demographic Breakdown ── #}
+<div class="report-form-section">
+  <div class="form-group-label">Demographic Breakdown</div>
+  <p class="text-muted small mb-3">
+    Enter counts per sex and age group. Each set must add up to the total case count, or leave all as 0 if unknown.
+    <span id="breakdown-live-total" class="fw-semibold"></span>
+  </p>
+
+  {# Sex breakdown #}
+  <div class="mb-3">
+    <div class="form-text fw-semibold mb-2">By Sex</div>
+    <div class="row g-2">
+      <div class="col-4">
+        <label for="{{ form.male_count.id_for_label }}" class="form-label text-center d-block small">{{ form.male_count.label }}</label>
+        {{ form.male_count }}
+        {% if form.male_count.errors %}
+          <div class="text-danger small mt-1">{{ form.male_count.errors }}</div>
+        {% endif %}
+      </div>
+      <div class="col-4">
+        <label for="{{ form.female_count.id_for_label }}" class="form-label text-center d-block small">{{ form.female_count.label }}</label>
+        {{ form.female_count }}
+        {% if form.female_count.errors %}
+          <div class="text-danger small mt-1">{{ form.female_count.errors }}</div>
+        {% endif %}
+      </div>
+      <div class="col-4">
+        <label for="{{ form.unknown_sex_count.id_for_label }}" class="form-label text-center d-block small">{{ form.unknown_sex_count.label }}</label>
+        {{ form.unknown_sex_count }}
+        {% if form.unknown_sex_count.errors %}
+          <div class="text-danger small mt-1">{{ form.unknown_sex_count.errors }}</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {# Age breakdown #}
+  <div>
+    <div class="form-text fw-semibold mb-2">By Age Group</div>
+    <div class="row g-2">
+      <div class="col">
+        <label for="{{ form.age_under5_count.id_for_label }}" class="form-label text-center d-block small">{{ form.age_under5_count.label }}</label>
+        {{ form.age_under5_count }}
+        {% if form.age_under5_count.errors %}
+          <div class="text-danger small mt-1">{{ form.age_under5_count.errors }}</div>
+        {% endif %}
+      </div>
+      <div class="col">
+        <label for="{{ form.age_5_17_count.id_for_label }}" class="form-label text-center d-block small">{{ form.age_5_17_count.label }}</label>
+        {{ form.age_5_17_count }}
+        {% if form.age_5_17_count.errors %}
+          <div class="text-danger small mt-1">{{ form.age_5_17_count.errors }}</div>
+        {% endif %}
+      </div>
+      <div class="col">
+        <label for="{{ form.age_18_59_count.id_for_label }}" class="form-label text-center d-block small">{{ form.age_18_59_count.label }}</label>
+        {{ form.age_18_59_count }}
+        {% if form.age_18_59_count.errors %}
+          <div class="text-danger small mt-1">{{ form.age_18_59_count.errors }}</div>
+        {% endif %}
+      </div>
+      <div class="col">
+        <label for="{{ form.age_60plus_count.id_for_label }}" class="form-label text-center d-block small">{{ form.age_60plus_count.label }}</label>
+        {{ form.age_60plus_count }}
+        {% if form.age_60plus_count.errors %}
+          <div class="text-danger small mt-1">{{ form.age_60plus_count.errors }}</div>
+        {% endif %}
+      </div>
+      <div class="col">
+        <label for="{{ form.unknown_age_count.id_for_label }}" class="form-label text-center d-block small">{{ form.unknown_age_count.label }}</label>
+        {{ form.unknown_age_count }}
+        {% if form.unknown_age_count.errors %}
+          <div class="text-danger small mt-1">{{ form.unknown_age_count.errors }}</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
 {# ── Additional Information ── #}
 <div class="report-form-section">
   <div class="form-group-label">Additional Information</div>
   <div class="mb-3">
-    <label for="{{ form.facility_unit_name.id_for_label }}" class="form-label">{{ form.facility_unit_name.label }}</label>
-    {{ form.facility_unit_name }}
-    {% if form.facility_unit_name.errors %}
-      <div class="text-danger small mt-1">{{ form.facility_unit_name.errors }}</div>
+    <label for="{{ form.health_facility.id_for_label }}" class="form-label">{{ form.health_facility.label }}</label>
+    {{ form.health_facility }}
+    {% if form.health_facility.errors %}
+      <div class="text-danger small mt-1">{{ form.health_facility.errors }}</div>
     {% endif %}
   </div>
   <div class="mb-0">
@@ -112,3 +205,62 @@
     {% endif %}
   </div>
 </div>
+
+{# ── Live breakdown counter (Alpine.js) ── #}
+<script>
+(function () {
+  // Wait for DOM to be ready then wire up the live total indicator.
+  document.addEventListener("DOMContentLoaded", function () {
+    var caseCountInput = document.getElementById("{{ form.case_count.id_for_label }}");
+    var sexIds = [
+      "{{ form.male_count.id_for_label }}",
+      "{{ form.female_count.id_for_label }}",
+      "{{ form.unknown_sex_count.id_for_label }}"
+    ];
+    var ageIds = [
+      "{{ form.age_under5_count.id_for_label }}",
+      "{{ form.age_5_17_count.id_for_label }}",
+      "{{ form.age_18_59_count.id_for_label }}",
+      "{{ form.age_60plus_count.id_for_label }}",
+      "{{ form.unknown_age_count.id_for_label }}"
+    ];
+    var indicator = document.getElementById("breakdown-live-total");
+    if (!caseCountInput || !indicator) return;
+
+    function getVal(id) {
+      var el = document.getElementById(id);
+      return el ? (parseInt(el.value, 10) || 0) : 0;
+    }
+
+    function update() {
+      var total = parseInt(caseCountInput.value, 10) || 0;
+      var sexTotal = sexIds.reduce(function (s, id) { return s + getVal(id); }, 0);
+      var ageTotal = ageIds.reduce(function (s, id) { return s + getVal(id); }, 0);
+
+      var parts = [];
+      if (sexTotal > 0) {
+        parts.push("Sex: " + sexTotal + "/" + total);
+      }
+      if (ageTotal > 0) {
+        parts.push("Age: " + ageTotal + "/" + total);
+      }
+      if (parts.length === 0) {
+        indicator.textContent = "";
+        indicator.className = "fw-semibold";
+        return;
+      }
+
+      var ok = (sexTotal === 0 || sexTotal === total) && (ageTotal === 0 || ageTotal === total);
+      indicator.textContent = "(" + parts.join(", ") + ")";
+      indicator.className = "fw-semibold ms-1 " + (ok ? "text-success" : "text-danger");
+    }
+
+    var allIds = [caseCountInput.id].concat(sexIds).concat(ageIds);
+    allIds.forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.addEventListener("input", update);
+    });
+    update();
+  });
+})();
+</script>

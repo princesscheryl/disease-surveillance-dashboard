@@ -34,7 +34,9 @@
               <th scope="col">#</th>
               <th scope="col">Disease</th>
               <th scope="col">Location</th>
-              <th scope="col">Cases</th>
+              <th scope="col">Cases / Deaths</th>
+              <th scope="col">Classification</th>
+              <th scope="col">Type</th>
               <th scope="col">Observed</th>
               <th scope="col">Created</th>
               <th scope="col">Status</th>
@@ -47,7 +49,34 @@
               <td class="text-muted" style="font-size:.8rem;">{{ report.id }}</td>
               <td class="fw-semibold">{{ report.disease.disease_name }}</td>
               <td>{{ report.location.district_name }}</td>
-              <td>{{ report.case_count }}</td>
+              <td>
+                {{ report.case_count }}
+                {% if report.death_count > 0 %}
+                  <span class="badge bg-danger ms-1" title="{{ report.death_count }} death(s)">
+                    <i class="bi bi-heartbreak-fill me-1" aria-hidden="true"></i>{{ report.death_count }}
+                  </span>
+                {% endif %}
+              </td>
+              <td>
+                {% if report.case_classification == "CONFIRMED" %}
+                  <span class="badge bg-success">Confirmed</span>
+                {% elif report.case_classification == "PROBABLE" %}
+                  <span class="badge bg-warning text-dark">Probable</span>
+                {% elif report.case_classification == "SUSPECTED" %}
+                  <span class="badge bg-secondary">Suspected</span>
+                {% else %}
+                  <span class="text-muted small">—</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if report.report_type == "IMMEDIATE" %}
+                  <span class="badge bg-danger">Immediate</span>
+                {% elif report.report_type == "OUTBREAK" %}
+                  <span class="badge bg-warning text-dark">Outbreak</span>
+                {% else %}
+                  <span class="text-muted small">Weekly</span>
+                {% endif %}
+              </td>
               <td>{{ report.observed_at|date:"d M Y" }}</td>
               <td class="text-muted" style="font-size:.8rem;">{{ report.submitted_at|date:"d M Y H:i" }}</td>
               <td>

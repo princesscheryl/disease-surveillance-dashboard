@@ -58,6 +58,21 @@ class Report(models.Model):
         CRITICAL = "CRITICAL", _("Critical")
         UNKNOWN = "UNKNOWN", _("Unknown")
 
+    class CaseClassification(models.TextChoices):
+        """IDSR case classification."""
+
+        SUSPECTED = "SUSPECTED", _("Suspected")
+        PROBABLE = "PROBABLE", _("Probable")
+        CONFIRMED = "CONFIRMED", _("Confirmed")
+        UNKNOWN = "UNKNOWN", _("Unknown")
+
+    class ReportType(models.TextChoices):
+        """IDSR report type — drives urgency and timeliness rules."""
+
+        IMMEDIATE = "IMMEDIATE", _("Immediate Notification")
+        WEEKLY = "WEEKLY", _("Weekly Aggregate")
+        OUTBREAK = "OUTBREAK", _("Outbreak Report")
+
     disease = models.ForeignKey(
         "reference_data.Disease",
         on_delete=models.PROTECT,
@@ -116,6 +131,48 @@ class Report(models.Model):
         choices=SeverityLevel.choices,
         default=SeverityLevel.UNKNOWN,
     )
+
+    # ------------------------------------------------------------------
+    # IDSR fields added to close the surveillance gap
+    # ------------------------------------------------------------------
+
+    case_classification = models.CharField(
+        _("Case Classification"),
+        max_length=20,
+        choices=CaseClassification.choices,
+        default=CaseClassification.UNKNOWN,
+        db_index=True,
+    )
+    death_count = models.PositiveIntegerField(
+        _("Deaths"),
+        default=0,
+        help_text=_("Number of deaths among the reported cases"),
+    )
+    report_type = models.CharField(
+        _("Report Type"),
+        max_length=20,
+        choices=ReportType.choices,
+        default=ReportType.WEEKLY,
+        db_index=True,
+    )
+    health_facility = models.CharField(
+        _("Reporting Facility"),
+        max_length=255,
+        blank=True,
+        help_text=_("Name of the health facility or unit submitting this report"),
+    )
+
+    # Sex breakdown counts — sum should equal case_count when provided
+    male_count = models.PositiveIntegerField(_("Male Cases"), default=0)
+    female_count = models.PositiveIntegerField(_("Female Cases"), default=0)
+    unknown_sex_count = models.PositiveIntegerField(_("Unknown Sex Cases"), default=0)
+
+    # Age breakdown counts — sum should equal case_count when provided
+    age_under5_count = models.PositiveIntegerField(_("Cases Under 5"), default=0)
+    age_5_17_count = models.PositiveIntegerField(_("Cases Age 5–17"), default=0)
+    age_18_59_count = models.PositiveIntegerField(_("Cases Age 18–59"), default=0)
+    age_60plus_count = models.PositiveIntegerField(_("Cases Age 60+"), default=0)
+    unknown_age_count = models.PositiveIntegerField(_("Unknown Age Cases"), default=0)
 
     class Meta:
         db_table = "reports"

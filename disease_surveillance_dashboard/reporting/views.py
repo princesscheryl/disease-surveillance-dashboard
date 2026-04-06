@@ -126,25 +126,26 @@ def _build_report_kwargs(form_data: dict) -> dict:
     observed_time = form_data.get("observed_time") or dt_time(12, 0)
     observed_at = timezone.make_aware(datetime.combine(observed_date, observed_time))
 
-    case_notes = (form_data.get("case_notes") or "").strip()
-    facility_unit_name = (form_data.get("facility_unit_name") or "").strip()
-    if facility_unit_name:
-        case_notes = (
-            f"Facility/Unit: {facility_unit_name}\n\n{case_notes}"
-            if case_notes
-            else f"Facility/Unit: {facility_unit_name}"
-        )
-
     return {
         "disease": form_data["disease"],
         "location": form_data["location"],
         "observed_at": observed_at,
+        "report_type": form_data.get("report_type") or Report.ReportType.WEEKLY,
         "case_count": form_data["case_count"],
+        "death_count": form_data.get("death_count") or 0,
         "report_source": form_data.get("report_source") or None,
-        "sex": form_data.get("sex") or Report.Sex.UNKNOWN,
-        "age_group": form_data.get("age_group") or Report.AgeGroup.UNKNOWN,
+        "case_classification": form_data.get("case_classification") or Report.CaseClassification.UNKNOWN,
         "severity_level": form_data.get("severity_level") or Report.SeverityLevel.UNKNOWN,
-        "case_notes": case_notes,
+        "male_count": form_data.get("male_count") or 0,
+        "female_count": form_data.get("female_count") or 0,
+        "unknown_sex_count": form_data.get("unknown_sex_count") or 0,
+        "age_under5_count": form_data.get("age_under5_count") or 0,
+        "age_5_17_count": form_data.get("age_5_17_count") or 0,
+        "age_18_59_count": form_data.get("age_18_59_count") or 0,
+        "age_60plus_count": form_data.get("age_60plus_count") or 0,
+        "unknown_age_count": form_data.get("unknown_age_count") or 0,
+        "health_facility": (form_data.get("health_facility") or "").strip(),
+        "case_notes": (form_data.get("case_notes") or "").strip(),
     }
 
 

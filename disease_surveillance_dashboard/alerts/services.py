@@ -18,12 +18,8 @@ from disease_surveillance_dashboard.analytics.services import compute_cusum
 
 from .models import Alert
 from .models import AlertStatus
+from .models import resolve_cusum_config
 
-# CUSUM threshold for alert generation
-CUSUM_ALERT_THRESHOLD = 5.0
-
-# Severity levels based on CUSUM magnitude
-SEVERITY_LOW_THRESHOLD = 5.0
 SEVERITY_MEDIUM_THRESHOLD = 10.0
 SEVERITY_HIGH_THRESHOLD = 15.0
 
@@ -56,22 +52,23 @@ def evaluate_trend_and_generate_alert(trend_metric_id):
     except TrendMetric.DoesNotExist:
         return False, None, 0.0
 
-    # Use moving_avg as baseline if available, otherwise use 0
     baseline_value = float(trend_metric.moving_avg) if trend_metric.moving_avg else 0.0
     observed_value = float(trend_metric.total_cases)
 
-    # For initial implementation, we use previous_cusum=0
-    # In production, you might track previous CUSUM values per disease-location
+    cusum_threshold, k_val, _, _ = resolve_cusum_config(
+        trend_metric.disease_id,
+        trend_metric.location_id,
+    )
+
     previous_cusum = 0.0
     cusum_value = compute_cusum(
         observed_value=observed_value,
         baseline_value=baseline_value,
         previous_cusum=previous_cusum,
-        k=0.5,
+        k=k_val,
     )
 
-    # Only create alert if CUSUM exceeds threshold
-    if cusum_value <= CUSUM_ALERT_THRESHOLD:
+    if cusum_value <= cusum_threshold:
         return False, None, cusum_value
 
     # Determine severity level based on CUSUM magnitude
@@ -103,7 +100,7 @@ def evaluate_trend_and_generate_alert(trend_metric_id):
     # Generate threshold rule description
     threshold_rule = (
         f"CUSUM = {cusum_value:.2f} (observed={observed_value:.2f}, "
-        f"baseline={baseline_value:.2f}, threshold={CUSUM_ALERT_THRESHOLD})"
+        f"baseline={baseline_value:.2f}, threshold={cusum_threshold})"
     )
 
     # Create alert within transaction to ensure data consistency

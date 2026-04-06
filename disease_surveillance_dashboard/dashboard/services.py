@@ -517,8 +517,8 @@ def get_detection_metrics(start_date=None, end_date=None, disease_id=None, locat
         The CUSUM resets to zero where observed cases fall below baseline,
         which is the standard one-sided upper CUSUM formulation for detecting
         upward shifts in disease incidence.
-      - The list of dates where CUSUM exceeds the fixed threshold (5.0),
-        which correspond to candidate outbreak trigger points.
+      - The list of dates where CUSUM exceeds the configured threshold
+        (disease/location settings in admin, default 5.0).
 
     Args:
         start_date: optional timezone-aware datetime or date
@@ -569,13 +569,24 @@ def get_detection_metrics(start_date=None, end_date=None, disease_id=None, locat
         dates.append(row["day"].strftime("%Y-%m-%d"))
         daily_cases.append(int(row["cases"]))
 
+    cusum_threshold = 5.0
+    cusum_k = 0.5
+    use_seasonal = False
+    if disease_id and location_id:
+        from disease_surveillance_dashboard.alerts.models import resolve_cusum_config
+
+        cusum_threshold, cusum_k, use_seasonal, _ = resolve_cusum_config(
+            disease_id,
+            location_id,
+        )
+
     if len(daily_cases) < 3:
         return {
             "dates":           dates,
             "daily_cases":     daily_cases,
             "moving_avg_7d":   [],
             "cusum_series":    [],
-            "cusum_threshold": 5.0,
+            "cusum_threshold": cusum_threshold,
             "trigger_points":  [],
             "baseline_avg":    None,
             "message":         "Insufficient data for statistical detection (minimum 3 days required).",
@@ -601,22 +612,24 @@ def get_detection_metrics(start_date=None, end_date=None, disease_id=None, locat
         sum(daily_cases) / len(daily_cases), 4
     )
 
-    # Build CUSUM series using the imported compute_cusum function.
-    # k=0.5 is the standard reference value for detecting a shift of one
-    # standard deviation above the mean in a Poisson-like surveillance process.
-    cusum_series  = []
+    cusum_series = []
     cusum_current = 0.0
-    for cases in daily_cases:
+    for idx, cases in enumerate(daily_cases):
+        if use_seasonal and idx < len(moving_avg_7d):
+            baseline_day = moving_avg_7d[idx]
+            if baseline_day is None or baseline_day <= 0:
+                baseline_day = baseline_avg
+        else:
+            baseline_day = baseline_avg
         cusum_current = compute_cusum(
             observed_value=cases,
-            baseline_value=baseline_avg,
+            baseline_value=float(baseline_day),
             previous_cusum=cusum_current,
-            k=0.5,
+            k=cusum_k,
         )
         cusum_series.append(round(cusum_current, 4))
 
-    cusum_threshold = 5.0
-    trigger_points  = [
+    trigger_points = [
         dates[i]
         for i, v in enumerate(cusum_series)
         if v >= cusum_threshold

@@ -4,7 +4,9 @@ from .models import Alert
 from .models import AlertEscalation
 from .models import AlertImmediateEmailLog
 from .models import AlertNote
+from .models import AlertPerformance
 from .models import AlertStatus
+from .models import CusumThreshold
 from .models import PhoAlertDigestSend
 
 
@@ -74,6 +76,55 @@ class PhoAlertDigestSendAdmin(admin.ModelAdmin):
     list_display = ["digest_for_date", "sent_at"]
     readonly_fields = ["digest_for_date", "sent_at"]
     ordering = ["-digest_for_date"]
+
+
+@admin.register(CusumThreshold)
+class CusumThresholdAdmin(admin.ModelAdmin):
+    list_display = [
+        "disease",
+        "location",
+        "threshold",
+        "k_value",
+        "use_seasonal_baseline",
+        "updated_at",
+    ]
+    list_filter = ["disease", "use_seasonal_baseline"]
+    search_fields = [
+        "disease__disease_name",
+        "location__district_name",
+        "location__area_name",
+    ]
+    list_editable = ["threshold", "k_value", "use_seasonal_baseline"]
+    ordering = ["disease", "location"]
+
+
+@admin.register(AlertPerformance)
+class AlertPerformanceAdmin(admin.ModelAdmin):
+    list_display = [
+        "disease",
+        "location",
+        "period_start",
+        "period_end",
+        "alerts_generated",
+        "alerts_confirmed",
+        "false_alarms",
+        "false_alarm_rate",
+        "threshold_used",
+        "k_value_used",
+        "updated_at",
+    ]
+    list_filter = ["disease", "period_start"]
+    search_fields = ["disease__disease_name", "location__district_name"]
+    ordering = ["-period_start", "disease", "location"]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def get_readonly_fields(self, request, obj=None):
+        return [f.name for f in self.model._meta.fields]
 
 
 @admin.register(AlertEscalation)

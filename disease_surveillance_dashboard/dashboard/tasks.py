@@ -1,7 +1,7 @@
 """
 celery task for automatic outbreak alert generation
-runs cusum detection over the last 30 days per disease/location and then it creates
-alert records when the cusum series exceeds the threshold of 5.0.
+runs cusum detection over the last 30 days per disease/location and creates
+alert records when the cusum series exceeds the configured threshold (default 5.0).
 """
 
 import logging
@@ -15,14 +15,12 @@ from celery import shared_task
 
 logger = logging.getLogger(__name__)
 
-CUSUM_THRESHOLD = 5.0
-
 
 @shared_task(name="generate-outbreak-alerts-every-30min")
 def generate_outbreak_alerts(dry_run=False):
     """
     Run cusum detection for all active disease/location pairs and create
-    alert records for each trigger point (date where CUSUM >= 5.0)and
+    alert records for each trigger point (date where CUSUM >= h) and
     skip combinations with fewer than 10 reports so the baseline has enough data.
     returns the number of alerts created.
     """
@@ -73,6 +71,7 @@ def generate_outbreak_alerts(dry_run=False):
                 daily_cases = result.get("daily_cases") or []
                 cusum_series = result.get("cusum_series") or []
                 trigger_points = result.get("trigger_points") or []
+                cusum_h = result.get("cusum_threshold") or 5.0
                 baseline_avg = result.get("baseline_avg")
                 if baseline_avg is None:
                     continue
@@ -109,7 +108,12 @@ def generate_outbreak_alerts(dry_run=False):
                             )
                             continue
 
-                        severity = "High" if cusum_val > 10 else "Medium"
+                        if cusum_val >= 15:
+                            severity = "High"
+                        elif cusum_val >= 10:
+                            severity = "Medium"
+                        else:
+                            severity = "Low"
                         Alert.objects.create(
                             disease_id=disease_id,
                             location_id=location_id,
@@ -117,7 +121,7 @@ def generate_outbreak_alerts(dry_run=False):
                             period_end=period_end,
                             baseline_value=Decimal(str(baseline_avg)),
                             observed_value=Decimal(observed),
-                            threshold_rule="CUSUM threshold exceeded (5.0)",
+                            threshold_rule=f"CUSUM threshold exceeded (h={cusum_h})",
                             severity_level=severity,
                             status=status_new,
                         )

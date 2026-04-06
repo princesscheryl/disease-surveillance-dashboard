@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.conf import settings
 from django.db import models
 from django.utils.translation import gettext_lazy as _
@@ -179,4 +181,151 @@ class PhoAlertDigestSend(models.Model):
         db_table = "pho_alert_digest_sends"
         verbose_name = _("PHO alert digest send")
         verbose_name_plural = _("PHO alert digest sends")
+
+
+class CusumThreshold(models.Model):
+    disease = models.ForeignKey(
+        "reference_data.Disease",
+        on_delete=models.CASCADE,
+        related_name="cusum_thresholds",
+        verbose_name=_("Disease"),
+    )
+    location = models.ForeignKey(
+        "reference_data.Location",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="cusum_thresholds",
+        verbose_name=_("Location"),
+    )
+    threshold = models.DecimalField(
+        _("CUSUM threshold (h)"),
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal("5.00"),
+    )
+    k_value = models.DecimalField(
+        _("CUSUM slack (k)"),
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal("0.50"),
+    )
+    use_seasonal_baseline = models.BooleanField(
+        _("Use 7-day moving average as daily baseline"),
+        default=False,
+        help_text=_(
+            "When enabled, each day uses its 7-day moving average as the CUSUM baseline "
+            "instead of a single prior-window average."
+        ),
+    )
+    created_at = models.DateTimeField(_("Created at"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("Updated at"), auto_now=True)
+
+    class Meta:
+        db_table = "cusum_thresholds"
+        verbose_name = _("CUSUM threshold")
+        verbose_name_plural = _("CUSUM thresholds")
+        unique_together = [["disease", "location"]]
+
+    def __str__(self) -> str:
+        loc = str(self.location) if self.location_id else "All locations"
+        return f"{self.disease} — {loc}: h={self.threshold} k={self.k_value}"
+
+
+class AlertPerformance(models.Model):
+    disease = models.ForeignKey(
+        "reference_data.Disease",
+        on_delete=models.CASCADE,
+        related_name="alert_performance_rows",
+        verbose_name=_("Disease"),
+    )
+    location = models.ForeignKey(
+        "reference_data.Location",
+        on_delete=models.CASCADE,
+        related_name="alert_performance_rows",
+        verbose_name=_("Location"),
+    )
+    period_start = models.DateField(_("Period start"), db_index=True)
+    period_end = models.DateField(_("Period end"))
+    alerts_generated = models.PositiveIntegerField(_("Alerts generated"), default=0)
+    alerts_confirmed = models.PositiveIntegerField(
+        _("Resolved (confirmed)"),
+        default=0,
+        help_text=_("Alerts closed as Resolved in this period."),
+    )
+    false_alarms = models.PositiveIntegerField(_("False alarms"), default=0)
+    false_alarm_rate = models.DecimalField(
+        _("False alarm rate"),
+        max_digits=6,
+        decimal_places=3,
+        default=Decimal("0.000"),
+        help_text=_("false_alarms / (confirmed + false_alarms) when denominator is positive."),
+    )
+    threshold_used = models.DecimalField(
+        _("Threshold (h) at last update"),
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal("5.00"),
+    )
+    k_value_used = models.DecimalField(
+        _("k at last update"),
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal("0.50"),
+    )
+    updated_at = models.DateTimeField(_("Updated at"), auto_now=True)
+
+    class Meta:
+        db_table = "alert_performance"
+        verbose_name = _("Alert performance")
+        verbose_name_plural = _("Alert performance")
+        ordering = ["-period_start", "disease", "location"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["disease", "location", "period_start"],
+                name="alertperf_disease_location_period_uniq",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.disease} @ {self.location} {self.period_start}: gen={self.alerts_generated}"
+
+
+DEFAULT_CUSUM_THRESHOLD = Decimal("5.00")
+DEFAULT_CUSUM_K = Decimal("0.50")
+
+
+def resolve_cusum_config(disease_id, location_id):
+    """
+    Return (threshold, k, use_seasonal_baseline, CusumThreshold | None).
+    Prefer disease+location row, then disease-wide (location null), else defaults.
+    """
+    specific = CusumThreshold.objects.filter(
+        disease_id=disease_id,
+        location_id=location_id,
+    ).first()
+    if specific:
+        return (
+            float(specific.threshold),
+            float(specific.k_value),
+            specific.use_seasonal_baseline,
+            specific,
+        )
+    disease_wide = CusumThreshold.objects.filter(
+        disease_id=disease_id,
+        location__isnull=True,
+    ).first()
+    if disease_wide:
+        return (
+            float(disease_wide.threshold),
+            float(disease_wide.k_value),
+            disease_wide.use_seasonal_baseline,
+            disease_wide,
+        )
+    return (
+        float(DEFAULT_CUSUM_THRESHOLD),
+        float(DEFAULT_CUSUM_K),
+        False,
+        None,
+    )
 

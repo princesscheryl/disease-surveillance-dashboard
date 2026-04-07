@@ -7,6 +7,7 @@ from .api import dashboard_alert_statuses
 from .api import dashboard_alert_update_status
 from .api import dashboard_assignable_users
 from .api import dashboard_audit_log
+from .api import dashboard_diseases
 from .api import dashboard_notifications_list
 from .api import dashboard_notifications_mark_read
 from .api import dashboard_report_details
@@ -57,7 +58,8 @@ urlpatterns = [
     path("data-quality/",           dashboard_data_quality,          name="data-quality"),
     path("district-summary/",       dashboard_district_summary,      name="district-summary"),
     path("choropleth-data/",        dashboard_choropleth_data,      name="choropleth-data"),
-    # Export filter count endpoint
+    # Export filter endpoints
+    path("diseases/",               dashboard_diseases,              name="diseases"),
     path("reports-count/",          dashboard_reports_count,         name="reports-count"),
 ]
 

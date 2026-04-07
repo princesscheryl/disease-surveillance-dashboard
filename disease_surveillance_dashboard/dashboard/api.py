@@ -1175,13 +1175,37 @@ def dashboard_audit_log(request):
 
 
 @api_view(["GET"])
+def dashboard_diseases(request):
+    """
+    Return list of all diseases for dropdown filters.
+    """
+    from disease_surveillance_dashboard.reporting.models import Report
+
+    diseases = (
+        Report.objects.values("disease_id", "disease__disease_name")
+        .distinct()
+        .order_by("disease__disease_name")
+    )
+
+    results = [
+        {"id": d["disease_id"], "disease_name": d["disease__disease_name"]}
+        for d in diseases
+    ]
+
+    return Response({"results": results})
+
+
+@api_view(["GET"])
 def dashboard_reports_count(request):
     """
     Return count of reports matching the given filters.
     Used for live preview in the export filter page.
 
     Supports: disease, from (date), to (date)
+    Filters by submitted_at (when the report was sent).
     """
+    from disease_surveillance_dashboard.reporting.models import Report
+
     access_check = check_dashboard_access(request.user)
     if access_check:
         return access_check
@@ -1198,14 +1222,14 @@ def dashboard_reports_count(request):
     date_from = request.query_params.get("from")
     if date_from:
         try:
-            queryset = queryset.filter(observed_at__date__gte=date_from)
+            queryset = queryset.filter(submitted_at__date__gte=date_from)
         except (ValueError, TypeError):
             pass
 
     date_to = request.query_params.get("to")
     if date_to:
         try:
-            queryset = queryset.filter(observed_at__date__lte=date_to)
+            queryset = queryset.filter(submitted_at__date__lte=date_to)
         except (ValueError, TypeError):
             pass
 

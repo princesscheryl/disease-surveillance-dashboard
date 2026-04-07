@@ -69,7 +69,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const countText = document.getElementById('count-text');
 
   // Load disease list
-  fetch('/api/v1/diseases/')
+  fetch('/api/v1/dashboard/diseases/')
     .then(response => response.json())
     .then(data => {
       if (data.results) {

@@ -163,8 +163,8 @@ def _filter_reports(queryset, request):
     Apply optional query-parameter filters to a Report queryset.
 
     Supported params:
-      from      — observed_at on or after this date (YYYY-MM-DD)
-      to        — observed_at on or before this date (YYYY-MM-DD)
+      from      — submitted_at on or after this date (YYYY-MM-DD)
+      to        — submitted_at on or before this date (YYYY-MM-DD)
       disease   — disease primary key
       location  — location primary key
       status    — report status primary key
@@ -177,12 +177,12 @@ def _filter_reports(queryset, request):
 
     if date_from:
         try:
-            queryset = queryset.filter(observed_at__date__gte=date_from)
+            queryset = queryset.filter(submitted_at__date__gte=date_from)
         except (ValueError, TypeError):
             pass
     if date_to:
         try:
-            queryset = queryset.filter(observed_at__date__lte=date_to)
+            queryset = queryset.filter(submitted_at__date__lte=date_to)
         except (ValueError, TypeError):
             pass
     if disease_id:

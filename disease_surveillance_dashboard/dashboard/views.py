@@ -111,6 +111,28 @@ class ReviewReportsView(DashboardBaseMixin, TemplateView):
     template_name = "dashboard/review_reports.html"
 
 
+@method_decorator(require_role(*OFFICER_OR_ADMIN_ROLES), name="dispatch")
+class ExportReviewReportsPageView(DashboardBaseMixin, TemplateView):
+    """Filter and download review reports as CSV."""
+    template_name = "dashboard/export_review_reports_page.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["export_url"] = reverse("dashboard:review_reports_export")
+        return context
+
+
+@method_decorator(require_role(*OFFICER_OR_ADMIN_ROLES), name="dispatch")
+class ExportAlertsPageView(DashboardBaseMixin, TemplateView):
+    """Filter and download alerts as CSV."""
+    template_name = "dashboard/export_alerts_page.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["export_url"] = reverse("dashboard:alerts_export")
+        return context
+
+
 # ---------------------------------------------------------------------------
 # Legacy alias — keeps the old /dashboard/ URL working so existing bookmarks
 # and tests do not break.

@@ -17,6 +17,8 @@ from .views import (
     AuditLogView,
     DashboardView,
     ExportReportsPageView,
+    ExportReviewReportsPageView,
+    ExportAlertsPageView,
     LiveMapView,
     NotificationsView,
     OverviewView,
@@ -33,15 +35,16 @@ urlpatterns = [
     # Legacy URL — kept so existing bookmarks and template {% url 'dashboard:dashboard' %} still work
     path("", DashboardView.as_view(), name="dashboard"),
 
-    # New named pages
     path("overview/",  OverviewView.as_view(),  name="overview"),
     path("analytics/", AnalyticsView.as_view(), name="analytics"),
     path("map/",       LiveMapView.as_view(),   name="live_map"),
     path("alerts/",         AlertsView.as_view(),         name="alerts"),
+    path("alerts/filter/",   ExportAlertsPageView.as_view(), name="alerts_filter"),
     path("notifications/",  NotificationsView.as_view(),  name="notifications"),
     path("activity/",       AuditLogView.as_view(),       name="activity_log"),
     path("alerts/export/",   export_alerts,               name="alerts_export"),
     path("reports/review/", ReviewReportsView.as_view(), name="review_reports"),
+    path("reports/review/filter/", ExportReviewReportsPageView.as_view(), name="review_reports_filter"),
     path("reports/review/export/", export_review_reports, name="review_reports_export"),
     path("reports/",        ReportsView.as_view(),       name="reports"),
     path("reports/filter/",  ExportReportsPageView.as_view(), name="reports_filter"),

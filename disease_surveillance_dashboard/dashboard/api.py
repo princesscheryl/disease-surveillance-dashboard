@@ -1177,19 +1177,19 @@ def dashboard_audit_log(request):
 @api_view(["GET"])
 def dashboard_diseases(request):
     """
-    Return list of all diseases for dropdown filters.
+    Return list of all active diseases for dashboard dropdown filters.
     """
-    from disease_surveillance_dashboard.reporting.models import Report
+    from reference_data.models import Disease
 
-    diseases = (
-        Report.objects.values("disease_id", "disease__disease_name")
-        .distinct()
-        .order_by("disease__disease_name")
-    )
+    access_check = check_dashboard_access(request.user)
+    if access_check:
+        return access_check
+
+    diseases = Disease.objects.filter(is_active=True).order_by("disease_name")
 
     results = [
-        {"id": d["disease_id"], "disease_name": d["disease__disease_name"]}
-        for d in diseases
+        {"id": disease.id, "disease_name": disease.disease_name}
+        for disease in diseases
     ]
 
     return Response({"results": results})

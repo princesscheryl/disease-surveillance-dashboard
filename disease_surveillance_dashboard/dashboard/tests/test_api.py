@@ -127,6 +127,20 @@ class DashboardAPITestCase(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIsInstance(response.data, list)
 
+    def test_dashboard_diseases_returns_all_active_reference_diseases(self):
+        """Test diseases endpoint returns active diseases even without reports."""
+        cholera = Disease.objects.create(disease_name="Cholera")
+        inactive = Disease.objects.create(disease_name="Old Disease", is_active=False)
+
+        response = self.client.get("/api/v1/dashboard/diseases/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        returned_names = [item["disease_name"] for item in response.data["results"]]
+
+        self.assertIn(self.disease.disease_name, returned_names)
+        self.assertIn(cholera.disease_name, returned_names)
+        self.assertNotIn(inactive.disease_name, returned_names)
+
     def test_dashboard_map_points_skips_no_coords(self):
         """Test map points endpoint skips locations without coordinates."""
         response = self.client.get("/api/v1/dashboard/map-points/")

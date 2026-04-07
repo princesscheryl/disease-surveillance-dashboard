@@ -512,6 +512,270 @@ input[type="datetime-local"] { color-scheme: light; }
 }
 
 /* ================================================================
+   LANDING & MARKETING (home / about)
+   ================================================================ */
+.ds-landing-page .ds-main-container {
+  max-width: 1120px;
+}
+
+.ds-landing-eyebrow {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--t-primary);
+}
+
+.ds-landing-headline {
+  font-size: clamp(1.75rem, 4vw, 2.35rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  color: var(--t-text);
+}
+
+.ds-landing-lead {
+  font-size: 1.05rem;
+  line-height: 1.65;
+  color: var(--t-text-secondary);
+  max-width: 38rem;
+}
+
+.ds-landing-hero {
+  position: relative;
+  border-radius: var(--t-r-xl);
+  padding: 2.25rem 1.75rem;
+  background: linear-gradient(
+    125deg,
+    var(--t-primary-xlight) 0%,
+    var(--t-surface) 42%,
+    var(--t-primary-light) 100%
+  );
+  border: 1px solid var(--t-border);
+  box-shadow: var(--t-shadow);
+  overflow: hidden;
+}
+
+.ds-landing-hero::before {
+  content: '';
+  position: absolute;
+  inset: -40% -20% auto auto;
+  width: min(70vw, 420px);
+  height: min(70vw, 420px);
+  background: radial-gradient(circle, rgba(27, 138, 120, 0.14) 0%, transparent 68%);
+  pointer-events: none;
+}
+
+.ds-landing-hero::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--t-primary), var(--t-blue));
+  opacity: 0.35;
+  border-radius: 0 0 var(--t-r-xl) var(--t-r-xl);
+}
+
+.ds-landing-visual {
+  position: relative;
+  border-radius: var(--t-r-lg);
+  background: var(--t-surface);
+  border: 1px solid var(--t-border);
+  box-shadow: var(--t-shadow-sm);
+  min-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.ds-landing-visual-inner {
+  text-align: center;
+}
+
+.ds-landing-pulse-icon {
+  font-size: 3.5rem;
+  color: var(--t-primary);
+  display: block;
+  margin-bottom: 1rem;
+  filter: drop-shadow(0 4px 12px rgba(27, 138, 120, 0.25));
+}
+
+.ds-landing-stat {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.75rem 1.25rem;
+  background: var(--t-primary-light);
+  border-radius: var(--t-r);
+  border: 1px solid rgba(27, 138, 120, 0.15);
+}
+
+.ds-landing-stat-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--t-primary-dark);
+}
+
+.ds-landing-stat-value {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--t-text);
+}
+
+.ds-landing-tile {
+  border-radius: var(--t-r-lg);
+  background: var(--t-surface);
+  border: 1px solid var(--t-border);
+  box-shadow: var(--t-shadow-sm);
+  padding: 1.5rem 1.375rem;
+  transition: box-shadow var(--t-base) var(--t-ease), transform var(--t-base) var(--t-ease);
+}
+
+.ds-landing-tile:hover {
+  box-shadow: var(--t-shadow);
+  transform: translateY(-2px);
+}
+
+.ds-landing-tile-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--t-r-sm);
+  background: var(--t-primary-light);
+  color: var(--t-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.ds-about-header {
+  max-width: 48rem;
+}
+
+.ds-about-list {
+  padding-left: 1.1rem;
+  margin: 0;
+  color: var(--t-text-secondary);
+  line-height: 1.7;
+}
+
+.ds-about-list li + li {
+  margin-top: 0.5rem;
+}
+
+/* ================================================================
+   AUTH PAGES (sign in / sign up — entrance layout)
+   ================================================================ */
+body.ds-auth-page .ds-main-container {
+  padding-top: 1.25rem;
+}
+
+.ds-auth-shell {
+  min-height: calc(100vh - 60px - 5rem);
+  display: flex;
+  flex-direction: column;
+}
+
+.ds-auth-back-row {
+  margin-bottom: 1.25rem;
+}
+
+.ds-auth-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--t-text-secondary);
+  text-decoration: none;
+  padding: 0.35rem 0.65rem 0.35rem 0;
+  border-radius: var(--t-r-sm);
+  transition: color var(--t-base) var(--t-ease), background var(--t-base) var(--t-ease);
+}
+
+.ds-auth-back:hover {
+  color: var(--t-primary);
+  background: var(--t-primary-xlight);
+}
+
+.ds-auth-back .bi {
+  font-size: 1rem;
+}
+
+.ds-auth-panel-section {
+  margin-bottom: 0;
+}
+
+.ds-auth-card {
+  border: 1px solid var(--t-border);
+  border-radius: var(--t-r-xl);
+  box-shadow: var(--t-shadow-lg);
+  background: var(--t-surface);
+  overflow: hidden;
+}
+
+.ds-auth-card .card-body {
+  padding: 1.75rem 1.75rem 2rem;
+}
+
+@media (min-width: 576px) {
+  .ds-auth-card .card-body {
+    padding: 2rem 2.25rem 2.25rem;
+  }
+}
+
+.ds-auth-card-title {
+  font-size: 1.375rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--t-text);
+  margin-bottom: 1rem;
+  line-height: 1.25;
+}
+
+/* Crispy / allauth forms inside auth card */
+.ds-auth-card .asteriskField {
+  color: var(--t-danger);
+}
+
+.ds-auth-card .form-label {
+  font-weight: 600;
+  font-size: 0.8125rem;
+  color: var(--t-text);
+  margin-bottom: 0.35rem;
+}
+
+.ds-auth-card .form-control,
+.ds-auth-card .form-select {
+  border-radius: var(--t-r-sm);
+  border-color: var(--t-border-strong);
+  padding: 0.55rem 0.875rem;
+}
+
+.ds-auth-card .form-control:focus,
+.ds-auth-card .form-select:focus {
+  border-color: var(--t-primary);
+  box-shadow: 0 0 0 3px rgba(27, 138, 120, 0.18);
+}
+
+.ds-auth-card .btn-primary {
+  padding: 0.55rem 1.35rem;
+  font-weight: 600;
+  border-radius: var(--t-r-sm);
+}
+
+.ds-auth-actions li + li {
+  margin-top: 0.5rem;
+}
+
+/* ================================================================
    RESPONSIVE COMPONENT TWEAKS
    ================================================================ */
 @media (max-width: 768px) {

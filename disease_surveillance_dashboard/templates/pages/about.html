@@ -1,3 +1,46 @@
 {% extends "base.html" %}
+{% load i18n %}
 
+{% block title %}{% trans "About" %} — Disease Surveillance Dashboard{% endblock title %}
 
+{% block bodyclass %}ds-landing-page{% endblock bodyclass %}
+
+{% block content %}
+<div class="ds-about-header mb-4 mb-md-5">
+  <p class="ds-landing-eyebrow mb-2">{% trans "About DSD" %}</p>
+  <h1 class="ds-landing-headline mb-3">{% trans "Disease Surveillance Dashboard" %}</h1>
+  <p class="ds-landing-lead mb-0">
+    {% trans "This application supports routine surveillance and early awareness in Greater Accra by combining case reporting, analytics, and operational views for alerts and follow-up." %}
+  </p>
+</div>
+
+<div class="row g-4 mb-5">
+  <div class="col-lg-6">
+    <div class="ds-landing-tile h-100">
+      <h2 class="h5 fw-bold mb-3">{% trans "What you can do here" %}</h2>
+      <ul class="ds-about-list mb-0">
+        <li>{% trans "Submit and track case reports from your facility or district context." %}</li>
+        <li>{% trans "Explore dashboards for cases, trends, maps, and data quality." %}</li>
+        <li>{% trans "Review alerts and investigations when your role allows." %}</li>
+      </ul>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="ds-landing-tile h-100">
+      <h2 class="h5 fw-bold mb-3">{% trans "Credits" %}</h2>
+      <p class="text-muted small mb-0">
+        {% blocktranslate trimmed %}
+          Project by Princess Cheryl Asiedu-Donkor and Akua Dede Amofa. Built as a disease surveillance
+          dashboard with predictive trend analysis for early warning.
+        {% endblocktranslate %}
+      </p>
+    </div>
+  </div>
+</div>
+
+<div class="text-center">
+  <a class="btn btn-primary px-4" href="{% url 'home' %}">
+    <i class="bi bi-house-door me-2" aria-hidden="true"></i>{% trans "Back to home" %}
+  </a>
+</div>
+{% endblock content %}

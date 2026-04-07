@@ -1,19 +1,19 @@
 {% load allauth %}
 
-<section>
-  <div class="card mb-4">
+<section class="ds-auth-panel-section">
+  <div class="card ds-auth-card">
     <div class="card-body">
-      <h2 class="card-title">
+      <h2 class="ds-auth-card-title">
         {% slot title %}
       {% endslot %}
-    </h2>
-    {% slot body %}
-  {% endslot %}
-  {% if slots.actions %}
-    <ul>
-      {% for action in slots.actions %}<li>{{ action }}</li>{% endfor %}
-    </ul>
-  {% endif %}
-</div>
-</div>
+      </h2>
+      {% slot body %}
+    {% endslot %}
+    {% if slots.actions %}
+      <ul class="ds-auth-actions list-unstyled mb-0 mt-3">
+        {% for action in slots.actions %}<li>{{ action }}</li>{% endfor %}
+      </ul>
+    {% endif %}
+    </div>
+  </div>
 </section>

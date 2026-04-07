@@ -1,0 +1,130 @@
+{% extends "dashboard/_layout.html" %}
+{% load static %}
+
+{% block title %}Export Reports{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="mb-4">
+    <h2 class="dashboard-title">Export Reports</h2>
+    <p class="dashboard-subtitle">Download surveillance reports with optional filters.</p>
+  </div>
+
+  <div class="row">
+    <div class="col-lg-6">
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title mb-4">Filter Options</h5>
+
+          <div id="filter-form">
+            {# Disease filter #}
+            <div class="mb-3">
+              <label for="disease-select" class="form-label">Disease</label>
+              <select id="disease-select" class="form-select">
+                <option value="">All Diseases</option>
+              </select>
+              <small class="form-text text-muted">Leave blank for all diseases</small>
+            </div>
+
+            {# Date from #}
+            <div class="mb-3">
+              <label for="date-from" class="form-label">From Date</label>
+              <input type="date" id="date-from" class="form-control">
+              <small class="form-text text-muted">Optional</small>
+            </div>
+
+            {# Date to #}
+            <div class="mb-3">
+              <label for="date-to" class="form-label">To Date</label>
+              <input type="date" id="date-to" class="form-control">
+              <small class="form-text text-muted">Optional</small>
+            </div>
+
+            {# Preview count #}
+            <div class="alert alert-info" id="count-preview" style="display:none;">
+              <i class="bi bi-info-circle me-2"></i>
+              <span id="count-text"></span>
+            </div>
+
+            {# Download button #}
+            <div class="d-grid gap-2">
+              <a id="download-btn" href="{{ export_url }}" class="btn btn-primary" download>
+                <i class="bi bi-download me-2"></i>Download CSV
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const diseaseSelect = document.getElementById('disease-select');
+  const dateFrom = document.getElementById('date-from');
+  const dateTo = document.getElementById('date-to');
+  const downloadBtn = document.getElementById('download-btn');
+  const countPreview = document.getElementById('count-preview');
+  const countText = document.getElementById('count-text');
+
+  // Load disease list
+  fetch('/api/v1/diseases/')
+    .then(response => response.json())
+    .then(data => {
+      if (data.results) {
+        data.results.forEach(disease => {
+          const option = document.createElement('option');
+          option.value = disease.id;
+          option.textContent = disease.disease_name;
+          diseaseSelect.appendChild(option);
+        });
+      }
+    });
+
+  // Build URL with filters
+  function buildDownloadUrl() {
+    const params = new URLSearchParams();
+    if (diseaseSelect.value) params.append('disease', diseaseSelect.value);
+    if (dateFrom.value) params.append('from', dateFrom.value);
+    if (dateTo.value) params.append('to', dateTo.value);
+
+    const baseUrl = "{% url 'dashboard:reports_export' %}";
+    const url = params.toString() ? `${baseUrl}?${params}` : baseUrl;
+    downloadBtn.href = url;
+  }
+
+  // Update preview count as user changes filters
+  function updateCount() {
+    const params = new URLSearchParams();
+    if (diseaseSelect.value) params.append('disease', diseaseSelect.value);
+    if (dateFrom.value) params.append('from', dateFrom.value);
+    if (dateTo.value) params.append('to', dateTo.value);
+
+    if (params.toString()) {
+      fetch(`/api/v1/dashboard/reports-count/?${params}`)
+        .then(response => response.json())
+        .then(data => {
+          countText.textContent = `${data.count} report(s) match your filters`;
+          countPreview.style.display = 'block';
+          buildDownloadUrl();
+        })
+        .catch(() => {
+          countPreview.style.display = 'none';
+          buildDownloadUrl();
+        });
+    } else {
+      countPreview.style.display = 'none';
+      buildDownloadUrl();
+    }
+  }
+
+  diseaseSelect.addEventListener('change', updateCount);
+  dateFrom.addEventListener('change', updateCount);
+  dateTo.addEventListener('change', updateCount);
+
+  // Set initial URL
+  buildDownloadUrl();
+});
+</script>
+{% endblock %}

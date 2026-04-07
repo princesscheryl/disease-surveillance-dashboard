@@ -16,6 +16,7 @@ from .views import (
     AnalyticsView,
     AuditLogView,
     DashboardView,
+    ExportReportsPageView,
     LiveMapView,
     NotificationsView,
     OverviewView,
@@ -43,5 +44,6 @@ urlpatterns = [
     path("reports/review/", ReviewReportsView.as_view(), name="review_reports"),
     path("reports/review/export/", export_review_reports, name="review_reports_export"),
     path("reports/",        ReportsView.as_view(),       name="reports"),
+    path("reports/filter/",  ExportReportsPageView.as_view(), name="reports_filter"),
     path("reports/export/",  export_reports,              name="reports_export"),
 ]

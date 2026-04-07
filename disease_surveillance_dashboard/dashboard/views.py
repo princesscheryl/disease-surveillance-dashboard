@@ -12,6 +12,7 @@ from datetime import date as dt_date
 
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import HttpResponse
+from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.views.generic import TemplateView
 
@@ -91,6 +92,17 @@ class AuditLogView(DashboardBaseMixin, TemplateView):
 class ReportsView(DashboardBaseMixin, TemplateView):
     """Report list placeholder with future export button."""
     template_name = "dashboard/reports.html"
+
+
+@method_decorator(require_role(*ALL_DASHBOARD_ROLES), name="dispatch")
+class ExportReportsPageView(DashboardBaseMixin, TemplateView):
+    """Filter and download reports as CSV."""
+    template_name = "dashboard/export_reports_page.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["export_url"] = reverse("dashboard:reports_export")
+        return context
 
 
 @method_decorator(require_role(*OFFICER_OR_ADMIN_ROLES), name="dispatch")

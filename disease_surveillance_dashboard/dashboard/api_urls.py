@@ -11,6 +11,7 @@ from .api import dashboard_notifications_list
 from .api import dashboard_notifications_mark_read
 from .api import dashboard_report_details
 from .api import dashboard_report_update_status
+from .api import dashboard_reports_count
 from .api import dashboard_review_reports
 from .api import dashboard_anomalies
 from .api import dashboard_choropleth_data
@@ -56,5 +57,7 @@ urlpatterns = [
     path("data-quality/",           dashboard_data_quality,          name="data-quality"),
     path("district-summary/",       dashboard_district_summary,      name="district-summary"),
     path("choropleth-data/",        dashboard_choropleth_data,      name="choropleth-data"),
+    # Export filter count endpoint
+    path("reports-count/",          dashboard_reports_count,         name="reports-count"),
 ]
 

@@ -1172,3 +1172,42 @@ def dashboard_audit_log(request):
         "page": page,
         "page_size": page_size,
     })
+
+
+@api_view(["GET"])
+def dashboard_reports_count(request):
+    """
+    Return count of reports matching the given filters.
+    Used for live preview in the export filter page.
+
+    Supports: disease, from (date), to (date)
+    """
+    access_check = check_dashboard_access(request.user)
+    if access_check:
+        return access_check
+
+    queryset = Report.objects.all()
+
+    disease_id = request.query_params.get("disease")
+    if disease_id:
+        try:
+            queryset = queryset.filter(disease_id=int(disease_id))
+        except (ValueError, TypeError):
+            pass
+
+    date_from = request.query_params.get("from")
+    if date_from:
+        try:
+            queryset = queryset.filter(observed_at__date__gte=date_from)
+        except (ValueError, TypeError):
+            pass
+
+    date_to = request.query_params.get("to")
+    if date_to:
+        try:
+            queryset = queryset.filter(observed_at__date__lte=date_to)
+        except (ValueError, TypeError):
+            pass
+
+    count = queryset.count()
+    return Response({"count": count})

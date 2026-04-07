@@ -891,6 +891,99 @@ def dashboard_choropleth_data(request):
 
 
 # ---------------------------------------------------------------------------
+# Reports list — all dashboard roles (used by Reports page)
+# ---------------------------------------------------------------------------
+
+@api_view(["GET"])
+def dashboard_reports_list(request):
+    """
+    List submitted reports for the Reports page. Accessible to all dashboard roles.
+    Returns IDSR fields so the table can display classification, type, demographics.
+    Supports pagination and basic filters: disease_id, location_id, start_date, end_date.
+    """
+    access_check = check_dashboard_access(request.user)
+    if access_check:
+        return access_check
+
+    from disease_surveillance_dashboard.reporting.models import Report
+
+    queryset = (
+        Report.objects.select_related("disease", "location", "reported_by", "status")
+        .order_by("-submitted_at")
+    )
+
+    disease_id = request.query_params.get("disease_id")
+    if disease_id:
+        try:
+            queryset = queryset.filter(disease_id=int(disease_id))
+        except ValueError:
+            pass
+
+    location_id = request.query_params.get("location_id")
+    if location_id:
+        try:
+            queryset = queryset.filter(location_id=int(location_id))
+        except ValueError:
+            pass
+
+    start_date = parse_date_param(request, "start_date")
+    if start_date:
+        queryset = queryset.filter(observed_at__gte=start_date)
+
+    end_date = parse_date_param(request, "end_date")
+    if end_date:
+        end_dt = timezone.make_aware(
+            datetime.combine(end_date.date(), datetime.max.time())
+        )
+        queryset = queryset.filter(observed_at__lte=end_dt)
+
+    page_size = min(int(request.query_params.get("page_size", 20)), 100)
+    page = int(request.query_params.get("page", 1))
+    start = (page - 1) * page_size
+    end = start + page_size
+    total = queryset.count()
+    reports = queryset[start:end]
+
+    results = []
+    for r in reports:
+        location_name = r.location.district_name
+        if r.location.area_name:
+            location_name = f"{location_name} - {r.location.area_name}"
+        epi_week = None
+        if r.observed_at:
+            iso = r.observed_at.isocalendar()
+            epi_week = f"{iso.year}W{iso.week:02d}"
+        results.append({
+            "id": r.id,
+            "disease_name": r.disease.disease_name,
+            "location_name": location_name,
+            "case_count": r.case_count,
+            "death_count": r.death_count,
+            "case_classification": r.case_classification,
+            "report_type": r.report_type,
+            "health_facility": r.health_facility or "",
+            "male_count": r.male_count,
+            "female_count": r.female_count,
+            "unknown_sex_count": r.unknown_sex_count,
+            "age_under5_count": r.age_under5_count,
+            "age_5_17_count": r.age_5_17_count,
+            "age_18_59_count": r.age_18_59_count,
+            "age_60plus_count": r.age_60plus_count,
+            "epi_week": epi_week,
+            "observed_at": r.observed_at.isoformat() if r.observed_at else None,
+            "submitted_at": r.submitted_at.isoformat() if r.submitted_at else None,
+            "status_name": r.status.status_name if r.status else None,
+        })
+
+    return Response({
+        "results": results,
+        "count": total,
+        "page": page,
+        "page_size": page_size,
+    })
+
+
+# ---------------------------------------------------------------------------
 # Report Verification (Officer-only)
 # ---------------------------------------------------------------------------
 
@@ -960,11 +1053,27 @@ def dashboard_review_reports(request):
         location_name = r.location.district_name
         if r.location.area_name:
             location_name = f"{location_name} - {r.location.area_name}"
+        epi_week = None
+        if r.observed_at:
+            iso = r.observed_at.isocalendar()
+            epi_week = f"{iso.year}W{iso.week:02d}"
         results.append({
             "id": r.id,
             "disease_name": r.disease.disease_name,
             "location_name": location_name,
             "case_count": r.case_count,
+            "death_count": r.death_count,
+            "case_classification": r.case_classification,
+            "report_type": r.report_type,
+            "health_facility": r.health_facility or "",
+            "male_count": r.male_count,
+            "female_count": r.female_count,
+            "unknown_sex_count": r.unknown_sex_count,
+            "age_under5_count": r.age_under5_count,
+            "age_5_17_count": r.age_5_17_count,
+            "age_18_59_count": r.age_18_59_count,
+            "age_60plus_count": r.age_60plus_count,
+            "epi_week": epi_week,
             "reported_by_email": r.reported_by.email if r.reported_by else None,
             "observed_at": r.observed_at.isoformat() if r.observed_at else None,
             "submitted_at": r.submitted_at.isoformat() if r.submitted_at else None,
@@ -1012,19 +1121,34 @@ def dashboard_report_details(request, report_id):
     if report.location.area_name:
         location_name = f"{location_name} - {report.location.area_name}"
 
+    epi_week = None
+    if report.observed_at:
+        iso = report.observed_at.isocalendar()
+        epi_week = f"{iso.year}W{iso.week:02d}"
+
     return Response({
         "id": report.id,
         "disease_name": report.disease.disease_name,
         "location_name": location_name,
         "case_count": report.case_count,
+        "death_count": report.death_count,
+        "case_classification": report.case_classification,
+        "report_type": report.report_type,
+        "health_facility": report.health_facility or "",
+        "male_count": report.male_count,
+        "female_count": report.female_count,
+        "unknown_sex_count": report.unknown_sex_count,
+        "age_under5_count": report.age_under5_count,
+        "age_5_17_count": report.age_5_17_count,
+        "age_18_59_count": report.age_18_59_count,
+        "age_60plus_count": report.age_60plus_count,
+        "epi_week": epi_week,
         "reported_by_email": report.reported_by.email if report.reported_by else None,
         "observed_at": report.observed_at.isoformat() if report.observed_at else None,
         "submitted_at": report.submitted_at.isoformat() if report.submitted_at else None,
         "report_source": report.report_source or None,
         "status_name": report.status.status_name if report.status else None,
         "status_id": report.status_id,
-        "sex": report.sex or None,
-        "age_group": report.age_group or None,
         "severity_level": report.severity_level or None,
         "case_notes": report.case_notes or "",
     })

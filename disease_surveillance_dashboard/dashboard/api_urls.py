@@ -13,6 +13,7 @@ from .api import dashboard_notifications_mark_read
 from .api import dashboard_report_details
 from .api import dashboard_report_update_status
 from .api import dashboard_reports_count
+from .api import dashboard_reports_list
 from .api import dashboard_review_reports
 from .api import dashboard_anomalies
 from .api import dashboard_choropleth_data
@@ -48,6 +49,7 @@ urlpatterns = [
     path("alert-statuses/",        dashboard_alert_statuses,         name="alert-statuses"),
     path("alerts/<int:alert_id>/details/", dashboard_alert_details, name="alert-details"),
     path("alerts/<int:alert_id>/update-status/", dashboard_alert_update_status, name="alert-update-status"),
+    path("reports-list/",            dashboard_reports_list,          name="reports-list"),
     path("review-reports/",         dashboard_review_reports,        name="review-reports"),
     path("reports/<int:report_id>/details/", dashboard_report_details, name="report-details"),
     path("reports/<int:report_id>/update-status/", dashboard_report_update_status, name="report-update-status"),

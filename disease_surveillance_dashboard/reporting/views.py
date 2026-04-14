@@ -1,17 +1,3 @@
-"""Views for the reporting app.
-
-Web views
----------
-  ReportCreateView   — POST /reports/new/
-  ReportUpdateView   — POST /reports/<pk>/edit/
-  MySubmissionsView  — GET  /reports/my-submissions/
-
-DRF ViewSets (unchanged, mobile / API consumers)
--------------------------------------------------
-  ReportStatusViewSet
-  ReportViewSet
-  DuplicateFlagViewSet
-"""
 
 from datetime import datetime
 from datetime import time as dt_time
@@ -42,10 +28,6 @@ from .serializers import DuplicateFlagSerializer
 from .serializers import ReportSerializer
 from .serializers import ReportStatusSerializer
 
-
-# ---------------------------------------------------------------------------
-# DRF ViewSets — untouched; mobile / API layer
-# ---------------------------------------------------------------------------
 
 class ReportStatusViewSet(viewsets.ModelViewSet):
     """ViewSet for ReportStatus model."""
@@ -103,16 +85,6 @@ _STATUS_DESCRIPTIONS: dict[str, str] = {
 
 
 def _get_status(name: str) -> ReportStatus:
-    """Return a ReportStatus by name, creating it if it doesn't yet exist.
-
-    Using get_or_create means the view is self-healing: even if migration
-    0003 has not been applied to the current database (e.g. a fresh dev
-    container that hasn't run `migrate` yet) the row is created on first use
-    rather than returning a 404.
-
-    Production databases will already have the row from the migration, so the
-    CREATE path is only ever hit in misconfigured dev environments.
-    """
     status, _ = ReportStatus.objects.get_or_create(
         status_name=name,
         defaults={"description": _STATUS_DESCRIPTIONS.get(name, "")},
@@ -121,7 +93,6 @@ def _get_status(name: str) -> ReportStatus:
 
 
 def _build_report_kwargs(form_data: dict) -> dict:
-    """Translate cleaned form data into Report model field values."""
     observed_date = form_data["observed_date"]
     observed_time = form_data.get("observed_time") or dt_time(12, 0)
     observed_at = timezone.make_aware(datetime.combine(observed_date, observed_time))
@@ -149,18 +120,7 @@ def _build_report_kwargs(form_data: dict) -> dict:
     }
 
 
-# ---------------------------------------------------------------------------
-# A) ReportCreateView — web form, two-button submit
-# ---------------------------------------------------------------------------
-
 class ReportCreateView(LoginRequiredMixin, FormView):
-    """Create a new disease report.
-
-    Two submit buttons are supported:
-    - ``action=draft``   → saves with status DRAFT and redirects to My Submissions
-    - ``action=submit``  → saves with status SUBMITTED and redirects to dashboard
-    """
-
     template_name = "reporting/report_form.html"
     form_class = ReportForm
 
@@ -184,6 +144,18 @@ class ReportCreateView(LoginRequiredMixin, FormView):
             **kwargs,
         )
 
+        record_audit_event(
+            actor=self.request.user,
+            action_type="REPORT_DRAFT_SAVED" if is_draft else "REPORT_SUBMITTED",
+            entity_type="Report",
+            entity_id=str(report.id),
+            details={
+                "disease": report.disease.disease_name,
+                "location": report.location.district_name,
+                "case_count": report.case_count,
+            },
+        )
+
         if is_draft:
             messages.info(
                 self.request,
@@ -200,58 +172,32 @@ class ReportCreateView(LoginRequiredMixin, FormView):
         return redirect("dashboard:overview")
 
 
-# ---------------------------------------------------------------------------
-# B) ReportUpdateView — edit a DRAFT report only
-# ---------------------------------------------------------------------------
-
 class ReportUpdateView(LoginRequiredMixin, FormView):
-    """Edit an existing DRAFT report.
-
-    Access rules (enforced in Python, not just templates):
-    - Only the report owner can access this view.
-    - Only DRAFT reports can be edited; attempts to edit a SUBMITTED report
-      return 403.
-
-    Same two-button semantics as ReportCreateView.
-    """
-
     template_name = "reporting/report_update.html"
     form_class = ReportUpdateForm
-
-    # NOTE: _report is set as an *instance* attribute inside dispatch() so it
-    # is never shared between concurrent requests.  Do NOT declare it as a
-    # class attribute here.
 
     def dispatch(self, request, *args, **kwargs):
         if not request.user.is_authenticated:
             return self.handle_no_permission()
 
-        # Resolve the report once, store on self for all subsequent methods.
         report = get_object_or_404(
             Report.objects.select_related("status", "disease", "location"),
             pk=kwargs["pk"],
         )
 
-        # Ownership check — return 404 so non-owners can't probe for IDs.
         if report.reported_by_id != request.user.pk:
             raise Http404
 
-        # Draft-only check — hard 403 for submitted reports.
         if report.is_submitted:
             return HttpResponseForbidden(
                 "This report has already been submitted and cannot be edited."
             )
 
-        self._report = report  # instance attribute, safe per-request
+        self._report = report
         return super().dispatch(request, *args, **kwargs)
 
     def get_form_kwargs(self):
-        """Inject the report instance into the form so it can pre-populate."""
         kwargs = super().get_form_kwargs()
-        # Only pass report on GET (unbound form) so the form uses initial
-        # values.  On POST the form is bound to request.POST and initial
-        # values are intentionally ignored by Django — the user's submitted
-        # data takes precedence.
         if self.request.method == "GET":
             kwargs["report"] = self._report
         return kwargs
@@ -288,11 +234,21 @@ class ReportUpdateView(LoginRequiredMixin, FormView):
                 details={
                     "previous_case_count": previous_case_count,
                     "new_case_count": report.case_count,
-                    "source": "web_draft_edit",
                 },
             )
 
         if is_submitting:
+            record_audit_event(
+                actor=self.request.user,
+                action_type="REPORT_SUBMITTED",
+                entity_type="Report",
+                entity_id=str(report.id),
+                details={
+                    "disease": report.disease.disease_name,
+                    "location": report.location.district_name,
+                    "case_count": report.case_count,
+                },
+            )
             messages.success(
                 self.request,
                 f"Report submitted successfully for {report.disease.disease_name} "
@@ -307,18 +263,7 @@ class ReportUpdateView(LoginRequiredMixin, FormView):
         return redirect("reporting:my_submissions")
 
 
-# ---------------------------------------------------------------------------
-# C) MySubmissionsView — list the current user's own reports
-# ---------------------------------------------------------------------------
-
 class MySubmissionsView(LoginRequiredMixin, ListView):
-    """Show all reports belonging to the logged-in user, newest first.
-
-    Drafts use ``submitted_at`` (which is set at creation time via
-    auto_now_add=True) as their sort key, consistent with the model's
-    default ordering.
-    """
-
     template_name = "reporting/my_submissions.html"
     context_object_name = "reports"
     paginate_by = 20

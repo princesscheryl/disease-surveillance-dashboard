@@ -30,7 +30,7 @@ def send_immediate_alert_email(alert_id):
 
     recipients = immediate_alert_recipient_emails()
     if not recipients:
-        logger.warning("Immediate alert email skipped: no recipients for alert id=%s.", alert_id)
+        logger.warning("Immediate alert email skipped: no recipients configured for alert id=%s.", alert_id)
         return False
 
     AlertImmediateEmailLog.objects.create(alert=alert)
@@ -82,7 +82,7 @@ def send_pho_daily_digest():
 
     recipients = pho_digest_recipient_emails()
     if not recipients:
-        logger.warning("PHO daily digest skipped: no recipients.")
+        logger.warning("PHO daily digest skipped: no recipients configured.")
         return 0
 
     dashboard_url = dashboard_alerts_absolute_url()
@@ -108,14 +108,21 @@ def send_pho_daily_digest():
     body = render_to_string("alerts/email/daily_digest.txt", context)
     html_body = render_to_string("alerts/email/daily_digest.html", context)
 
-    send_mail(
-        subject=subject,
-        message=body,
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        recipient_list=recipients,
-        html_message=html_body,
-        fail_silently=False,
-    )
 
     PhoAlertDigestSend.objects.create(digest_for_date=digest_date)
+
+    try:
+        send_mail(
+            subject=subject,
+            message=body,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=recipients,
+            html_message=html_body,
+            fail_silently=False,
+        )
+    except Exception:
+        logger.exception("PHO daily digest email failed for %s — recipients were not notified.", digest_date)
+        PhoAlertDigestSend.objects.filter(digest_for_date=digest_date).delete()
+        raise
+
     return len(recipients)

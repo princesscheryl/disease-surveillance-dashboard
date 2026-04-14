@@ -1,15 +1,10 @@
-"""
-Dashboard API endpoints.
-
-These endpoints provide aggregated data for the monitoring dashboard.
-All endpoints require authentication and dashboard access role.
-"""
-
+import csv
 import json
 import os
 from datetime import datetime
 
 from django.conf import settings
+from django.http import HttpResponse
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view
@@ -38,6 +33,7 @@ from .services import get_summary_metrics
 from .services import get_top_diseases
 from .utils import user_can_access_dashboard
 from .utils import user_has_role
+from .utils import user_is_admin
 
 OFFICER_ROLES = [
     "Public Health Officer",
@@ -47,6 +43,19 @@ OFFICER_ROLES = [
     "ANALYST",
     "VERIFIER",
 ]
+
+ACTION_LABELS = {
+    "REPORT_SUBMITTED": "Report submitted",
+    "REPORT_DRAFT_SAVED": "Draft saved",
+    "REPORT_CASE_COUNT_CHANGED": "Case count updated",
+    "REPORT_STATUS_CHANGED": "Report status changed",
+    "ALERT_CREATED": "Alert generated",
+    "ALERT_STATUS_CHANGED": "Alert status changed",
+    "ALERT_ESCALATED": "Alert escalated",
+    "INVESTIGATION_TASK_CREATED": "Investigation task created",
+    "INVESTIGATION_TASK_UPDATED": "Investigation task updated",
+    "DATA_EXPORT": "Data exported",
+}
 
 
 def check_dashboard_access(user):
@@ -60,7 +69,6 @@ def check_dashboard_access(user):
 
 
 def check_officer_access(user):
-    """Helper for officer-only endpoints (report verification)."""
     if not user or not user.is_authenticated:
         return Response(
             {"error": "Authentication required."},
@@ -68,23 +76,31 @@ def check_officer_access(user):
         )
     if not user_has_role(user, OFFICER_ROLES):
         return Response(
-            {"error": "You do not have permission to review reports."},
+            {"error": "You do not have permission to access this."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+    return None
+
+
+def check_admin_access(user):
+    if not user or not user.is_authenticated:
+        return Response(
+            {"error": "Authentication required."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+    if not user_is_admin(user):
+        return Response(
+            {"error": "Administrator access required."},
             status=status.HTTP_403_FORBIDDEN,
         )
     return None
 
 
 def parse_date_param(request, param_name, default=None):
-    """
-    Parse date parameter from query string and convert to timezone-aware datetime.
-
-    Returns timezone-aware datetime for use in service layer queries.
-    """
     date_str = request.query_params.get(param_name)
     if date_str:
         try:
             parsed_date = datetime.strptime(date_str, "%Y-%m-%d").date()
-            # Convert to timezone-aware datetime at start of day
             return timezone.make_aware(datetime.combine(parsed_date, datetime.min.time()))
         except ValueError:
             return None
@@ -1142,9 +1158,52 @@ def dashboard_notifications_mark_read(request):
     return Response({"updated": updated})
 
 
+def _build_audit_queryset(params):
+    qs = AuditLog.objects.select_related("actor_user").order_by("-timestamp")
+    from_date = params.get("from")
+    to_date = params.get("to")
+    action_filter = params.get("action")
+    user_filter = params.get("user")
+
+    if from_date:
+        try:
+            d = datetime.strptime(from_date, "%Y-%m-%d").date()
+            qs = qs.filter(timestamp__date__gte=d)
+        except ValueError:
+            pass
+
+    if to_date:
+        try:
+            d = datetime.strptime(to_date, "%Y-%m-%d").date()
+            qs = qs.filter(timestamp__date__lte=d)
+        except ValueError:
+            pass
+
+    if action_filter:
+        qs = qs.filter(action_type=action_filter)
+
+    if user_filter:
+        qs = qs.filter(actor_user__email__icontains=user_filter)
+
+    return qs
+
+
+def _serialize_audit_entry(entry):
+    return {
+        "id": entry.id,
+        "action_type": entry.action_type,
+        "action_label": ACTION_LABELS.get(entry.action_type, entry.action_type.replace("_", " ").title()),
+        "entity_type": entry.entity_type,
+        "entity_id": entry.entity_id,
+        "actor_email": entry.actor_user.email if entry.actor_user else None,
+        "timestamp": entry.timestamp.isoformat(),
+        "details": entry.details or {},
+    }
+
+
 @api_view(["GET"])
 def dashboard_audit_log(request):
-    access_check = check_officer_access(request.user)
+    access_check = check_admin_access(request.user)
     if access_check:
         return access_check
 
@@ -1152,23 +1211,52 @@ def dashboard_audit_log(request):
     page = max(int(request.query_params.get("page", 1)), 1)
     start = (page - 1) * page_size
 
-    qs = AuditLog.objects.select_related("actor_user").order_by("-timestamp")
+    qs = _build_audit_queryset(request.query_params)
     total = qs.count()
-    rows = qs[start : start + page_size]
-    results = []
-    for entry in rows:
-        results.append({
-            "id": entry.id,
-            "action_type": entry.action_type,
-            "entity_type": entry.entity_type,
-            "entity_id": entry.entity_id,
-            "actor_email": entry.actor_user.email if entry.actor_user else None,
-            "timestamp": entry.timestamp.isoformat(),
-            "details": entry.details,
-        })
+    results = [_serialize_audit_entry(e) for e in qs[start: start + page_size]]
+
     return Response({
         "results": results,
         "count": total,
         "page": page,
         "page_size": page_size,
+        "action_choices": [
+            {"value": k, "label": v} for k, v in ACTION_LABELS.items()
+        ],
     })
+
+
+@api_view(["GET"])
+def dashboard_audit_log_export(request):
+    access_check = check_admin_access(request.user)
+    if access_check:
+        return access_check
+
+    qs = _build_audit_queryset(request.query_params)
+
+    response = HttpResponse(content_type="text/csv")
+    response["Content-Disposition"] = 'attachment; filename="audit_log.csv"'
+    writer = csv.writer(response)
+    writer.writerow(["Timestamp", "Action", "Entity", "Entity ID", "User", "Details"])
+
+    for entry in qs:
+        label = ACTION_LABELS.get(entry.action_type, entry.action_type.replace("_", " ").title())
+        details_str = json.dumps(entry.details) if entry.details else ""
+        writer.writerow([
+            timezone.localtime(entry.timestamp).strftime("%Y-%m-%d %H:%M:%S"),
+            label,
+            entry.entity_type,
+            entry.entity_id,
+            entry.actor_user.email if entry.actor_user else "System",
+            details_str,
+        ])
+
+    record_audit_event(
+        actor=request.user,
+        action_type="DATA_EXPORT",
+        entity_type="AuditLogCSV",
+        entity_id="bulk",
+        details={},
+    )
+
+    return response

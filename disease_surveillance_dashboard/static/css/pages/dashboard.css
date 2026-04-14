@@ -74,3 +74,19 @@
   #map { height: 300px; }
   .chart-container { height: 220px; }
 }
+
+/* Audit log */
+.audit-details-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0 0.5rem;
+}
+
+.audit-details-grid dt {
+  font-weight: normal;
+  white-space: nowrap;
+}
+
+.audit-col-time { width: 160px; }
+
+.audit-details-row { display: contents; }

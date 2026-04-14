@@ -5,8 +5,6 @@ from .models import Export
 
 
 class ExportSerializer(serializers.ModelSerializer):
-    """Serializer for Export model."""
-
     class Meta:
         model = Export
         fields = "__all__"
@@ -14,10 +12,10 @@ class ExportSerializer(serializers.ModelSerializer):
 
 
 class AuditLogSerializer(serializers.ModelSerializer):
-    """Serializer for AuditLog model."""
-
     class Meta:
         model = AuditLog
         fields = "__all__"
-        read_only_fields = ["timestamp"]
-
+        read_only_fields = [
+            "actor_user", "action_type", "entity_type",
+            "entity_id", "timestamp", "details",
+        ]

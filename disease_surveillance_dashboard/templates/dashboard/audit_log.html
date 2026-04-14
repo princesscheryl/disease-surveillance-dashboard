@@ -1,8 +1,8 @@
 {% extends "dashboard/_layout.html" %}
 {% load static i18n %}
 
-{% block title %}Activity log — Disease Surveillance Dashboard{% endblock %}
-{% block topbar_title %}Activity log{% endblock %}
+{% block title %}Audit Log — Disease Surveillance Dashboard{% endblock %}
+{% block topbar_title %}Audit Log{% endblock %}
 
 {% block page_css %}
 <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}" />
@@ -13,44 +13,113 @@
 {% endblock %}
 
 {% block page_content %}
-<div class="ds-page-header">
-  <h1 class="ds-page-title">Activity log</h1>
-  <p class="ds-page-subtitle">Recorded changes to alerts, reports, exports, and related actions</p>
+<div class="ds-page-header d-flex justify-content-between align-items-start">
+  <div>
+    <h1 class="ds-page-title">Audit Log</h1>
+    <p class="ds-page-subtitle">Complete record of system actions, report changes, and user activity</p>
+  </div>
+  <a id="export-link" href="/api/v1/dashboard/audit-log/export/" class="btn btn-sm btn-outline-secondary mt-1">
+    Export CSV
+  </a>
 </div>
 
-<div x-data="auditLogPage()" x-init="load()" class="card">
-  <div class="card-body p-0">
-    <p x-show="loading" class="p-3 text-muted mb-0">Loading…</p>
-    <div x-show="!loading" class="table-responsive">
-      <table class="table table-sm table-hover mb-0">
-        <thead>
-          <tr>
-            <th>Time</th>
-            <th>Action</th>
-            <th>Entity</th>
-            <th>ID</th>
-            <th>Actor</th>
-            <th>Details</th>
-          </tr>
-        </thead>
-        <tbody>
-          <template x-for="row in rows" :key="row.id">
-            <tr>
-              <td class="text-nowrap small" x-text="formatDate(row.timestamp)"></td>
-              <td class="small" x-text="row.action_type"></td>
-              <td class="small" x-text="row.entity_type"></td>
-              <td class="small" x-text="row.entity_id"></td>
-              <td class="small" x-text="row.actor_email || '—'"></td>
-              <td class="small text-break" x-text="detailsPreview(row.details)"></td>
-            </tr>
-          </template>
-        </tbody>
-      </table>
+<div x-data="auditLogPage()" x-init="load()">
+
+  <div class="card mb-3">
+    <div class="card-body py-2 px-3">
+      <div class="row g-2 align-items-end">
+        <div class="col-sm-2">
+          <label class="form-label small mb-1" for="audit-from">From</label>
+          <input id="audit-from" type="date" class="form-control form-control-sm"
+            title="Filter from date" x-model="filters.from" @change="resetAndLoad()">
+        </div>
+        <div class="col-sm-2">
+          <label class="form-label small mb-1" for="audit-to">To</label>
+          <input id="audit-to" type="date" class="form-control form-control-sm"
+            title="Filter to date" x-model="filters.to" @change="resetAndLoad()">
+        </div>
+        <div class="col-sm-3">
+          <label class="form-label small mb-1" for="audit-action">Action</label>
+          <select id="audit-action" class="form-select form-select-sm"
+            title="Filter by action type" x-model="filters.action" @change="resetAndLoad()">
+            <option value="">All actions</option>
+            <template x-for="choice in actionChoices" :key="choice.value">
+              <option :value="choice.value" x-text="choice.label"></option>
+            </template>
+          </select>
+        </div>
+        <div class="col-sm-3">
+          <label class="form-label small mb-1" for="audit-user">User</label>
+          <input id="audit-user" type="text" class="form-control form-control-sm"
+            placeholder="Search by email…" title="Filter by user email"
+            x-model="filters.user" @input.debounce.400ms="resetAndLoad()">
+        </div>
+        <div class="col-sm-2 d-flex gap-2">
+          <button type="button" class="btn btn-sm btn-primary w-50" @click="resetAndLoad()">Filter</button>
+          <button type="button" class="btn btn-sm btn-outline-secondary w-50" @click="clearFilters()">Clear</button>
+        </div>
+      </div>
     </div>
-    <div x-show="!loading" class="d-flex justify-content-between align-items-center p-3 border-top">
-      <button type="button" class="btn btn-sm btn-outline-secondary" :disabled="page <= 1" @click="prev()">Previous</button>
-      <span class="small text-muted">Page <span x-text="page"></span> · <span x-text="total"></span> entries</span>
-      <button type="button" class="btn btn-sm btn-outline-secondary" :disabled="page * pageSize >= total" @click="next()">Next</button>
+  </div>
+
+  <div class="card">
+    <div class="card-body p-0">
+      <p x-show="loading" class="p-3 text-muted mb-0">Loading…</p>
+      <p x-show="!loading && rows.length === 0" class="p-3 text-muted mb-0">No entries match the current filters.</p>
+
+      <div x-show="!loading && rows.length > 0" class="table-responsive">
+        <table class="table table-sm table-hover mb-0">
+          <thead>
+            <tr>
+              <th class="audit-col-time">Time</th>
+              <th>Action</th>
+              <th>Entity</th>
+              <th>User</th>
+              <th>Details</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="row in rows" :key="row.id">
+              <tr>
+                <td class="text-nowrap small" x-text="formatDate(row.timestamp)"></td>
+                <td class="small">
+                  <span :class="badgeClass(row.action_type)" x-text="row.action_label"></span>
+                </td>
+                <td class="small text-muted" x-text="row.entity_type + ' #' + row.entity_id"></td>
+                <td class="small" x-text="row.actor_email || 'System'"></td>
+                <td class="small">
+                  <template x-if="hasDetails(row.details)">
+                    <dl class="audit-details-grid mb-0">
+                      <template x-for="[k, v] in Object.entries(row.details)" :key="k">
+                        <template x-if="v !== null && v !== undefined && v !== ''">
+                          <div class="audit-details-row">
+                            <dt class="text-muted" x-text="labelKey(k) + ':'"></dt>
+                            <dd class="mb-0 text-break" x-text="String(v)"></dd>
+                          </div>
+                        </template>
+                      </template>
+                    </dl>
+                  </template>
+                  <span x-show="!hasDetails(row.details)" class="text-muted">—</span>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+
+      <div x-show="!loading" class="d-flex justify-content-between align-items-center p-3 border-top">
+        <button type="button" class="btn btn-sm btn-outline-secondary" :disabled="page <= 1" @click="prev()">
+          &lsaquo; Previous
+        </button>
+        <span class="small text-muted">
+          Page <span x-text="page"></span> of <span x-text="Math.ceil(total / pageSize) || 1"></span>
+          &nbsp;·&nbsp; <span x-text="total"></span> total entries
+        </span>
+        <button type="button" class="btn btn-sm btn-outline-secondary" :disabled="page * pageSize >= total" @click="next()">
+          Next &rsaquo;
+        </button>
+      </div>
     </div>
   </div>
 </div>
@@ -63,36 +132,82 @@ function auditLogPage() {
     page: 1,
     pageSize: 50,
     total: 0,
+    actionChoices: [],
+    filters: { from: '', to: '', action: '', user: '' },
+
     async load() {
       this.loading = true;
       try {
-        var url = '/api/v1/dashboard/audit-log/?page=' + this.page + '&page_size=' + this.pageSize;
-        var r = await fetch(url, { credentials: 'same-origin' });
+        var params = new URLSearchParams({ page: this.page, page_size: this.pageSize });
+        if (this.filters.from)   params.set('from',   this.filters.from);
+        if (this.filters.to)     params.set('to',     this.filters.to);
+        if (this.filters.action) params.set('action', this.filters.action);
+        if (this.filters.user)   params.set('user',   this.filters.user);
+
+        var r = await fetch('/api/v1/dashboard/audit-log/?' + params.toString(), { credentials: 'same-origin' });
+        if (!r.ok) { this.rows = []; this.total = 0; this.loading = false; return; }
         var data = await r.json();
         this.rows = data.results || [];
         this.total = data.count || 0;
+        if (data.action_choices && this.actionChoices.length === 0) {
+          this.actionChoices = data.action_choices;
+        }
+        this.updateExportLink();
       } catch (e) {
         this.rows = [];
         this.total = 0;
       }
       this.loading = false;
     },
+
+    resetAndLoad() { this.page = 1; this.load(); },
+
+    clearFilters() {
+      this.filters = { from: '', to: '', action: '', user: '' };
+      this.resetAndLoad();
+    },
+
+    prev() { if (this.page > 1) { this.page--; this.load(); } },
+    next() { if (this.page * this.pageSize < this.total) { this.page++; this.load(); } },
+
     formatDate(iso) {
       if (!iso) return '';
-      try { return new Date(iso).toLocaleString(); } catch (e) { return iso; }
-    },
-    detailsPreview(d) {
-      if (!d) return '—';
       try {
-        var s = JSON.stringify(d);
-        return s.length > 120 ? s.slice(0, 117) + '…' : s;
-      } catch (e) { return '—'; }
+        return new Date(iso).toLocaleString('en-GB', {
+          day: '2-digit', month: 'short', year: 'numeric',
+          hour: '2-digit', minute: '2-digit',
+        });
+      } catch (e) { return iso; }
     },
-    prev() {
-      if (this.page > 1) { this.page--; this.load(); }
+
+    hasDetails(d) {
+      return d && typeof d === 'object' && Object.keys(d).length > 0;
     },
-    next() {
-      if (this.page * this.pageSize < this.total) { this.page++; this.load(); }
+
+    labelKey(k) {
+      return k.replace(/_/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+    },
+
+    badgeClass(actionType) {
+      var map = {
+        'ALERT_CREATED':    'badge bg-danger-subtle text-danger-emphasis fw-normal',
+        'ALERT_ESCALATED':  'badge bg-danger-subtle text-danger-emphasis fw-normal',
+        'ALERT_STATUS_CHANGED': 'badge bg-warning-subtle text-warning-emphasis fw-normal',
+        'REPORT_SUBMITTED': 'badge bg-success-subtle text-success-emphasis fw-normal',
+        'DATA_EXPORT':      'badge bg-info-subtle text-info-emphasis fw-normal',
+      };
+      return map[actionType] || 'badge bg-secondary-subtle text-secondary-emphasis fw-normal';
+    },
+
+    updateExportLink() {
+      var params = new URLSearchParams();
+      if (this.filters.from)   params.set('from',   this.filters.from);
+      if (this.filters.to)     params.set('to',     this.filters.to);
+      if (this.filters.action) params.set('action', this.filters.action);
+      if (this.filters.user)   params.set('user',   this.filters.user);
+      var qs = params.toString();
+      var link = document.getElementById('export-link');
+      if (link) link.href = '/api/v1/dashboard/audit-log/export/' + (qs ? '?' + qs : '');
     },
   };
 }

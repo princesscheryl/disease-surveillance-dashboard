@@ -123,9 +123,23 @@ def alert_post_save(sender, instance, created, **kwargs):
     if created:
         _bump_generated(instance)
 
+        from disease_surveillance_dashboard.exports.models import record_audit_event
+        record_audit_event(
+            actor=None,
+            action_type="ALERT_CREATED",
+            entity_type="Alert",
+            entity_id=str(instance.pk),
+            details={
+                "disease_id": instance.disease_id,
+                "location_id": instance.location_id,
+                "severity": instance.severity_level,
+                "observed": float(instance.observed_value) if instance.observed_value is not None else None,
+                "baseline": float(instance.baseline_value) if instance.baseline_value is not None else None,
+            },
+        )
+
         def enqueue():
             from disease_surveillance_dashboard.alerts.tasks import send_immediate_alert_email
-
             send_immediate_alert_email.delay(instance.pk)
 
         transaction.on_commit(enqueue)

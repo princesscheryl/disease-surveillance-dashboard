@@ -5,11 +5,12 @@ from .api import dashboard_alert_statuses
 from .api import dashboard_alert_update_status
 from .api import dashboard_assignable_users
 from .api import dashboard_audit_log
-from .api import dashboard_audit_log_export
 from .api import dashboard_notifications_list
 from .api import dashboard_notifications_mark_read
 from .api import dashboard_report_details
 from .api import dashboard_report_update_status
+from .api import dashboard_reports_count
+from .api import dashboard_reports_list
 from .api import dashboard_review_reports
 from .api import dashboard_anomalies
 from .api import dashboard_choropleth_data
@@ -45,13 +46,14 @@ urlpatterns = [
     path("alert-statuses/",            dashboard_alert_statuses,        name="alert-statuses"),
     path("alerts/<int:alert_id>/details/",       dashboard_alert_details,       name="alert-details"),
     path("alerts/<int:alert_id>/update-status/", dashboard_alert_update_status, name="alert-update-status"),
-    path("review-reports/",            dashboard_review_reports,        name="review-reports"),
-    path("reports/<int:report_id>/details/",       dashboard_report_details,       name="report-details"),
+    path("review-reports/",         dashboard_review_reports,        name="review-reports"),
+    path("reports/<int:report_id>/details/", dashboard_report_details, name="report-details"),
     path("reports/<int:report_id>/update-status/", dashboard_report_update_status, name="report-update-status"),
-    path("evaluate/",                  dashboard_evaluate,              name="evaluate"),
-    path("situation-overview/",        dashboard_situation_overview,    name="situation-overview"),
-    path("detection-metrics/",         dashboard_detection_metrics,     name="detection-metrics"),
-    path("data-quality/",              dashboard_data_quality,          name="data-quality"),
-    path("district-summary/",          dashboard_district_summary,      name="district-summary"),
-    path("choropleth-data/",           dashboard_choropleth_data,       name="choropleth-data"),
+    path("evaluate/",               dashboard_evaluate,              name="evaluate"),
+    # New epidemiological analytics endpoints
+    path("situation-overview/",     dashboard_situation_overview,    name="situation-overview"),
+    path("detection-metrics/",      dashboard_detection_metrics,     name="detection-metrics"),
+    path("data-quality/",           dashboard_data_quality,          name="data-quality"),
+    path("district-summary/",       dashboard_district_summary,      name="district-summary"),
+    path("choropleth-data/",        dashboard_choropleth_data,      name="choropleth-data"),
 ]

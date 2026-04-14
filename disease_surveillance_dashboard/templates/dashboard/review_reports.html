@@ -21,7 +21,7 @@
       <h1 class="ds-page-title">Review Reports</h1>
       <p class="ds-page-subtitle">Verify and validate submitted disease reports</p>
     </div>
-    <a href="{% url 'dashboard:review_reports_export' %}" class="btn btn-secondary d-flex align-items-center gap-2">
+    <a href="{% url 'dashboard:review_reports_filter' %}" class="btn btn-secondary d-flex align-items-center gap-2">
       <i class="bi bi-download" aria-hidden="true"></i>
       Export Reports
     </a>
@@ -86,16 +86,21 @@
   <div class="card">
     <div class="card-body p-0">
       <div class="table-responsive">
-        <table class="table table-sm table-hover mb-0">
+        <table class="table table-sm table-hover mb-0" style="font-size:0.8125rem;">
           <thead>
             <tr>
               <th>ID</th>
+              <th>Epi Week</th>
               <th>Disease</th>
+              <th>Classification</th>
+              <th>Type</th>
               <th>Location</th>
-              <th>Cases</th>
+              <th>Facility</th>
+              <th>Cases / Deaths</th>
+              <th title="Male / Female / Unknown">Sex M/F/U</th>
+              <th title="Under 5 / 5-17 / 18-59 / 60+">&lt;5 / 5–17 / 18–59 / 60+</th>
               <th>Reported By</th>
               <th>Observed</th>
-              <th>Submitted</th>
               <th>Status</th>
               <th class="text-end">Actions</th>
             </tr>
@@ -104,12 +109,66 @@
             <template x-for="r in reports" :key="r.id">
               <tr>
                 <td class="text-muted" x-text="r.id"></td>
-                <td x-text="r.disease_name"></td>
+                <td>
+                  <span class="text-muted small" x-text="r.epi_week || '—'"></span>
+                </td>
+                <td class="fw-semibold" x-text="r.disease_name"></td>
+                <td>
+                  <template x-if="r.case_classification === 'CONFIRMED'">
+                    <span class="badge bg-success">Confirmed</span>
+                  </template>
+                  <template x-if="r.case_classification === 'PROBABLE'">
+                    <span class="badge bg-warning text-dark">Probable</span>
+                  </template>
+                  <template x-if="r.case_classification === 'SUSPECTED'">
+                    <span class="badge bg-secondary">Suspected</span>
+                  </template>
+                  <template x-if="!r.case_classification || r.case_classification === 'UNKNOWN'">
+                    <span class="text-muted">—</span>
+                  </template>
+                </td>
+                <td>
+                  <template x-if="r.report_type === 'IMMEDIATE'">
+                    <span class="badge bg-danger">Immediate</span>
+                  </template>
+                  <template x-if="r.report_type === 'OUTBREAK'">
+                    <span class="badge bg-warning text-dark">Outbreak</span>
+                  </template>
+                  <template x-if="!r.report_type || r.report_type === 'WEEKLY'">
+                    <span class="text-muted small">Weekly</span>
+                  </template>
+                </td>
                 <td x-text="r.location_name"></td>
-                <td x-text="r.case_count"></td>
+                <td>
+                  <span x-show="r.health_facility" x-text="r.health_facility" class="small"></span>
+                  <span x-show="!r.health_facility" class="text-muted">—</span>
+                </td>
+                <td>
+                  <span x-text="r.case_count"></span>
+                  <template x-if="r.death_count > 0">
+                    <span class="badge bg-danger ms-1" :title="r.death_count + ' death(s)'">
+                      <i class="bi bi-heartbreak-fill me-1" aria-hidden="true"></i><span x-text="r.death_count"></span>
+                    </span>
+                  </template>
+                </td>
+                <td>
+                  <template x-if="r.male_count > 0 || r.female_count > 0 || r.unknown_sex_count > 0">
+                    <span x-text="r.male_count + ' / ' + r.female_count + ' / ' + r.unknown_sex_count"></span>
+                  </template>
+                  <template x-if="r.male_count === 0 && r.female_count === 0 && r.unknown_sex_count === 0">
+                    <span class="text-muted">—</span>
+                  </template>
+                </td>
+                <td>
+                  <template x-if="r.age_under5_count > 0 || r.age_5_17_count > 0 || r.age_18_59_count > 0 || r.age_60plus_count > 0">
+                    <span x-text="r.age_under5_count + ' / ' + r.age_5_17_count + ' / ' + r.age_18_59_count + ' / ' + r.age_60plus_count"></span>
+                  </template>
+                  <template x-if="r.age_under5_count === 0 && r.age_5_17_count === 0 && r.age_18_59_count === 0 && r.age_60plus_count === 0">
+                    <span class="text-muted">—</span>
+                  </template>
+                </td>
                 <td x-text="r.reported_by_email || '—'"></td>
                 <td x-text="formatDate(r.observed_at)"></td>
-                <td x-text="formatDate(r.submitted_at)"></td>
                 <td>
                   <span class="badge" :class="getStatusClass(r.status_name)" x-text="r.status_name"></span>
                 </td>
@@ -133,13 +192,13 @@
               </tr>
             </template>
             <tr x-show="loading">
-              <td colspan="9" class="text-center py-4">
+              <td colspan="14" class="text-center py-4">
                 <span class="spinner-border spinner-border-sm me-2" role="status"></span>
                 Loading...
               </td>
             </tr>
             <tr x-show="!loading && reports.length === 0">
-              <td colspan="9" class="text-center text-muted py-4">
+              <td colspan="14" class="text-center text-muted py-4">
                 <i class="bi bi-inbox d-block mb-1" style="font-size:1.5rem;opacity:0.3;"></i>
                 No reports found
               </td>
@@ -183,22 +242,84 @@
                 <div class="row g-2 small">
                   <div class="col-md-4"><strong>Disease:</strong> <span x-text="detailReport.disease_name"></span></div>
                   <div class="col-md-4"><strong>Location:</strong> <span x-text="detailReport.location_name"></span></div>
-                  <div class="col-md-4"><strong>Cases:</strong> <span x-text="detailReport.case_count"></span></div>
+                  <div class="col-md-4"><strong>Epi Week:</strong> <span x-text="detailReport.epi_week || '—'"></span></div>
+                  <div class="col-md-4">
+                    <strong>Classification:</strong>
+                    <template x-if="detailReport.case_classification === 'CONFIRMED'">
+                      <span class="badge bg-success ms-1">Confirmed</span>
+                    </template>
+                    <template x-if="detailReport.case_classification === 'PROBABLE'">
+                      <span class="badge bg-warning text-dark ms-1">Probable</span>
+                    </template>
+                    <template x-if="detailReport.case_classification === 'SUSPECTED'">
+                      <span class="badge bg-secondary ms-1">Suspected</span>
+                    </template>
+                    <template x-if="!detailReport.case_classification || detailReport.case_classification === 'UNKNOWN'">
+                      <span class="text-muted ms-1">Unknown</span>
+                    </template>
+                  </div>
+                  <div class="col-md-4">
+                    <strong>Report type:</strong>
+                    <template x-if="detailReport.report_type === 'IMMEDIATE'">
+                      <span class="badge bg-danger ms-1">Immediate</span>
+                    </template>
+                    <template x-if="detailReport.report_type === 'OUTBREAK'">
+                      <span class="badge bg-warning text-dark ms-1">Outbreak</span>
+                    </template>
+                    <template x-if="!detailReport.report_type || detailReport.report_type === 'WEEKLY'">
+                      <span class="ms-1">Weekly</span>
+                    </template>
+                  </div>
+                  <div class="col-md-4"><strong>Status:</strong> <span class="badge" :class="getStatusClass(detailReport.status_name)" x-text="detailReport.status_name"></span></div>
+                  <div class="col-md-4">
+                    <strong>Cases:</strong> <span x-text="detailReport.case_count"></span>
+                    <template x-if="detailReport.death_count > 0">
+                      <span class="badge bg-danger ms-1"><i class="bi bi-heartbreak-fill me-1"></i><span x-text="detailReport.death_count"></span> death(s)</span>
+                    </template>
+                  </div>
+                  <div class="col-md-4" x-show="detailReport.health_facility"><strong>Facility:</strong> <span x-text="detailReport.health_facility"></span></div>
                   <div class="col-md-4"><strong>Reported by:</strong> <span x-text="detailReport.reported_by_email || '—'"></span></div>
                   <div class="col-md-4"><strong>Observed:</strong> <span x-text="formatDateTime(detailReport.observed_at)"></span></div>
                   <div class="col-md-4"><strong>Submitted:</strong> <span x-text="formatDateTime(detailReport.submitted_at)"></span></div>
                   <div class="col-md-4" x-show="detailReport.report_source"><strong>Report source:</strong> <span x-text="detailReport.report_source"></span></div>
-                  <div class="col-md-4"><strong>Status:</strong> <span class="badge" :class="getStatusClass(detailReport.status_name)" x-text="detailReport.status_name"></span></div>
-                </div>
-              </div>
-              <div class="mb-3" x-show="detailReport.sex || detailReport.age_group || detailReport.severity_level">
-                <h6 class="text-muted small text-uppercase mb-2">Epidemiological data</h6>
-                <div class="row g-2 small">
-                  <div class="col-md-4" x-show="detailReport.sex"><strong>Sex:</strong> <span x-text="detailReport.sex"></span></div>
-                  <div class="col-md-4" x-show="detailReport.age_group"><strong>Age group:</strong> <span x-text="detailReport.age_group"></span></div>
                   <div class="col-md-4" x-show="detailReport.severity_level"><strong>Severity:</strong> <span x-text="detailReport.severity_level"></span></div>
                 </div>
               </div>
+
+              <div class="mb-3">
+                <h6 class="text-muted small text-uppercase mb-2">Demographics</h6>
+                <div class="row g-2 small">
+                  <div class="col-12">
+                    <strong>Sex breakdown:</strong>
+                    <template x-if="detailReport.male_count > 0 || detailReport.female_count > 0 || detailReport.unknown_sex_count > 0">
+                      <span class="ms-1">
+                        Male <strong x-text="detailReport.male_count"></strong> &nbsp;
+                        Female <strong x-text="detailReport.female_count"></strong> &nbsp;
+                        Unknown <strong x-text="detailReport.unknown_sex_count"></strong>
+                      </span>
+                    </template>
+                    <template x-if="detailReport.male_count === 0 && detailReport.female_count === 0 && detailReport.unknown_sex_count === 0">
+                      <span class="text-muted ms-1">Not recorded</span>
+                    </template>
+                  </div>
+                  <div class="col-12">
+                    <strong>Age breakdown:</strong>
+                    <template x-if="detailReport.age_under5_count > 0 || detailReport.age_5_17_count > 0 || detailReport.age_18_59_count > 0 || detailReport.age_60plus_count > 0 || detailReport.unknown_age_count > 0">
+                      <span class="ms-1">
+                        &lt;5 <strong x-text="detailReport.age_under5_count"></strong> &nbsp;
+                        5–17 <strong x-text="detailReport.age_5_17_count"></strong> &nbsp;
+                        18–59 <strong x-text="detailReport.age_18_59_count"></strong> &nbsp;
+                        60+ <strong x-text="detailReport.age_60plus_count"></strong> &nbsp;
+                        Unknown <strong x-text="detailReport.unknown_age_count"></strong>
+                      </span>
+                    </template>
+                    <template x-if="detailReport.age_under5_count === 0 && detailReport.age_5_17_count === 0 && detailReport.age_18_59_count === 0 && detailReport.age_60plus_count === 0 && detailReport.unknown_age_count === 0">
+                      <span class="text-muted ms-1">Not recorded</span>
+                    </template>
+                  </div>
+                </div>
+              </div>
+
               <div class="mb-0" x-show="detailReport.case_notes">
                 <h6 class="text-muted small text-uppercase mb-2">Additional information</h6>
                 <div class="small bg-light rounded p-2" style="white-space: pre-wrap;" x-text="detailReport.case_notes"></div>

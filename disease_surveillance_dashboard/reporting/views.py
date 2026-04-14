@@ -1,4 +1,5 @@
 
+from datetime import date as dt_date
 from datetime import datetime
 from datetime import time as dt_time
 
@@ -22,6 +23,7 @@ from .forms import ReportUpdateForm
 from .models import DuplicateFlag
 from .models import Report
 from .models import ReportStatus
+from disease_surveillance_dashboard.exports.models import Export
 from disease_surveillance_dashboard.exports.models import record_audit_event
 
 from .serializers import DuplicateFlagSerializer
@@ -276,49 +278,116 @@ class MySubmissionsView(LoginRequiredMixin, ListView):
         )
 
 
+def _epi_week(dt):
+    """Return the ISO epi week for a datetime, formatted as '2024W14'."""
+    iso = dt.isocalendar()
+    return f"{iso.year}W{iso.week:02d}"
+
+
 @login_required
 def export_my_submissions(request):
+    """
+    Download the logged-in user's own reports as CSV.
+
+    Accepts optional query params: from, to, disease
+    Example: /reports/my-submissions/export/?from=2024-01-01&to=2024-03-31
+    """
+    filename = f"my_reports_{dt_date.today().isoformat()}.csv"
     response = HttpResponse(content_type="text/csv")
-    response["Content-Disposition"] = 'attachment; filename="my_reports.csv"'
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+
     writer = csv.writer(response)
-    writer.writerow(
-        [
-            "Report ID",
-            "Disease",
-            "Location",
-            "Cases",
-            "Observed Date",
-            "Created Date",
-            "Status",
-        ]
-    )
+    writer.writerow([
+        "Report ID",
+        "Epi Week",
+        "Disease",
+        "Report Type",
+        "Case Classification",
+        "Location",
+        "Health Facility",
+        "Cases",
+        "Deaths",
+        "Severity",
+        "Report Source",
+        "Male Cases",
+        "Female Cases",
+        "Unknown Sex",
+        "Under 5",
+        "Age 5-17",
+        "Age 18-59",
+        "Age 60+",
+        "Unknown Age",
+        "Observed Date",
+        "Submitted Date",
+        "Status",
+    ])
+
     reports = (
         Report.objects.filter(reported_by=request.user)
         .select_related("disease", "location", "status")
         .order_by("-submitted_at")
     )
+
+    date_from = request.GET.get("from")
+    date_to = request.GET.get("to")
+    disease_id = request.GET.get("disease")
+
+    if date_from:
+        try:
+            reports = reports.filter(observed_at__date__gte=date_from)
+        except (ValueError, TypeError):
+            pass
+    if date_to:
+        try:
+            reports = reports.filter(observed_at__date__lte=date_to)
+        except (ValueError, TypeError):
+            pass
+    if disease_id:
+        reports = reports.filter(disease_id=disease_id)
+
     row_count = 0
     for report in reports:
         location_name = report.location.district_name
         if report.location.area_name:
             location_name = f"{location_name} - {report.location.area_name}"
-        writer.writerow(
-            [
-                report.id,
-                report.disease.disease_name,
-                location_name,
-                report.case_count,
-                report.observed_at.strftime("%Y-%m-%d"),
-                report.submitted_at.strftime("%Y-%m-%d"),
-                report.status.status_name if report.status else "",
-            ]
-        )
+        writer.writerow([
+            report.id,
+            _epi_week(report.observed_at),
+            report.disease.disease_name,
+            report.report_type,
+            report.case_classification,
+            location_name,
+            report.health_facility or "",
+            report.case_count,
+            report.death_count,
+            report.severity_level,
+            report.report_source or "",
+            report.male_count,
+            report.female_count,
+            report.unknown_sex_count,
+            report.age_under5_count,
+            report.age_5_17_count,
+            report.age_18_59_count,
+            report.age_60plus_count,
+            report.unknown_age_count,
+            report.observed_at.strftime("%Y-%m-%d"),
+            report.submitted_at.strftime("%Y-%m-%d"),
+            report.status.status_name if report.status else "",
+        ])
         row_count += 1
+
+    filters = {k: request.GET[k] for k in ["from", "to", "disease"] if request.GET.get(k)}
     record_audit_event(
         actor=request.user,
         action_type="DATA_EXPORT",
         entity_type="MySubmissionsCSV",
         entity_id="bulk",
-        details={"row_count": row_count},
+        details={"row_count": row_count, "filters": filters},
+    )
+    Export.objects.create(
+        export_type=Export.ExportType.CSV,
+        generated_by=request.user,
+        filters_used=filters,
+        status=Export.ExportStatus.COMPLETED,
     )
     return response

@@ -155,6 +155,21 @@
 
 {% block inline_javascript %}
 <script>
+function getCookie(name) {
+  let cookieValue = null;
+  if (document.cookie && document.cookie !== '') {
+    const cookies = document.cookie.split(';');
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i].trim();
+      if (cookie.substring(0, name.length + 1) === (name + '=')) {
+        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+        break;
+      }
+    }
+  }
+  return cookieValue;
+}
+
 function reportsPageData() {
   return {
     reports: [],
@@ -162,15 +177,56 @@ function reportsPageData() {
     pageSize: 20,
     totalCount: 0,
     loading: false,
+    diseases: [],
+    locations: [],
+    filters: {
+      startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      endDate:   new Date().toISOString().split('T')[0],
+      diseaseId:  '',
+      locationId: ''
+    },
 
     async init() {
+      await Promise.all([this.loadDiseases(), this.loadLocations()]);
       await this.loadReports();
+    },
+
+    loadData() {
+      this.page = 1;
+      this.loadReports();
+    },
+
+    async loadDiseases() {
+      try {
+        const r = await fetch('/api/v1/diseases/', { credentials: 'include' });
+        const data = await r.json();
+        this.diseases = Array.isArray(data) ? data : (data.results || []);
+      } catch (e) {
+        console.error('Error loading diseases:', e);
+      }
+    },
+
+    async loadLocations() {
+      try {
+        const r = await fetch('/api/v1/locations/', { credentials: 'include' });
+        const data = await r.json();
+        this.locations = Array.isArray(data) ? data : (data.results || []);
+      } catch (e) {
+        console.error('Error loading locations:', e);
+      }
     },
 
     async loadReports() {
       this.loading = true;
       try {
-        const r = await fetch('/api/v1/dashboard/reports-list/?page=' + this.page + '&page_size=' + this.pageSize, {
+        const p = new URLSearchParams();
+        p.append('page', this.page);
+        p.append('page_size', this.pageSize);
+        if (this.filters.startDate)  p.append('start_date',  this.filters.startDate);
+        if (this.filters.endDate)    p.append('end_date',    this.filters.endDate);
+        if (this.filters.diseaseId)  p.append('disease_id',  this.filters.diseaseId);
+        if (this.filters.locationId) p.append('location_id', this.filters.locationId);
+        const r = await fetch('/api/v1/dashboard/reports-list/?' + p.toString(), {
           credentials: 'same-origin'
         });
         const d = await r.json();

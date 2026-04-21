@@ -1,7 +1,26 @@
 from rest_framework import viewsets
+from rest_framework.permissions import BasePermission
+from rest_framework.permissions import IsAuthenticated
 
+from disease_surveillance_dashboard.dashboard.utils import user_has_role
 from disease_surveillance_dashboard.exports.models import record_audit_event
 from disease_surveillance_dashboard.users.models import create_task_assigned_notification
+
+# same roles that can access the officer/admin dashboard pages
+_OFFICER_OR_ADMIN_ROLES = [
+    "Public Health Officer",
+    "System Administrator",
+    "HEALTH_OFFICER",
+    "ADMIN",
+    "ANALYST",
+    "VERIFIER",
+]
+
+
+class IsOfficerOrAdmin(BasePermission):
+    # only officers and admins can create, update, or delete investigation tasks
+    def has_permission(self, request, view):
+        return user_has_role(request.user, _OFFICER_OR_ADMIN_ROLES)
 
 from .models import InvestigationTask
 from .serializers import InvestigationTaskSerializer
@@ -16,6 +35,13 @@ class InvestigationTaskViewSet(viewsets.ModelViewSet):
     serializer_class = InvestigationTaskSerializer
     filterset_fields = ["task_status", "assigned_to", "alert"]
     search_fields = ["outcome"]
+
+    def get_permissions(self):
+        # reading tasks is open to any logged-in user (e.g. assigned health workers)
+        # creating or changing tasks is restricted to officers and admins
+        if self.action in ["create", "update", "partial_update", "destroy"]:
+            return [IsAuthenticated(), IsOfficerOrAdmin()]
+        return [IsAuthenticated()]
 
     def get_queryset(self):
         """Apply filters from query parameters."""

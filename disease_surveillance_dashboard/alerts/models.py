@@ -6,7 +6,7 @@ from django.utils.translation import gettext_lazy as _
 
 
 class AlertStatus(models.Model):
-    """Model representing the status of an alert."""
+    """Model representing the status of an alert"""
 
     status_name = models.CharField(
         _("Status Name"),
@@ -27,12 +27,12 @@ class AlertStatus(models.Model):
         ]
 
     def __str__(self) -> str:
-        """Return status name as string representation."""
+        """Return status name as string representation """
         return self.status_name
 
 
 class Alert(models.Model):
-    """Model representing a disease surveillance alert."""
+    """Model representing a disease surveillance alert """
 
     disease = models.ForeignKey(
         "reference_data.Disease",
@@ -83,12 +83,12 @@ class Alert(models.Model):
         ]
 
     def __str__(self) -> str:
-        """Return readable string representation."""
+        """Return readable string representation"""
         return f"{self.disease} - {self.location} ({self.severity_level})"
 
 
 class AlertNote(models.Model):
-    """Model representing a note attached to an alert."""
+    """Model representing a note attached to an alert"""
 
     alert = models.ForeignKey(
         "alerts.Alert",
@@ -116,12 +116,12 @@ class AlertNote(models.Model):
         ]
 
     def __str__(self) -> str:
-        """Return first 30 characters of note text."""
+        """Return first 30 characters of note text"""
         return self.note_text[:30] if len(self.note_text) > 30 else self.note_text
 
 
 class AlertEscalation(models.Model):
-    """Model representing an escalation of an alert to a different role."""
+    """Model representing an escalation of an alert to a different role """
 
     alert = models.ForeignKey(
         "alerts.Alert",
@@ -259,7 +259,7 @@ class AlertPerformance(models.Model):
         max_digits=6,
         decimal_places=3,
         default=Decimal("0.000"),
-        help_text=_("false_alarms / (confirmed + false_alarms) when denominator is positive."),
+        help_text=_("false_alarms / (confirmed + false_alarms) when denominator is positive"),
     )
     threshold_used = models.DecimalField(
         _("Threshold (h) at last update"),
@@ -297,8 +297,8 @@ DEFAULT_CUSUM_K = Decimal("0.50")
 
 def resolve_cusum_config(disease_id, location_id):
     """
-    Return (threshold, k, use_seasonal_baseline, CusumThreshold | None).
-    Prefer disease+location row, then disease-wide (location null), else defaults.
+    Return (threshold, k, use_seasonal_baseline, CusumThreshold | None)
+     disease+location row, then disease-wide (location null), else defaults
     """
     specific = CusumThreshold.objects.filter(
         disease_id=disease_id,

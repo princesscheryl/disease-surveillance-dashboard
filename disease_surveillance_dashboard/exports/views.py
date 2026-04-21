@@ -1,11 +1,21 @@
 from rest_framework import viewsets
 from rest_framework.mixins import ListModelMixin, RetrieveModelMixin
+from rest_framework.permissions import BasePermission
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.viewsets import GenericViewSet
+
+from disease_surveillance_dashboard.dashboard.utils import user_is_admin
 
 from .models import AuditLog
 from .models import Export
 from .serializers import AuditLogSerializer
 from .serializers import ExportSerializer
+
+
+class IsAdminRole(BasePermission):
+    # the audit log contains all system actions so only admins should access it
+    def has_permission(self, request, view):
+        return user_is_admin(request.user)
 
 
 class ExportViewSet(viewsets.ModelViewSet):
@@ -29,6 +39,7 @@ class ExportViewSet(viewsets.ModelViewSet):
 
 
 class AuditLogViewSet(ListModelMixin, RetrieveModelMixin, GenericViewSet):
+    permission_classes = [IsAuthenticated, IsAdminRole]
     queryset = AuditLog.objects.select_related("actor_user")
     serializer_class = AuditLogSerializer
     filterset_fields = ["entity_type", "action_type", "actor_user"]

@@ -146,7 +146,7 @@
                               <i class="bi bi-arrow-counterclockwise me-2" aria-hidden="true"></i>Reopen Alert
                             </a>
                           </li>
-                          <li>
+                          <li x-show="canInvestigate(alert)">
                             <a class="dropdown-item" href="#" title="Assign investigation to a team member" @click.prevent="openInvestigateModal(alert)">
                               <i class="bi bi-clipboard me-2" aria-hidden="true"></i>Create Investigation Task
                             </a>
@@ -172,43 +172,64 @@
     {# Investigations table #}
     <div class="col-12 col-lg-6">
       <div class="alert alert-success alert-dismissible fade show py-2 small mb-0"
-           x-show="createTaskSuccessMessage"
+           x-show="createTaskSuccessMessage || taskUpdateSuccessMessage"
            x-transition
            role="alert">
-        <span x-text="createTaskSuccessMessage"></span>
-        <button type="button" class="btn-close btn-close-sm" aria-label="Close" @click="createTaskSuccessMessage = ''"></button>
+        <span x-text="createTaskSuccessMessage || taskUpdateSuccessMessage"></span>
+        <button type="button" class="btn-close btn-close-sm" aria-label="Close" @click="createTaskSuccessMessage = ''; taskUpdateSuccessMessage = ''"></button>
       </div>
       <div class="card h-100">
         <div class="card-header d-flex align-items-center gap-2">
           <i class="bi bi-clipboard2-check-fill text-muted" aria-hidden="true"></i>
-          <h5 class="mb-0">Recent Investigation Tasks</h5>
+          <h5 class="mb-0">Active Investigation Tasks</h5>
         </div>
         <div class="card-body p-0">
           <div class="table-responsive">
             <table class="table table-sm table-hover mb-0">
               <thead>
                 <tr>
-                  <th>Alert ID</th>
+                  <th>Disease / Location</th>
                   <th>Assigned To</th>
                   <th>Status</th>
                   <th>Due Date</th>
+                  <th class="text-end">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 <template x-for="task in recentInvestigations" :key="task.id">
-                  <tr>
-                    <td x-text="task.alert_id || task.alert"></td>
-                    <td x-text="task.assigned_to_email || task.assigned_to_name || 'Unassigned'"></td>
+                  <tr :class="isTaskOverdue(task) ? 'table-danger' : ''">
                     <td>
-                      <span class="badge bg-secondary" x-text="task.task_status"></span>
+                      <div x-text="task.disease_name || ('Alert #' + task.alert_id)"></div>
+                      <div class="text-muted small" x-show="task.location_name" x-text="task.location_name"></div>
+                    </td>
+                    <td x-text="task.assigned_to_name || 'Unassigned'"></td>
+                    <td>
+                      <span class="badge" :class="getTaskStatusClass(task.task_status)" x-text="formatTaskStatus(task.task_status)"></span>
+                      <span x-show="isTaskOverdue(task)" class="badge bg-danger ms-1">Overdue</span>
                     </td>
                     <td x-text="task.due_at ? formatDate(task.due_at) : '—'"></td>
+                    <td class="text-end">
+                      <button class="btn btn-sm btn-outline-secondary"
+                              type="button"
+                              x-show="task.task_status === 'OPEN'"
+                              @click="openTaskUpdateModal(task)"
+                              title="Move this task to In Progress">
+                        Start
+                      </button>
+                      <button class="btn btn-sm btn-outline-success"
+                              type="button"
+                              x-show="task.task_status === 'IN_PROGRESS'"
+                              @click="openTaskUpdateModal(task)"
+                              title="Mark this task as completed">
+                        Complete
+                      </button>
+                    </td>
                   </tr>
                 </template>
                 <tr x-show="recentInvestigations.length === 0">
-                  <td colspan="4" class="text-center text-muted py-4">
+                  <td colspan="5" class="text-center text-muted py-4">
                     <i class="bi bi-inbox d-block mb-1" style="font-size:1.5rem;opacity:0.3;"></i>
-                    No investigation tasks
+                    No active investigation tasks
                   </td>
                 </tr>
               </tbody>
@@ -420,6 +441,62 @@
     </div>
   </div>
 
+  {# Task Status Update modal #}
+  <div class="modal fade"
+       id="taskUpdateModal"
+       tabindex="-1"
+       aria-labelledby="taskUpdateModalLabel"
+       aria-hidden="true"
+       x-ref="taskUpdateModal"
+       x-show="taskUpdateModalOpen"
+       @hidden.bs.modal="taskUpdateModalOpen = false; taskUpdateSelectedTask = null"
+       @keydown.escape.window="closeTaskUpdateModal()">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="taskUpdateModalLabel">
+            <span x-show="taskUpdateNewStatus === 'IN_PROGRESS'">Start Investigation Task</span>
+            <span x-show="taskUpdateNewStatus === 'COMPLETED'">Complete Investigation Task</span>
+          </h5>
+          <button type="button" class="btn-close" aria-label="Close" @click="closeTaskUpdateModal()"></button>
+        </div>
+        <div class="modal-body">
+          <template x-if="taskUpdateSelectedTask">
+            <div>
+              <p class="text-muted small mb-3">
+                <span x-text="taskUpdateSelectedTask.disease_name || ('Alert #' + taskUpdateSelectedTask.alert_id)"></span>
+                <span x-show="taskUpdateSelectedTask.location_name"> &mdash; <span x-text="taskUpdateSelectedTask.location_name"></span></span>
+              </p>
+              <p class="mb-3">
+                <span x-show="taskUpdateNewStatus === 'IN_PROGRESS'">Mark this task as <strong>In Progress</strong>. This means a field investigation has started.</span>
+                <span x-show="taskUpdateNewStatus === 'COMPLETED'">Mark this task as <strong>Completed</strong>. Please provide a brief outcome summary.</span>
+              </p>
+              <div class="mb-3" x-show="taskUpdateNewStatus === 'COMPLETED'">
+                <label for="taskUpdateOutcome" class="form-label">Outcome Summary <span class="text-muted">(optional)</span></label>
+                <textarea id="taskUpdateOutcome"
+                          class="form-control"
+                          rows="3"
+                          placeholder="What was found during the investigation?"
+                          x-model="taskUpdateOutcome"></textarea>
+              </div>
+              <p x-show="taskUpdateError" class="text-danger small mb-0" x-text="taskUpdateError"></p>
+            </div>
+          </template>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" @click="closeTaskUpdateModal()">Cancel</button>
+          <button type="button"
+                  class="btn btn-primary"
+                  :disabled="taskUpdateSubmitting"
+                  @click="submitTaskUpdate()">
+            <span x-show="!taskUpdateSubmitting">Confirm</span>
+            <span x-show="taskUpdateSubmitting">Updating...</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   {# Create Investigation Task modal #}
   <div class="modal fade"
        id="createInvestigationModal"
@@ -460,14 +537,6 @@
                          class="form-control"
                          x-model="createTaskForm.due_at"
                          required>
-                </div>
-                <div class="mb-3">
-                  <label for="createTaskNotes" class="form-label">Notes</label>
-                  <textarea id="createTaskNotes"
-                            class="form-control"
-                            rows="3"
-                            placeholder="Investigation details..."
-                            x-model="createTaskForm.notes"></textarea>
                 </div>
                 <p x-show="createTaskError" class="text-danger small mb-0" x-text="createTaskError"></p>
               </form>

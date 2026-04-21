@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
@@ -201,6 +202,37 @@ class Report(models.Model):
         """True when this report has SUBMITTED status."""
         return self.status.status_name == "SUBMITTED"
 
+    def clean(self):
+        errors = {}
+
+        # deaths can't be more than the total number of cases
+        if self.death_count > self.case_count:
+            errors["death_count"] = "Deaths cannot exceed the total case count."
+
+        # only check sex breakdown if the user actually filled in the counts
+        # (if they are all zero, it just means the breakdown was not provided)
+        sex_total = self.male_count + self.female_count + self.unknown_sex_count
+        if sex_total > 0 and sex_total != self.case_count:
+            errors["male_count"] = (
+                "Sex breakdown counts must add up to the total case count."
+            )
+
+        # same logic for age breakdown
+        age_total = (
+            self.age_under5_count
+            + self.age_5_17_count
+            + self.age_18_59_count
+            + self.age_60plus_count
+            + self.unknown_age_count
+        )
+        if age_total > 0 and age_total != self.case_count:
+            errors["age_under5_count"] = (
+                "Age breakdown counts must add up to the total case count."
+            )
+
+        if errors:
+            raise ValidationError(errors)
+
     def __str__(self) -> str:
         """Return readable string representation."""
         observed_date = self.observed_at.date() if self.observed_at else "Unknown"
@@ -243,6 +275,15 @@ class DuplicateFlag(models.Model):
             models.Index(fields=["report"]),
             models.Index(fields=["reviewed_by"]),
         ]
+
+    def clean(self):
+        # reviewed_by, review_outcome, and reviewed_at all go together
+        # if one is filled in, all three should be filled in
+        review_fields = [self.reviewed_by_id, self.review_outcome, self.reviewed_at]
+        if any(review_fields) and not all(review_fields):
+            raise ValidationError(
+                "reviewed_by, review_outcome, and reviewed_at must all be set together."
+            )
 
     def __str__(self) -> str:
         """Return string representation."""

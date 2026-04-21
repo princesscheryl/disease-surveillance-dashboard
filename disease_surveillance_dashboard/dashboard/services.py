@@ -243,35 +243,53 @@ def get_map_points(start_date=None, end_date=None, disease_id=None):
             reports__observed_at__lte=end_date,
         ).distinct()
 
+    # evaluate the queryset once so we don't iterate it twice
+    locations_list = list(locations)
+    if not locations_list:
+        return []
+
+    location_ids = [loc.id for loc in locations_list]
+
+    # one query to get case totals for all locations at once
+    report_filters = Q(
+        location_id__in=location_ids,
+        observed_at__gte=start_date,
+        observed_at__lte=end_date,
+    )
+    if disease_id:
+        report_filters &= Q(disease_id=disease_id)
+
+    case_totals = (
+        Report.objects.filter(report_filters)
+        .values("location_id")
+        .annotate(total=Sum("case_count"))
+    )
+    cases_by_location = {row["location_id"]: int(row["total"]) for row in case_totals}
+
+    # one query for active alert statuses, then one query for all matching alerts
+    active_statuses = AlertStatus.objects.filter(
+        status_name__in=["New", "Acknowledged", "Investigating"],
+    )
+    alert_filter = Q(location_id__in=location_ids, status__in=active_statuses)
+    if disease_id:
+        alert_filter &= Q(disease_id=disease_id)
+
+    all_active_alerts = (
+        Alert.objects.filter(alert_filter)
+        .select_related("status")
+        .order_by("location_id", "-created_at")
+    )
+
+    # build a dict of location_id -> most recent active alert
+    alerts_by_location = {}
+    for alert in all_active_alerts:
+        if alert.location_id not in alerts_by_location:
+            alerts_by_location[alert.location_id] = alert
+
     result = []
-
-    for location in locations:
-        # Get case count for this location in date range
-        report_filters = Q(
-            location_id=location.id,
-            observed_at__gte=start_date,
-            observed_at__lte=end_date,
-        )
-        if disease_id:
-            report_filters &= Q(disease_id=disease_id)
-
-        cases = Report.objects.filter(report_filters).aggregate(
-            total=Sum("case_count"),
-        )["total"] or 0
-
-        # Check for active alerts
-        alert_filters = Q(location_id=location.id)
-        if disease_id:
-            alert_filters &= Q(disease_id=disease_id)
-
-        active_statuses = AlertStatus.objects.filter(
-            status_name__in=["New", "Acknowledged", "Investigating"],
-        )
-        alert = Alert.objects.filter(
-            alert_filters,
-            status__in=active_statuses,
-        ).select_related("status").first()
-
+    for location in locations_list:
+        cases = cases_by_location.get(location.id, 0)
+        alert = alerts_by_location.get(location.id)
         result.append({
             "location_id": location.id,
             "district_name": location.district_name,
@@ -332,7 +350,7 @@ def get_recent_alerts(limit=10, disease_id=None, location_id=None):
     return result
 
 
-def get_recent_investigations(limit=10, alert_id=None):
+def get_recent_investigations(limit=10, alert_id=None, active_only=False):
     """
     Get recent investigation tasks for operational response table.
 
@@ -340,6 +358,8 @@ def get_recent_investigations(limit=10, alert_id=None):
         list: [{
             "id": int,
             "alert_id": int,
+            "disease_name": str,
+            "location_name": str,
             "assigned_to_name": str or None,
             "task_status": str,
             "due_at": str or None
@@ -348,18 +368,29 @@ def get_recent_investigations(limit=10, alert_id=None):
     filters = Q()
     if alert_id:
         filters &= Q(alert_id=alert_id)
+    if active_only:
+        filters &= Q(task_status__in=["OPEN", "IN_PROGRESS"])
 
     tasks = (
         InvestigationTask.objects.filter(filters)
-        .select_related("alert", "assigned_to")
+        .select_related("alert", "alert__disease", "alert__location", "assigned_to")
         .order_by("-created_at")[:limit]
     )
 
     result = []
     for task in tasks:
+        alert = task.alert
+        disease_name = alert.disease.disease_name if alert and alert.disease_id else ""
+        location_name = ""
+        if alert and alert.location_id:
+            location_name = alert.location.district_name
+            if alert.location.area_name:
+                location_name = f"{location_name} - {alert.location.area_name}"
         result.append({
-            "id": task.id,  # Use default pk field, not task_id
-            "alert_id": task.alert.id,
+            "id": task.id,
+            "alert_id": alert.id if alert else None,
+            "disease_name": disease_name,
+            "location_name": location_name,
             "assigned_to_name": task.assigned_to.name if task.assigned_to else None,
             "task_status": task.task_status,
             "due_at": task.due_at.isoformat() if task.due_at else None,

@@ -1,10 +1,29 @@
 from rest_framework import status
 from rest_framework import viewsets
 from rest_framework.decorators import action
+from rest_framework.permissions import BasePermission
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from disease_surveillance_dashboard.dashboard.utils import user_has_role
 from disease_surveillance_dashboard.exports.models import record_audit_event
 from disease_surveillance_dashboard.users.models import create_escalation_notifications
+
+# roles that are allowed to manually trigger a cusum evaluation
+_OFFICER_OR_ADMIN_ROLES = [
+    "Public Health Officer",
+    "System Administrator",
+    "HEALTH_OFFICER",
+    "ADMIN",
+    "ANALYST",
+    "VERIFIER",
+]
+
+
+class IsOfficerOrAdmin(BasePermission):
+    # only officers and admins should be able to trigger alert evaluations
+    def has_permission(self, request, view):
+        return user_has_role(request.user, _OFFICER_OR_ADMIN_ROLES)
 
 from .models import Alert
 from .models import AlertEscalation
@@ -39,7 +58,7 @@ class AlertViewSet(viewsets.ModelViewSet):
         "threshold_rule",
     ]
 
-    @action(detail=False, methods=["post"])
+    @action(detail=False, methods=["post"], permission_classes=[IsAuthenticated, IsOfficerOrAdmin])
     def evaluate(self, request):
         """
         Evaluate a trend metric and generate an alert if threshold is exceeded.

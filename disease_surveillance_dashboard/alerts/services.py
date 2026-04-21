@@ -60,7 +60,25 @@ def evaluate_trend_and_generate_alert(trend_metric_id):
         trend_metric.location_id,
     )
 
+    # get all earlier trend metrics for the same disease and location, oldest first
+    # so we can roll the cusum forward and carry state into the current evaluation
+    prior_metrics = TrendMetric.objects.filter(
+        disease_id=trend_metric.disease_id,
+        location_id=trend_metric.location_id,
+        period_start__lt=trend_metric.period_start,
+    ).order_by("period_start")
+
     previous_cusum = 0.0
+    for prior in prior_metrics:
+        prior_baseline = float(prior.moving_avg) if prior.moving_avg else 0.0
+        prior_observed = float(prior.total_cases)
+        previous_cusum = compute_cusum(
+            observed_value=prior_observed,
+            baseline_value=prior_baseline,
+            previous_cusum=previous_cusum,
+            k=k_val,
+        )
+
     cusum_value = compute_cusum(
         observed_value=observed_value,
         baseline_value=baseline_value,

@@ -48,10 +48,19 @@ function dashboardData() {
     assignableUsers: [],
     investigateModalOpen: false,
     investigateSelectedAlert: null,
-    createTaskForm: { assigned_to: '', due_at: '', notes: '' },
+    createTaskForm: { assigned_to: '', due_at: '' },
     createTaskError: '',
     createTaskSubmitting: false,
     createTaskSuccessMessage: '',
+
+    /* Task update modal */
+    taskUpdateModalOpen: false,
+    taskUpdateSelectedTask: null,
+    taskUpdateNewStatus: '',
+    taskUpdateOutcome: '',
+    taskUpdateSubmitting: false,
+    taskUpdateError: '',
+    taskUpdateSuccessMessage: '',
 
     /* Alert status update state */
     alertStatuses: [],
@@ -418,7 +427,7 @@ function dashboardData() {
 
     async loadInvestigationTasksFromApi() {
       try {
-        const r = await fetch('/api/v1/investigations/tasks/?status=active', {
+        const r = await fetch('/api/v1/dashboard/recent-investigations/?active_only=true&limit=20', {
           credentials: 'include',
           headers: { 'X-CSRFToken': this.getCsrfToken() }
         });
@@ -433,15 +442,95 @@ function dashboardData() {
 
     canInvestigate(alert) {
       const name = alert && alert.status_name ? alert.status_name : '';
-      return name === 'New' || name === 'Under Investigation';
+      return name === 'New' || name === 'Acknowledged' || name === 'Under Investigation';
+    },
+
+    getTaskStatusClass(status) {
+      if (status === 'OPEN') return 'bg-primary';
+      if (status === 'IN_PROGRESS') return 'bg-warning text-dark';
+      if (status === 'COMPLETED') return 'bg-success';
+      return 'bg-secondary';
+    },
+
+    formatTaskStatus(status) {
+      if (status === 'OPEN') return 'Open';
+      if (status === 'IN_PROGRESS') return 'In Progress';
+      if (status === 'COMPLETED') return 'Completed';
+      return status || '—';
+    },
+
+    isTaskOverdue(task) {
+      if (!task.due_at || task.task_status === 'COMPLETED') return false;
+      return new Date(task.due_at) < new Date();
+    },
+
+    openTaskUpdateModal(task) {
+      this.taskUpdateSelectedTask = task;
+      this.taskUpdateNewStatus = task.task_status === 'OPEN' ? 'IN_PROGRESS' : 'COMPLETED';
+      this.taskUpdateOutcome = '';
+      this.taskUpdateError = '';
+      this.taskUpdateSubmitting = false;
+      this.taskUpdateModalOpen = true;
+      this.$nextTick(() => {
+        const el = this.$refs && this.$refs.taskUpdateModal;
+        if (el && typeof bootstrap !== 'undefined') {
+          const modal = new bootstrap.Modal(el);
+          modal.show();
+        }
+      });
+    },
+
+    closeTaskUpdateModal() {
+      this.taskUpdateModalOpen = false;
+      this.taskUpdateSelectedTask = null;
+      this.taskUpdateError = '';
+      const el = this.$refs && this.$refs.taskUpdateModal;
+      if (el && typeof bootstrap !== 'undefined') {
+        const modal = bootstrap.Modal.getInstance(el);
+        if (modal) modal.hide();
+      }
+    },
+
+    async submitTaskUpdate() {
+      if (!this.taskUpdateSelectedTask) return;
+      this.taskUpdateError = '';
+      this.taskUpdateSubmitting = true;
+      try {
+        const payload = { task_status: this.taskUpdateNewStatus };
+        if (this.taskUpdateOutcome && this.taskUpdateOutcome.trim()) {
+          payload.outcome = this.taskUpdateOutcome.trim();
+        }
+        const r = await fetch('/api/v1/investigations/tasks/' + this.taskUpdateSelectedTask.id + '/', {
+          method: 'PATCH',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': this.getCsrfToken()
+          },
+          body: JSON.stringify(payload)
+        });
+        const data = r.ok ? await r.json().catch(() => ({})) : await r.json().catch(() => ({}));
+        if (r.ok) {
+          this.closeTaskUpdateModal();
+          this.taskUpdateSuccessMessage = 'Task updated successfully.';
+          setTimeout(() => { this.taskUpdateSuccessMessage = ''; }, 4000);
+          await this.loadInvestigationTasksFromApi();
+          this.taskUpdateSubmitting = false;
+          return;
+        }
+        this.taskUpdateError = (data && (data.detail || data.task_status || data.non_field_errors)) || 'Failed to update task.';
+      } catch (e) {
+        console.error('Error updating task:', e);
+        this.taskUpdateError = 'Network or server error. Please try again.';
+      }
+      this.taskUpdateSubmitting = false;
     },
 
     openInvestigateModal(alert) {
       this.investigateSelectedAlert = alert;
       this.createTaskForm = {
         assigned_to: '',
-        due_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        notes: ''
+        due_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
       };
       this.createTaskError = '';
       this.createTaskSubmitting = false;
@@ -481,8 +570,7 @@ function dashboardData() {
           alert: this.investigateSelectedAlert.id,
           assigned_to: parseInt(assignedTo, 10),
           due_at: new Date(dueAt + 'T12:00:00').toISOString(),
-          task_status: 'OPEN',
-          outcome: this.createTaskForm.notes ? String(this.createTaskForm.notes).trim() : null
+          task_status: 'OPEN'
         };
         const r = await fetch('/api/v1/investigations/tasks/', {
           method: 'POST',

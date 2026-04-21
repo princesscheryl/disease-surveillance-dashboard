@@ -368,6 +368,7 @@ def dashboard_recent_investigations(request):
 
     limit = request.query_params.get("limit", 10)
     alert_id = request.query_params.get("alert_id")
+    active_only = request.query_params.get("active_only", "").lower() in ("1", "true", "yes")
 
     try:
         limit = int(limit)
@@ -380,7 +381,7 @@ def dashboard_recent_investigations(request):
         except ValueError:
             alert_id = None
 
-    data = get_recent_investigations(limit=limit, alert_id=alert_id)
+    data = get_recent_investigations(limit=limit, alert_id=alert_id, active_only=active_only)
 
     return Response(data)
 

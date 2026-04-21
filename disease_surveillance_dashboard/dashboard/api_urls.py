@@ -41,7 +41,6 @@ urlpatterns = [
     path("notifications/",             dashboard_notifications_list,    name="notifications-list"),
     path("notifications/mark-read/",   dashboard_notifications_mark_read, name="notifications-mark-read"),
     path("audit-log/",                 dashboard_audit_log,             name="audit-log"),
-    path("audit-log/export/",          dashboard_audit_log_export,      name="audit-log-export"),
     path("alert-statuses/",            dashboard_alert_statuses,        name="alert-statuses"),
     path("alerts/<int:alert_id>/details/",       dashboard_alert_details,       name="alert-details"),
     path("alerts/<int:alert_id>/update-status/", dashboard_alert_update_status, name="alert-update-status"),

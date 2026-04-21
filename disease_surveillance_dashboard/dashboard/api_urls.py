@@ -9,7 +9,6 @@ from .api import dashboard_notifications_list
 from .api import dashboard_notifications_mark_read
 from .api import dashboard_report_details
 from .api import dashboard_report_update_status
-from .api import dashboard_reports_count
 from .api import dashboard_reports_list
 from .api import dashboard_review_reports
 from .api import dashboard_anomalies
